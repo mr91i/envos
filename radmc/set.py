@@ -6,7 +6,8 @@
 #
 import numpy as np
 import pandas as pd
-import cst as cst
+#import cst as cst
+import natconst as cst
 import pickle
 from scipy.interpolate import interp2d
 
@@ -48,19 +49,37 @@ def interpolator( x_ori , y_ori , x_new, y_new ,logx=False ):
 		return lambda x: 10**func( np.log10(x) )
 	else:
 		return lambda x: func(x)
+
+
+#def Produce_Calculate_Parameter():
+
+
+#class Params():
+	# Given parameters
+	# Mass of central star , not including disk and envelope
+#	self.M = 1 
+#	self.T = 1
+	# Model parameter
+#	self.R = 1
+	# Dependent parameters
+#	self.L = 1 # StellarEvolution(R)
+#	self.age = 1 # StellarEvolution(M,L)
+
+def perform_PMODES():
+	os.system( "python3 ../EnDisk_2D.py -o output.pkl" )
 		
 def main():
-	nphot	 = 100000
+	nphot	 = 1000000
 	
 	#
 	# Grid parameters
 	#
-	nr		 = 128
-	ntheta	 = 128
+	nr	 = 512 #128
+	ntheta	 = 256 #128
 	nphi	 = 1
-	rin		 = 1*cst.au
-	rout	 = 500*cst.au
-	thetaup  = 0.0 / 180 * np.pi 
+	rin	 = 0.1*cst.au
+	rout	 = 10000*cst.au
+	thetaup  = 0 / 180 * np.pi 
 #	thetaup  = np.pi*0.5 - 0.7e0
 	#
 	# Disk parameters
@@ -68,17 +87,17 @@ def main():
 	#
 	# Star parameters
 	#
-	mstar	 = cst.Msun
-	rstar	 = cst.Rsun
-	tstar	 = cst.Tsun
+	mstar	 = cst.ms
+	rstar	 = cst.rs
+	tstar	 = cst.ts
 	pstar	 = np.array([0.,0.,0.])
 	#
 	# Make the coordinates
 	#
-	ri		 = np.logspace(np.log10(rin),np.log10(rout),nr+1)
+	ri	 = np.logspace(np.log10(rin),np.log10(rout),nr+1)
 	thetai	 = np.linspace(thetaup,0.5e0*np.pi,ntheta+1)
 	phii	 = np.linspace(0.e0,np.pi*2.e0,nphi+1)
-	rc		 = 0.5 * ( ri[0:nr] + ri[1:nr+1] )
+	rc	 = 0.5 * ( ri[0:nr] + ri[1:nr+1] )
 	thetac	 = 0.5 * ( thetai[0:ntheta] + thetai[1:ntheta+1] )
 	phic	 = 0.5 * ( phii[0:nphi] + phii[1:nphi+1] )
 	#
@@ -194,22 +213,21 @@ def main():
 	#
 	# Write the molecule number density file. 
 	#
-	abunco = 1e-4
-	factco = abunco/(2.34*cst.amu)
-	nco    = rhog * factco
+	abun_mol = 3e-7 ## c18o
+	n_mol  = rhog * abun_mol/(2.34*cst.mp)
 	with open('numberdens_co.inp','w+') as f:
 		f.write('1\n')						 # Format number
 		f.write('%d\n'%(nr*ntheta*nphi))			 # Nr of cells
-		data = nco.ravel(order='F')			 # Create a 1-D view, fortran-style indexing
+		data = n_mol.ravel(order='F')			 # Create a 1-D view, fortran-style indexing
 		data.tofile(f, sep='\n', format="%13.6e")
 		f.write('\n')
 	#
 	# Write the lines.inp control file
 	#
 	with open('lines.inp','w') as f:
-		f.write('1\n')
-		f.write('1\n')
-		f.write('co    leiden	 0	  0\n')
+		f.write('2\n')# 
+		f.write('1\n')# number of molecules
+		f.write('c18o    leiden	0 0 0\n') # molname1 inpstyle1 iduma1 idumb1 ncol1
 	#
 
 	#
