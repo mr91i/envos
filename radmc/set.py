@@ -50,15 +50,15 @@ def interpolator( x_ori , y_ori , x_new, y_new ,logx=False ):
 		return lambda x: func(x)
 		
 def main():
-	nphot	 = 1000000
+	nphot	 = 100000
 	
 	#
 	# Grid parameters
 	#
-	nr		 = 256 #128
-	ntheta	 = 256 #128
+	nr		 = 128
+	ntheta	 = 128
 	nphi	 = 1
-	rin		 = 10*cst.au
+	rin		 = 1*cst.au
 	rout	 = 500*cst.au
 	thetaup  = 0.0 / 180 * np.pi 
 #	thetaup  = np.pi*0.5 - 0.7e0
@@ -91,7 +91,10 @@ def main():
 	zz		 = qq[0]*np.cos( tt )
 	
 	#
-	D = pd.read_pickle("res_6e+05.pkl")
+#	 D = pd.read_pickle("res_5e+05_nocav.pkl")
+#	D = pd.read_pickle("res_1e+05.pkl")
+	D = pd.read_pickle("res_5e+05.pkl")
+
 
 #	rhog = convert_cyl_to_sph( D["den"] , D["r_ax"] , D["z_ax"] , RR , zz)
 

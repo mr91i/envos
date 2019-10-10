@@ -45,8 +45,8 @@ acc_model = 'Hartmann2016'
 high_res = 0
 Ohashi2014 = 0
 CM = 1
-TSC = 0
-use_solution_0th = 0
+TSC = 1
+use_solution_0th = 1
 mp.dbg = 0
 
 
@@ -62,11 +62,11 @@ def main():
 		r_ax  = np.logspace( 0	 , 3 , 601	 )*cst.au
 		th_ax = np.linspace( 0	 , np.pi/2 , 73    )
 
-
 #	th_ax = np.concatenate( [ np.linspace( 0	 , np.pi/2*75/90 ,	15	) , np.linspace( np.pi/2*75/90	 , np.pi/2 , 30   ) ] )
 	
 	if Calc_2D:
-		for t in np.linspace( 1e5 , 1e6 , 10):## #year
+		for t in np.linspace( 5e5 , 5e5 , 1):## #year
+		#for t in np.linspace( 1e5 , 1e6 , 10):## #year
 #		for t in np.logspace( 4 , 6 , 5):## year
 			if Ohashi2014:
 				t=0
@@ -124,11 +124,18 @@ def Plots( re ):
 		draw_map( re['mu0']/np.cos( re['tt'] ), 'mu0_mu',[0, 10] , cbl=r'$\mu_{0}/\mu$', div=10, Vector=Vec,n_sl=40,log=False)
 
 		den0, uR0 , uph0 = slice_at_midplane( tt_p , re['den'] , re['uR'] , re['uph']  )
+		den0_TSC, uR0_TSC , uph0_TSC = slice_at_midplane( tt_p , re['den_TSC'] , re['uR_TSC'] , re['uph_TSC']  )
+
 		mp.say( den0, uR0 , uph0 )
 
 		uph_bal = np.sqrt( re['zeta']*cst.G*re['M']/re['r_ax']	 )
 		uR_bal = np.sqrt(2*cst.G*re['M']/re['r_ax'] - uph_bal**2 ) 
 
+
+
+		mp.plot( { 'log nH2 - 6':np.log10(den0/cst.mn) -6, '-uR':-uR0/cst.kms , 'uph':uph0/cst.kms,	
+				'log nH2_TSC - 6':np.log10(den0_TSC/cst.mn) -6,'-uR_TSC':-uR0_TSC/cst.kms , 'uph_TSC':uph0_TSC/cst.kms }	, f'vden_compare_{tstamp}'	  , x = re['r_ax']/cst.au ,
+				xlim=[0,500],ylim=[-2,10] , lw=[ 3, 3,3,6,6,6], c=['k', ], ls=['-','-','-','--','--','--'], vl=[re["r_CB_0"]*2/cst.au, re["r_in_lim"]/cst.au])
 
 
 		mp.plot( { 'log nH2 - 6':np.log10(den0/cst.mn) -6, '-uR':-uR0/cst.kms , 'uph':uph0/cst.kms , '-uR_bal':uR_bal/cst.kms , 'uph_bal':uph_bal/cst.kms , 'u_max':np.sqrt(uR0**2+ uph0**2)/cst.kms }	, f'v_dens_{tstamp}'	, x = re['r_ax']/cst.au ,
@@ -200,7 +207,7 @@ class Calc_2d_map:
 			root = np.array( [ optimize.brentq(eq, 0, 1 , args=( mu ) )  for mu in mu_ax ] ) 
 		return root
 
-	def get_0th_order_function(self):
+	def get_0th_order_function(self,x):
 		def f0(x, y):
 			ret = np.zeros_like(y)
 			V0	= y[0]
@@ -208,9 +215,9 @@ class Calc_2d_map:
 			ret[0] =	 (al0*(x - V0) - 2/x)*(x-V0)/((x-V0)**2 -1)
 			ret[1] = al0*(al0 - 2/x*(x - V0))*(x-V0)/((x-V0)**2 -1)
 			return ret
-		t = 1e-2
-		x = np.logspace( np.log10(1/t) , np.log10(t**2) , 10000 ) ## determines size of MC 
-
+#		t = 1e-2
+#		x = np.logspace( np.log10(1/t) , np.log10(t**2) , 10000 ) ## determines size of MC 
+		x = np.logspace( 3 , -6  , 1000 )
 		y0 = [ 0 , 2/x[0]**2 ]
 		sol = solve_ivp( f0 , (x[0],x[-1]) , y0 , t_eval=x , dense_output=True, method='BDF',rtol = 1e-12,	atol = [1e-8,1e-15], vectorized=True)
 
@@ -242,10 +249,9 @@ class Calc_2d_map:
 		
 #		mu0 = np.where( mu0==0 , SMALL0 , mu0 )
 		sin = np.where( sin==0 , SMALL0 , sin )
-		Mdot = Mdot * ( mu0 < 1/np.sqrt(2) ) * np.ones_like( mu0 )
+#		Mdot = Mdot * ( mu0 < 1/np.sqrt(2) ) * np.ones_like( mu0 )
+#		Mdot = Mdot * ( mu0 < 0.1 ) * np.ones_like( mu0 )
 	
-	
-
 #		mu_to_mu0 = np.where( mu0 < SMALL1 , 1-zeta , mu/mu0 )
 #		mu_to_mu0 = np.where( mu0 < SMALL1 , 0 , mu/mu0 )
 		mu_to_mu0 = mu/mu0
@@ -258,6 +264,12 @@ class Calc_2d_map:
 		rho = - Mdot / (4 * np.pi * r**2 * ur) / (1 + 2*zeta*self.P2(mu0))
 
 		return rho, ur, uth, uph , zeta, mu0
+	
+	def get_rCB(self, M, Omg, cs, t , j0=None):
+		m0 = 0.975
+		j0 =  Omg * ( m0 * cs * t * 0.5 )**2  if ( j0 is None ) else j0
+		return	j0**2 / ( cst.G * M * 2 )
+
 
 	def get_Kinematics_TSC( self, r , mu , Omg , cs , t  , func=None):
 		m0 = 0.975
@@ -292,14 +304,13 @@ class Calc_2d_map:
 
 		return rho.clip(0), ur, uth, uph 
 
-
-
-	
-
-	def put_Disk_sph(self, r , th , M , Md , Rd , Td):
+	def put_Disk_sph(self, r , th , M , Md , Rd , Td , CM=False):
 		ind = -1
 		R = r*np.sin(th)
 		z = r*np.cos(th)
+		if CM:
+			pass
+		
 		if 1:
 			Sigma_0 = Md/(2*np.pi*Rd**2)/(1-2/np.e)
 			Sigma = Sigma_0 * (R/cst.au)**ind  * np.exp(- (R/Rd)**(2+ind))
@@ -326,14 +337,15 @@ class Calc_2d_map:
 	def calc(self):
 		Disk = 0
 		self.res= {}
-		T = 10
-		cs	= 0.35e5 
+		T	=	10
+#		cs	= 0.35e5 
 		cs	= np.sqrt( cst.kB * T/cst.mn )
 		print(f"cs is {cs/1e5:.2f} km/s")
 		m0	= 0.975
 		Omg = 1e-14
-		Md = 0.1 * cst.Msun
-		Rd = 50 * cst.au
+#		Omg = 0
+		Md	= 0.1 * cst.Msun
+		Rd	= 50 * cst.au
 		Td	= 30
 		r_in_lim = cs*Omg**2* self.t**3
 #		self.r_ax = self.r_ax[ self.r_ax > r_in_lim ]
@@ -346,7 +358,7 @@ class Calc_2d_map:
 			self.M = Mdot * self.t 
 		
 		if use_solution_0th:
-			funcs =  self.get_0th_order_function() 
+			funcs =  self.get_0th_order_function(self.r_ax) 
 		else:
 			funcs = None
 
@@ -357,6 +369,7 @@ class Calc_2d_map:
 			z_ax  = r * np.cos(self.th_ax)
 			mu	  = np.cos( self.th_ax )
 			si	  = np.sqrt( 1 - mu**2 )	
+			rCB = self.get_rCB(self.M, Omg, cs, self.t )
 #			if CM:	
 			if r < r_in_lim or CM:
 				rho, ur, uth, uph, zeta, mu0  = self.get_Kinematics_CM( r , mu , Omg  , cs , self.t , self.M , Mdot ,j0=j0) 
@@ -365,13 +378,14 @@ class Calc_2d_map:
 				rho, ur, uth, uph = self.get_Kinematics_TSC( r , mu , Omg , cs , self.t	, func=funcs)
 				zeta = ( Omg*(m0*cs*self.t/2)**2 )**2/(cst.G*self.M*r)
 				mu0 = np.zeros_like(mu)
+
 			rho_TSC, ur_TSC, uth_TSC, uph_TSC = self.get_Kinematics_TSC( r , mu , Omg , cs , self.t , func=funcs)	
-	
 
 			uR, uz = self.urth_to_uRz( ur , uth , self.th_ax )
 			dic = {'R':R_ax, 'z': z_ax, 'den':rho, 'ur':ur,'uph':uph,'uth':uth,'uR':uR,'uz':uz , 'rr':np.full_like(self.th_ax,r) , 'tt': self.th_ax ,'zeta':zeta, 'mu0':mu0 }
 			uR_TSC, uz_TSC = self.urth_to_uRz( ur_TSC , uth_TSC , self.th_ax )
-			dic.update( {  'den':rho, 'ur':ur,'uph':uph,'uth':uth }  )
+			dic.update( {  'den_TSC':rho_TSC, 'ur_TSC':ur_TSC,'uph_TSC':uph_TSC,'uth_TSC':uth_TSC,'uR_TSC':uR_TSC,'uz_TSC':uz_TSC }  )
+
 			if Disk:
 				rho_disk = self.put_Disk_cyl( R , z_ax , self.M , Md , Rd , Td)	
 				shock_region = ( rho_disk / rho > (cst.gamma +1)/(cst.gamma -1)  )
@@ -388,7 +402,7 @@ class Calc_2d_map:
 		for k,v in self.res.items():
 			self.res[k] = np.array(v)
 
-		self.res.update( {'r_ax':self.r_ax, 'th_ax':self.th_ax, 't':self.t ,'M':self.M, 'r_in_lim':r_in_lim} )
+		self.res.update( {'r_ax':self.r_ax, 'th_ax':self.th_ax, 't':self.t ,'M':self.M, 'r_in_lim':r_in_lim, 'r_CB_0': rCB} )
 		pd.to_pickle( self.res , f"res_{self.t/cst.yr:.0e}.pkl")
 		return 
 
