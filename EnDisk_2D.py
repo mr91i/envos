@@ -53,7 +53,7 @@ mp.dbg = 0
 def main():
 	global Ms, Ls, alpha, f_dg, acc_model
 		
-	M	  =  1 * cst.Msun  # Final mass
+#	M	  =  1 * cst.Msun  # Final mass
 
 	if high_res :
 		r_ax  = np.logspace( 0	, 3 , 1001	)*cst.au
