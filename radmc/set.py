@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 #
-# Import NumPy for array handling
+# Import libraries
 #
 import numpy as np
 import pandas as pd
@@ -11,16 +11,10 @@ import natconst as cst
 import pickle
 from scipy.interpolate import interp2d
 
-mode={'tgas':0}
+mode={'tgas':0,'line':1}
 
-#
-# Import plotting libraries (start Python with ipython --matplotlib)
-#
 #from mpl_toolkits.mplot3d import axes3d
 #from matplotlib import pyplot as plt
-#
-# Monte Carlo parameters
-#
 
 def convert_cyl_to_sph( v_cyl , R_ori , z_ori , RR , zz):
 	if 1:
@@ -77,7 +71,7 @@ def main():
 	nr	 = 512 #128
 	ntheta	 = 256 #128
 	nphi	 = 1
-	rin	 = 0.1*cst.au
+	rin		 = 1*cst.au
 	rout	 = 10000*cst.au
 	thetaup  = 0 / 180 * np.pi 
 #	thetaup  = np.pi*0.5 - 0.7e0
@@ -182,7 +176,8 @@ def main():
 		f.write('%d\n'%(nlam))
 		for value in lam:
 			f.write('%13.6e\n'%(value))
-	#
+
+
 	#
 	# Write the stars.inp file
 	#
@@ -193,6 +188,8 @@ def main():
 		for value in lam:
 			f.write('%13.6e\n'%(value))
 		f.write('\n%13.6e\n'%(-tstar))
+
+
 	#
 	# Write the grid file
 	#
@@ -210,55 +207,68 @@ def main():
 		for value in phii:
 			f.write('%13.6e\n'%(value))		 # Z coordinates (cell walls)
 	
-	#
-	# Write the molecule number density file. 
-	#
-	abun_mol = 3e-7 ## c18o
-	n_mol  = rhog * abun_mol/(2.34*cst.mp)
-	with open('numberdens_co.inp','w+') as f:
-		f.write('1\n')						 # Format number
-		f.write('%d\n'%(nr*ntheta*nphi))			 # Nr of cells
-		data = n_mol.ravel(order='F')			 # Create a 1-D view, fortran-style indexing
-		data.tofile(f, sep='\n', format="%13.6e")
-		f.write('\n')
-	#
-	# Write the lines.inp control file
-	#
-	with open('lines.inp','w') as f:
-		f.write('2\n')# 
-		f.write('1\n')# number of molecules
-		f.write('c18o    leiden	0 0 0\n') # molname1 inpstyle1 iduma1 idumb1 ncol1
-	#
 
-	#
-	# Write the gas velocity field
-	#
-	with open('gas_velocity.inp','w+') as f:
-		f.write('1\n')						 # Format number
-		f.write('%d\n'%(nr*ntheta*nphi))			 # Nr of cells
-		for ip in range(nphi):
-			for it in range(ntheta):
-				for ir in range(nr):
-					f.write('%13.6e %13.6e %13.6e\n'%(vr[ir,it,ip],vth[ir,it,ip],vph[ir,it,ip]))
-	#
-	# Write the microturbulence file
-	#
-	with open('microturbulence.inp','w+') as f:
-		f.write('1\n')						 # Format number
-		f.write('%d\n'%(nr*ntheta*nphi))			 # Nr of cells
-		data = vturb.ravel(order='F')		   # Create a 1-D view, fortran-style indexing
-		data.tofile(f, sep='\n', format="%13.6e")
-		f.write('\n')
-	#
-	# Write the gas temperature
-	#
-	if mode["tgas"]:
-		with open('gas_temperature.inp','w+') as f:
+
+
+	if mode["line"]:
+		mol_name = "c18o"	
+		abun_mol = 3e-7 ## c18o
+		#
+		# Write the molecule number density file. 
+		#	
+		n_mol  = rhog * abun_mol/(2.34*cst.mp)
+		with open('numberdens_%s.inp'%(mol_name),'w+') as f:
 			f.write('1\n')						 # Format number
 			f.write('%d\n'%(nr*ntheta*nphi))			 # Nr of cells
-			data = tgas.ravel(order='F')		  # Create a 1-D view, fortran-style indexing
+			data = n_mol.ravel(order='F')			 # Create a 1-D view, fortran-style indexing
 			data.tofile(f, sep='\n', format="%13.6e")
 			f.write('\n')
+	
+	
+		#
+		# Write the lines.inp control file
+		#
+		with open('lines.inp','w') as f:
+			f.write('2\n')# 
+			f.write('1\n')# number of molecules
+			f.write('%s	 leiden	0 0 0\n'%(mol_name)) # molname1 inpstyle1 iduma1 idumb1 ncol1
+	
+
+		#
+		# Write the gas velocity field
+		#
+		with open('gas_velocity.inp','w+') as f:
+			f.write('1\n')						 # Format number
+			f.write('%d\n'%(nr*ntheta*nphi))			 # Nr of cells
+			for ip in range(nphi):
+				for it in range(ntheta):
+					for ir in range(nr):
+						f.write('%13.6e %13.6e %13.6e\n'%(vr[ir,it,ip],vth[ir,it,ip],vph[ir,it,ip]))
+	
+	
+		#
+		# Write the microturbulence file
+		#
+		with open('microturbulence.inp','w+') as f:
+			f.write('1\n')						 # Format number
+			f.write('%d\n'%(nr*ntheta*nphi))			 # Nr of cells
+			data = vturb.ravel(order='F')		   # Create a 1-D view, fortran-style indexing
+			data.tofile(f, sep='\n', format="%13.6e")
+			f.write('\n')
+	
+	
+		#
+		# Write the gas temperature
+		#
+		if mode["tgas"]:
+			with open('gas_temperature.inp','w+') as f:
+				f.write('1\n')						 # Format number
+				f.write('%d\n'%(nr*ntheta*nphi))			 # Nr of cells
+				data = tgas.ravel(order='F')		  # Create a 1-D view, fortran-style indexing
+				data.tofile(f, sep='\n', format="%13.6e")
+				f.write('\n')
+
+
 	#
 	# Write the dust temperature file
 	# NOTE: You can also remove this, and compute the dust
@@ -269,6 +279,8 @@ def main():
 	#
 	with open('dust_temperature.dat','w+') as f:
 		f.write('1\n')						 # Format number
+
+
 	#
 	# Write the density file
 	#
@@ -279,6 +291,8 @@ def main():
 		data = rhod.ravel(order='F')		 # Create a 1-D view, fortran-style indexing
 		data.tofile(f, sep='\n', format="%13.6e")
 		f.write('\n')
+
+
 	#
 	# Dust opacity control file
 	#
@@ -299,7 +313,8 @@ def main():
 	#
 	with open('radmc3d.inp','w+') as f:
 		f.write('nphot = %d\n'%(nphot))
-		f.write('scattering_mode_max = 1\n')
+#		f.write('scattering_mode_max = 1\n')
+		f.write('scattering_mode_max = 0\n')
 		f.write('iranfreqmode = 1\n')
 		f.write('mc_scat_maxtauabs = 5.d0\n')
 		f.write('tgas_eq_tdust = 1')
