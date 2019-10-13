@@ -4,9 +4,14 @@
 #import set as p
 import numpy as np
 import pandas as pd
-import cst
+#import cst
+import natconst as cst
 from mpl_toolkits.mplot3d import axes3d
+import matplotlib as mpl
+#mpl.use('Agg')
+
 from matplotlib import pyplot as plt
+plt.switch_backend('agg')
 from matplotlib import cm
 import matplotlib.pylab as plb
 from radmc3dPy.image import *	 # Make sure that the shell variable PYTHONPATH points to the RADMC-3D python directory
@@ -26,7 +31,7 @@ ChannelMap = 0
 PVd		   = 1
 
 iline = 2
-incl = 0 
+incl = 90 
 phi  = 0
 posang = 0
 #
@@ -77,29 +82,27 @@ if DensProf or TempProf:
 
 if Obs:
 
-#		for wl in [3, 30 , 1400 ]:
-#		wl = 5
-#		makeImage(npix=200, incl=incl, phi=phi, posang=posang, wav=wl , sizeau=500)		 # This calls radmc3d 
-		makeImage(npix=100, incl=incl, phi=phi, posang=posang, sizeau=500 , iline=iline, widthkms=10, linenlam=50, fluxcons=False)		# This calls radmc3d 
+#	for wl in [3, 30 , 1400 ]:
+#	wl = 5
+#	makeImage(npix=200, incl=incl, phi=phi, posang=posang, wav=wl , sizeau=500)	 # This calls radmc3d 
+#        makeImage(npix=200, incl=incl, phi=phi, posang=posang, sizeau=500 , iline=iline, widthkms=10, linenlam=100, fluxcons=False)      # This calls radmc3d 
 
-		fig2  = plt.figure()
-		a=readImage()
-		fitsheadkeys = {'MEMO': 'This is just test'  }
-		a.writeFits(fname='test3.fits', dpc=140 , fitsheadkeys=fitsheadkeys )
-		plotImage(a, log=True, cmap=cm.hot, maxlog=6, bunit='snu', dpc=140, arcsec=True)
-				#plotImage(a,log=True,au=True,maxlog=6,cmap='hot')
-		fig2.savefig( "obs.pdf")
+	fig2  = plt.figure()
+	a=readImage()
+	fitsheadkeys = {'MEMO': 'This is just test'  }
+	a.writeFits(fname='test3.fits', dpc=140 , fitsheadkeys=fitsheadkeys )
+	plotImage(a, log=True, cmap=cm.hot, maxlog=6, bunit='snu', dpc=140, arcsec=True)
+		#plotImage(a,log=True,au=True,maxlog=6,cmap='hot')
+	fig2.savefig( "obs.pdf")
 
-		if ChannelMap:
-				for vkms in [0.5,1.0]:
-						fig5  = plt.figure()
-		#				makeImage( npix=300., incl=incl, phi=phi, sizeau=100., vkms=vkms, iline=2)
-						a = readImage()
-						#print(a)
-						plotImage(a, arcsec=True, dpc=140., cmap=plb.cm.gist_heat)
-						fig5.savefig("chmap_%f.pdf"%(vkms))
-
-
+	if ChannelMap:
+		for vkms in [0.5,1.0]:
+			fig5  = plt.figure()
+	#		makeImage( npix=300., incl=incl, phi=phi, sizeau=100., vkms=vkms, iline=2)
+			a = readImage()
+			#print(a)
+			plotImage(a, arcsec=True, dpc=140., cmap=plb.cm.gist_heat)
+			fig5.savefig("chmap_%f.pdf"%(vkms))
 
 if Line:
 #	os.system("radmc3d calcpop")
@@ -128,18 +131,18 @@ if PVd:
 	mol   = readMol('co')
 	freq0  = mol.freq[iline-1]
 
-	dx = 10
+	dx = 2
 	x_ax = np.arange(0,300,dx)
 #	dx = x_ax[1] - x_ax[0]
 
 	for x in x_ax:
-		pos = ( x-dx/2, x+dx/2 , -dx , dx)
+		pos = ( x-0.5*dx, x+0.5*dx , -dx , dx)
 		zoomau = "zoomau %f %f %f %f"%(pos)
 #		print(zoomau)
 		angle = "incl %d phi %d"%(incl,phi)	
 #		vreso = "widthkms 6 linenlam 72"
 		vreso = "widthkms 6 linenlam 72"
-		os.system("radmc3d spectrum iline %d %s %s %s setthreads 4"%(iline,vreso,angle,zoomau))
+		os.system("radmc3d spectrum iline %d %s %s %s setthreads 16 nofluxcons"%(iline,vreso,angle,zoomau))
 		s=readSpectrum()
 #		print(s)
 		freq = 1e4*cc/s[:,0] 
@@ -154,10 +157,11 @@ if PVd:
 #	plotSpectrum(s,mol=mol,ilin=iline,dpc=140.)
 #	plt.show()
 #	fig4.savefig("line.pdf")
-
+        fig6  = plt.figure()
 	c  = plb.contourf( x_ax ,vkms , np.array(intens).T , 30)
 	cb = plb.colorbar(c)
-	plt.show()	
+	#plt.show()	
+        fig6.savefig("PVd.pdf")
 
 
 
