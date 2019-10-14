@@ -10,17 +10,18 @@ from matplotlib.cm import ScalarMappable
 
 def GridContour(xx, yy ,  z , n_lv=20 , cbmin=None, cbmax=None):
 	cmap = plt.get_cmap('viridis')
-
-#	levels = MaxNLocator(nbins=n_lv).tick_values(z.min(), z.max())
+	if cbmin == None:
+		cbmin = z.min()
+	if cbmax == None:
+		cbmax = z.max() 
 	levels = MaxNLocator(nbins=n_lv).tick_values(cbmin, cbmax)
 	norm = BoundaryNorm(levels, ncolors=cmap.N, clip=True)
 	return plt.pcolormesh(xx, yy, z, cmap=cmap, norm=norm, rasterized=True)
 
+chmap = 0
+pvd = 1
 
-chmap = 1
-pvd = 0
-
-list = iofits.open("test3.fits")
+list = iofits.open("obs.fits")
 pic = list[0]
 header = pic.header
 data = pic.data
@@ -57,11 +58,12 @@ if pvd:
 	vkms = cst.c/1e5* dfreq*(0.5*(Nz-1) - np.arange(len(data)) )/freq0
 	xx, vv = np.meshgrid(x,vkms)
 	I_pv = integrate.simps(  data[ : , int(Nx/2)-4:int(Nx/2)+4 , : ] , axis=1) 
-
+	print(I_pv,x, vkms)
 #	im = plt.plot(xx, vv, I_pv*1e4, cmap='viridis',levels=n_lv)
 
 	print(xx.shape, vv.shape, I_pv.shape )
-	im = GridContour(xx, vv, I_pv*1e4 , n_lv=n_lv)
+	
+	im = GridContour(xx, vv, I_pv*1e4 , n_lv=n_lv )
 
 	plt.xlabel("Position [au]")
 	plt.ylabel(r"Velocity [km s$^{-1}$]")

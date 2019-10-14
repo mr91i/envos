@@ -21,19 +21,22 @@ import subprocess
 DensityMap = 0
 DensProf   = 0
 TempProf   = 0
-Obs		   = 1
+Obs		   = 0
 SED		   = 0	
 Line	   = 0
 ChannelMap = 0
 PVd		   = 0
 
+Fits  = 1 
+
+## Global parameters
 iline = 2
 incl = 90 
 phi  = 0
 posang = 0
+n_thread = 4
 
-
-def read_Physical_Profile():
+def plot_Physical_Profile():
 	data = readData(ddens=True,dtemp=True,binary=False)
 	rr, tt = np.meshgrid(data.grid.x/cst.au, data.grid.y, indexing='xy')
 	plt.xlim([0,500])
@@ -48,9 +51,9 @@ def read_Physical_Profile():
 	if TempProf:
 		fig  = plt.figure()
 
-#		c  = plb.contourf( rr*np.sin(tt) , rr*np.cos(tt), data.dusttemp[:,:,0,0].T, 30)
-#		cb = plb.colorbar(c)
-#		fig.savefig("temp.pdf")
+		c  = plb.contourf( rr*np.sin(tt) , rr*np.cos(tt), data.dusttemp[:,:,0,0].T, 30)
+		cb = plb.colorbar(c)
+		fig.savefig("temp.pdf")
 
 		print( data.dusttemp[:,-1,0,0].T )
 		plb.plot( data.grid.x/cst.au , data.dusttemp[:,-1,0,0].T)
@@ -61,19 +64,29 @@ def read_Physical_Profile():
 		plb.show()
 		
 
-def Synthetic_Observation(wl=5, save_fits=True):
+def Synthetic_Observation(wl=5):
 	makeImage(npix=200, incl=incl, phi=phi, posang=posang, wav=wl , sizeau=500 )	 # This calls radmc3d 
 	fig		  = plt.figure()
 	obs_data  = readImage()
-	if save_fits:
-		fitsheadkeys = {'MEMO': 'This is just test'  }
-		obs_data.writeFits(fname='obs.fits', dpc=140 , fitsheadkeys=fitsheadkeys )
 	plotImage(obs_data, log=True, cmap=cm.hot, maxlog=6, bunit='snu', dpc=140, arcsec=True)
 	fig.savefig("obs.pdf")
 
 
+def make_fits_data():
+	common = "incl %d phi %d posang %d setthreads %d "%(incl,phi,posang,n_thread)
+	option = "fluxcons noscat "
+	cmd = "radmc3d image npix 200 iline %d widthkms 10 linenlam 30 sizeau 500 "%(iline) + common + option
+	subprocess.call(cmd,shell=True)
+#	if "ERROR" in ret :
+#		exit(1)
+	fig		  = plt.figure()
+	obs_data  = readImage()
+	fitsheadkeys = {'MEMO': 'This is just test'  }
+	obs_data.writeFits(fname='obs.fits', dpc=140 , fitsheadkeys=fitsheadkeys )
+
+
 def calc_Line_profile():
-	os.system("radmc3d spectrum iline %d incl %d phi %d widthkms 2 linenlam 4 setthreads 4 circ zoomau -1 1 -1 1 truepix"%(iline,incl,phi))
+	os.system("radmc3d spectrum iline %d incl %d phi %d widthkms 2 linenlam 4 setthreads 4 zoomau -1 1 -1 1 truepix"%(iline,incl,phi))
 	fig = plt.figure()
 	s	= readSpectrum()
 	mol = readMol('co')
@@ -130,10 +143,13 @@ def calc_SED():
 if __name__=='__main__':
 	
 	if DensProf or TempProf:
-		read_Physical_Profile()
+		plot_Physical_Profile()
 
 	if Obs:
 		Synthetic_Observation()
+
+	if Fits:
+		make_fits_data()
 
 	if Line:
 		calc_Line_profile()
