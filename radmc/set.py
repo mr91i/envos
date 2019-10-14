@@ -68,11 +68,11 @@ def main():
 	#
 	# Grid parameters
 	#
-	nr		 = 128
-#	ntheta	 = 128
-	ntheta	 = 64
+	nr		 = 256 #128
+	ntheta	 = 128
+#	ntheta	 = 64
 	nphi	 = 1
-	rin		 = 10*cst.au
+	rin		 = 1*cst.au
 	rout	 = 10000*cst.au
 	thetaup  = 0 / 180 * np.pi 
 #	thetaup  = np.pi*0.5 - 0.7e0

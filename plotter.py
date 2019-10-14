@@ -1,7 +1,7 @@
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-from col import *
+#from col import *
 from scipy.interpolate import interp2d,griddata
 
 dbg = 1

@@ -3,6 +3,8 @@
 
 import numpy as np
 import natconst as cst
+print(vars(cst))
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 
 from matplotlib import ticker
@@ -41,8 +43,8 @@ acc_model = 'Hartmann2016'
 high_res = 0
 Ohashi2014 = 0
 CM = 1
-TSC = 1
-use_solution_0th = 1
+TSC = 0
+use_solution_0th = 0
 mp.dbg = 0
 
 class Param:
@@ -60,14 +62,14 @@ def main():
 	else:
 		r_ax  = np.logspace( 0	 , 3 , 601	 )*cst.au
 		th_ax = np.linspace( 0	 , np.pi/2 , 73    )
-	
+	print(r_ax)
 	if Calc_2D:
 		for t in np.linspace( 5e5 , 5e5 , 1):## #year
 		#for t in np.linspace( 1e5 , 1e6 , 10):## #year
 #		for t in np.logspace( 4 , 6 , 5):## year
 			if Ohashi2014:
 				t=0
-			Cm = Calc_2d_map( t , r_ax , th_ax ,  M )
+			Cm = Calc_2d_map( t , r_ax , th_ax	)
 			Cm.calc()
 			Plots( Cm.res )
 			if Ohashi2014:
@@ -140,11 +142,11 @@ def Plots( re ):
 
 class Calc_2d_map:
 
-	def __init__(self , t , r_ax , th_ax , M):
-		self.t	  = t  * cst.yr
+	def __init__(self , t , r_ax , th_ax ):
+		self.t	  = t  * cst.year
 		self.r_ax = r_ax
 		self.th_ax = th_ax
-		self.M	  = M 
+		self.M	  = 0
 		self.P2			= lambda x: 0.5*(3*x**2-1)
 		self.dP2_dtheta = lambda x: -3*x*np.sqrt(1-x**2)
 
@@ -226,7 +228,7 @@ class Calc_2d_map:
 		
 #		mu0 = np.where( mu0==0 , SMALL0 , mu0 )
 		sin = np.where( sin==0 , SMALL0 , sin )
-#		Mdot = Mdot * ( mu0 < 1/np.sqrt(2) ) * np.ones_like( mu0 )
+		Mdot = Mdot * ( mu0 < 1/np.sqrt(2) ) * np.ones_like( mu0 )
 #		Mdot = Mdot * ( mu0 < 0.1 ) * np.ones_like( mu0 )
 	
 #		mu_to_mu0 = np.where( mu0 < SMALL1 , 1-zeta , mu/mu0 )
@@ -307,7 +309,8 @@ class Calc_2d_map:
 #		return 
 
 	def calc(self):
-		Disk = 0
+		print("start calc")
+		Disk = 1
 		self.res= {}
 		T	=	10
 #		cs	= 0.35e5 
@@ -317,9 +320,6 @@ class Calc_2d_map:
 	
 		Omg = 1e-14 if par.Rotation else 0
 
-		Md	= 0.1 * cst.Msun
-		Rd	= 50 * cst.au
-		Td	= 30
 		r_in_lim = cs*Omg**2* self.t**3
 #		self.r_ax = self.r_ax[ self.r_ax > r_in_lim ]
 		Mdot = cs**3*m0/cst.G
@@ -338,6 +338,7 @@ class Calc_2d_map:
 		print("M is ",self.M/cst.Msun)
 
 		for r in self.r_ax:
+			print(r)
 			R_ax  = r * np.sin(self.th_ax)
 			z_ax  = r * np.cos(self.th_ax)
 			mu	  = np.cos( self.th_ax )
@@ -360,8 +361,11 @@ class Calc_2d_map:
 				dic.update( {  'den_TSC':rho_TSC, 'ur_TSC':ur_TSC,'uph_TSC':uph_TSC,'uth_TSC':uth_TSC,'uR_TSC':uR_TSC,'uz_TSC':uz_TSC }  )
 
 			if Disk:
+				Md	= 0.1*self.M
+				Rd	= get_rCB(self.M, Omg, cs, self.t ) # 50 * cst.au
+				Td	= 30
 				rho_disk	 = self.put_Disk_cyl( R , z_ax , self.M , Md , Rd , Td)	
-				shock_region = ( rho_disk / rho > (cst.gamma +1)/(cst.gamma -1)  )
+#				shock_region = ( rho_disk / rho > (cst.gamma +1)/(cst.gamma -1)  )
 				v_Kep		 = np.sqrt(cst.G * self.M/R )
 				vphi_tot	 = uph * 1
 				vphi_tot[rho_disk > rho] = v_Kep[rho_disk > rho]
@@ -380,7 +384,7 @@ class Calc_2d_map:
 		return 
 
 
-	exit()
+#	exit()
 
 ##########################################################################################################################
 
