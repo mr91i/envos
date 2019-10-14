@@ -26,6 +26,8 @@ pic = list[0]
 header = pic.header
 data = pic.data
 d = 140 * cst.pc
+print(vars(header))
+print(data )
 
 Nx, Ny, Nz = header["NAXIS1"], header["NAXIS2"], header["NAXIS3"]
 

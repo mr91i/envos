@@ -74,15 +74,19 @@ def Synthetic_Observation(wl=5):
 
 def make_fits_data():
 	common = "incl %d phi %d posang %d setthreads %d "%(incl,phi,posang,n_thread)
-	option = "fluxcons noscat "
-	cmd = "radmc3d image npix 200 iline %d widthkms 10 linenlam 30 sizeau 500 "%(iline) + common + option
+	option = "nofluxcons noscat "
+	cmd = "radmc3d image  iline %d widthkms 5 linenlam 100 npix 200 sizeau 200 "%(iline) + common + option
+#	cmd = "radmc3d image  iline %d widthkms 5 linenlam 2 zoomau -200 200 -20 20 npixx 160 npixy 16 truepix "%(iline) + common + option
 	subprocess.call(cmd,shell=True)
 #	if "ERROR" in ret :
 #		exit(1)
 	fig		  = plt.figure()
 	obs_data  = readImage()
-	fitsheadkeys = {'MEMO': 'This is just test'  }
-	obs_data.writeFits(fname='obs.fits', dpc=140 , fitsheadkeys=fitsheadkeys )
+	print(vars(obs_data))
+	print(obs_data.image.shape)
+	obs_data.writeFits(fname='obs.fits', dpc=140 )
+#	fitsheadkeys = {'MEMO': 'This is just test'  }
+#	obs_data.writeFits(fname='obs.fits', dpc=140 , fitsheadkeys=fitsheadkeys )
 
 
 def calc_Line_profile():

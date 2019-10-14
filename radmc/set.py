@@ -63,15 +63,16 @@ def perform_PMODES():
 	os.system( "python3 ../EnDisk_2D.py -o output.pkl" )
 		
 def main():
-	nphot	 = 1000000
+	nphot	 = 100000
 	
 	#
 	# Grid parameters
 	#
-	nr	 = 512 #128
-	ntheta	 = 256 #128
+	nr		 = 128
+#	ntheta	 = 128
+	ntheta	 = 64
 	nphi	 = 1
-	rin		 = 1*cst.au
+	rin		 = 10*cst.au
 	rout	 = 10000*cst.au
 	thetaup  = 0 / 180 * np.pi 
 #	thetaup  = np.pi*0.5 - 0.7e0
@@ -105,8 +106,8 @@ def main():
 	
 	#
 #	 D = pd.read_pickle("res_5e+05_nocav.pkl")
-#	D = pd.read_pickle("res_1e+05.pkl")
-	D = pd.read_pickle("res_5e+05.pkl")
+	D = pd.read_pickle("res_1e+05.pkl")
+#	D = pd.read_pickle("res_5e+05.pkl")
 
 
 #	rhog = convert_cyl_to_sph( D["den"] , D["r_ax"] , D["z_ax"] , RR , zz)
