@@ -4,12 +4,12 @@ set -e
 
 make cleanall
 
-./set.py
+python3 ./set.py
 
-radmc3d mctherm setthreads 4
+radmc3d mctherm setthreads 16
 
-./plot.py
+python2 ./plot.py
 
-
+python3 ./read_fits.py
 
 

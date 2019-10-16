@@ -17,26 +17,28 @@ from radmc3dPy.analyze import *  # Make sure that the shell variable PYTHONPATH 
 from radmc3dPy.natconst import * # Make sure that the shell variable PYTHONPATH points to the RADMC-3D python directory
 import subprocess
 #import myplot as mp
+#import plotter as pl
 
 DensityMap = 0
-DensProf   = 0
-TempProf   = 0
+DensProf   = 1
+TempProf   = 1
 Obs		   = 0
-SED		   = 0	
+SED		   = 1	
 Line	   = 0
 ChannelMap = 0
 PVd		   = 0
 
-Fits  = 1 
+Fits  = 0
 
 ## Global parameters
 iline = 2
 incl = 90 
 phi  = 0
 posang = 0
-n_thread = 4
+n_thread = 16
 
 def plot_Physical_Profile():
+
 	data = readData(ddens=True,dtemp=True,binary=False)
 	rr, tt = np.meshgrid(data.grid.x/cst.au, data.grid.y, indexing='xy')
 	plt.xlim([0,500])
@@ -48,20 +50,30 @@ def plot_Physical_Profile():
 		cb = plb.colorbar(c)
 		fig.savefig("dens.pdf")
 
+		fig  = plt.figure()
+		plb.plot( data.grid.x/cst.au , data.rhodust[:,-1,0,0].T)
+		plt.xlim([10,10000])
+		#plt.ylim([1,1000])	
+		plt.xscale('log')
+		plt.yscale('log')
+		fig.savefig("dens_plf.pdf")
+		plb.show()
+
 	if TempProf:
 		fig  = plt.figure()
-
 		c  = plb.contourf( rr*np.sin(tt) , rr*np.cos(tt), data.dusttemp[:,:,0,0].T, 30)
 		cb = plb.colorbar(c)
 		fig.savefig("temp.pdf")
 
-		print( data.dusttemp[:,-1,0,0].T )
+		fig  = plt.figure()
 		plb.plot( data.grid.x/cst.au , data.dusttemp[:,-1,0,0].T)
-		plt.xlim([1,1000])
+		plt.xlim([10,10000])
 		plt.ylim([1,1000])	
 		plt.xscale('log')
 		plt.yscale('log')
+		fig.savefig("temp_plf.pdf")
 		plb.show()
+
 		
 
 def Synthetic_Observation(wl=5):
@@ -74,8 +86,9 @@ def Synthetic_Observation(wl=5):
 
 def make_fits_data():
 	common = "incl %d phi %d posang %d setthreads %d "%(incl,phi,posang,n_thread)
-	option = "nofluxcons noscat "
-	cmd = "radmc3d image  iline %d widthkms 5 linenlam 100 npix 200 sizeau 200 "%(iline) + common + option
+	option = "fluxcons "
+	cmd = "radmc3d image iline %d widthkms 8 linenlam 100 npix 200 sizeau 500 "%(iline) + common + option
+#	cmd = "radmc3d image  iline %d widthkms 10 linenlam 200 npix 200 sizeau 400 "%(iline) + common + option
 #	cmd = "radmc3d image  iline %d widthkms 5 linenlam 2 zoomau -200 200 -20 20 npixx 160 npixy 16 truepix "%(iline) + common + option
 	subprocess.call(cmd,shell=True)
 #	if "ERROR" in ret :
@@ -128,7 +141,7 @@ def calc_PVdiagram():
 # Make and plot the SED as seen at 1 pc distance
 #
 def calc_SED():
-	os.system("radmc3d sed incl %d phi %d setthreads 4"%(incl,phi))
+	os.system("radmc3d sed incl %d phi %d setthreads %d noscat "%(incl,phi,n_thread))
 	fig3  = plt.figure()
 	s	  = readSpectrum()
 	lam   = s[:,0]

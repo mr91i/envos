@@ -2,11 +2,15 @@ import numpy as np
 import astropy.io.fits as iofits
 import matplotlib.pyplot as plt
 from scipy import integrate
+import sys
 import cst
 from scipy import interpolate
 from matplotlib.colors import BoundaryNorm
 from matplotlib.ticker import MaxNLocator
 from matplotlib.cm import ScalarMappable
+plt.switch_backend('agg')
+
+
 
 def GridContour(xx, yy ,  z , n_lv=20 , cbmin=None, cbmax=None):
 	cmap = plt.get_cmap('viridis')
@@ -18,7 +22,7 @@ def GridContour(xx, yy ,  z , n_lv=20 , cbmin=None, cbmax=None):
 	norm = BoundaryNorm(levels, ncolors=cmap.N, clip=True)
 	return plt.pcolormesh(xx, yy, z, cmap=cmap, norm=norm, rasterized=True)
 
-chmap = 0
+chmap = 1
 pvd = 1
 
 list = iofits.open("obs.fits")
@@ -55,6 +59,7 @@ if chmap:
 		plt.title(f"v = {vkms:.3f} km/s")
 		plt.savefig(f"chmap_{i:0=4d}.pdf", bbox_inches="tight" , dpi = 300)
 		plt.clf()
+
 if pvd:	
 	n_lv = 20
 	vkms = cst.c/1e5* dfreq*(0.5*(Nz-1) - np.arange(len(data)) )/freq0

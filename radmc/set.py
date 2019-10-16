@@ -9,12 +9,9 @@ import pandas as pd
 #import cst as cst
 import natconst as cst
 import pickle
-from scipy.interpolate import interp2d
+from scipy.interpolate import interp2d,interp1d
 
-mode={'tgas':0,'line':1}
-
-#from mpl_toolkits.mplot3d import axes3d
-#from matplotlib import pyplot as plt
+mode={'tgas':0,'line':0}
 
 def convert_cyl_to_sph( v_cyl , R_ori , z_ori , RR , zz):
 	if 1:
@@ -26,23 +23,44 @@ def convert_cyl_to_sph( v_cyl , R_ori , z_ori , RR , zz):
 		f = interp2d( R_ori , z_ori , v_cyl )
 		fv = np.vectorize(f)
 		v_sph = fv( RR , zz)
-#	print(zz,np.log10(zz))
 	return v_sph
 
-def interpolator( x_ori , y_ori , x_new, y_new ,logx=False ):
+def interpolator2( value, x_ori , y_ori , x_new, y_new ,logx=False, logy=False, logz=False ):
+
 	if logx:
-		x_ori = np.log10(x_ori) 
-#		x2_ori = np.log10(x2_ori)
+		x_ori = np.log10(x_ori)
 		x_new = np.log10(x_new)
-#		x2_new = np.log10(x2_new)
-	def func(v):
-		f = interp2d( x_ori , y_ori , v.T  )
-		fv = np.vectorize(f)
-		return fv( x_new  , y_new )
-	if logx :
-		return lambda x: 10**func( np.log10(x) )
+
+	if logy:
+		y_ori = np.log10(y_ori)
+		y_new = np.log10(y_new)
+
+	if logz:
+		sign  = np.sign(value)
+		value = np.log10(np.abs(value))		
+
+	def extrapolate( x , v ):
+		for i in range( len(v[0,:] )):
+			x_red = x[:,i][np.isfinite(v[:,i])]
+			v_red = v[:,i][np.isfinite(v[:,i])]
+			try:
+				f = interp1d( x_red , v_red , 'linear' , fill_value='extrapolate')
+				v[:,i] = f(x[:,i])
+			except:
+				print("Use zeros for extrapolation, i = ",i )
+				v[:,i] = np.nan
+		return v
+
+	f = interp2d( x_ori , y_ori , value.T , fill_value = np.nan )
+	fv = np.vectorize(f)
+	ret =  fv( x_new  , y_new ) 
+	ret = extrapolate( x_new , ret )
+
+	if logz:
+		return (10**ret).clip(0) 
 	else:
-		return lambda x: func(x)
+		return ret
+
 
 
 #def Produce_Calculate_Parameter():
@@ -63,19 +81,17 @@ def perform_PMODES():
 	os.system( "python3 ../EnDisk_2D.py -o output.pkl" )
 		
 def main():
-	nphot	 = 100000
+	nphot	 = 1000000
 	
 	#
 	# Grid parameters
 	#
-	nr		 = 256 #128
-	ntheta	 = 128
-#	ntheta	 = 64
+	nr		 = 256#512 #128
+	ntheta	 = 128 #256
 	nphi	 = 1
-	rin		 = 1*cst.au
+	rin		 = 10*cst.au
 	rout	 = 10000*cst.au
 	thetaup  = 0 / 180 * np.pi 
-#	thetaup  = np.pi*0.5 - 0.7e0
 	#
 	# Disk parameters
 	#
@@ -105,41 +121,18 @@ def main():
 	zz		 = qq[0]*np.cos( tt )
 	
 	#
-#	 D = pd.read_pickle("res_5e+05_nocav.pkl")
-	D = pd.read_pickle("res_1e+05.pkl")
-#	D = pd.read_pickle("res_5e+05.pkl")
+	D = pd.read_pickle("res_5e+05_nocav.pkl")
+#	D = pd.read_pickle("res_5e+05_sph.pkl")
+#	 D = pd.read_pickle("res_5e+05.pkl")
+#	D = pd.read_pickle("res_1e+05.pkl")
 
 
-#	rhog = convert_cyl_to_sph( D["den"] , D["r_ax"] , D["z_ax"] , RR , zz)
-
-#	print(D["r_ax"])
-
-	interp = interpolator(	D["r_ax"] , D["th_ax"]	, rr, tt , logx=True)
-	rhog = interp( D["den"]  )
-
-#	print( D["den"] , rhog )
-#	exit(1)
+	rhog = interpolator2( D["den"] , D["r_ax"] , D["th_ax"]  , rr, tt , logx=True, logz=True)
 
 	rhod = rhog * 0.01
-	vr	= interp( -D["ur"])
-	vth =  interp(	D["uth"])
-	vph =  interp( D["uph"])
-
-	
-
-#	print(rhog)
-#	exit(1)
-
-	#
-	# Make a simple solid-body rotating gas flow
-	#
-	
-#	tgas	= np.zeros((nr,ntheta,nphi)) + 280*(rr/cst.au)**(-0.5)
-#	vcir	= rrcyl * omega
-#	vx		=  vcir * yy / ( rrcyl + 1e-10*sizex )
-#	vy		= -vcir * xx / ( rrcyl + 1e-10*sizey )
-#	vz		= np.zeros((nx,ny,nz))
-
+	vr	= interpolator2( D["ur"] , D["r_ax"] , D["th_ax"]  , rr, tt , logx=True, logz=True) 
+	vth	= interpolator2( D["uth"] , D["r_ax"] , D["th_ax"]	, rr, tt , logx=True, logz=True) 
+	vph  = interpolator2( D["uph"] , D["r_ax"] , D["th_ax"]  , rr, tt , logx=True, logz=True)
 	vturb	= np.zeros((nr,ntheta,nphi)) 
 	
 	#
@@ -148,8 +141,6 @@ def main():
 	
 	# ALMA Band 6
 	if 0:
-#		lam1	 = 1.421e3
-#		lam2	 = 1.090e3
 		lam1	 = 0.1e0
 		lam2	 = 7.0e0
 		n12		 = 5
@@ -278,8 +269,8 @@ def main():
 	#		simply make a guess and write it to file, so
 	#		that you can immediately make the images.
 	#
-	with open('dust_temperature.dat','w+') as f:
-		f.write('1\n')						 # Format number
+#	with open('dust_temperature.dat','w+') as f:
+#		f.write('1\n')						 # Format number
 
 
 	#
@@ -314,8 +305,8 @@ def main():
 	#
 	with open('radmc3d.inp','w+') as f:
 		f.write('nphot = %d\n'%(nphot))
-#		f.write('scattering_mode_max = 1\n')
-		f.write('scattering_mode_max = 0\n')
+		f.write('scattering_mode_max = 1\n')
+#		f.write('scattering_mode_max = 0\n')
 		f.write('iranfreqmode = 1\n')
 		f.write('mc_scat_maxtauabs = 5.d0\n')
 		f.write('tgas_eq_tdust = 1')
