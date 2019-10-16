@@ -11,7 +11,7 @@ import natconst as cst
 import pickle
 from scipy.interpolate import interp2d,interp1d
 
-mode={'tgas':0,'line':0}
+mode={'tgas':0,'line':1}
 
 def convert_cyl_to_sph( v_cyl , R_ori , z_ori , RR , zz):
 	if 1:
@@ -86,10 +86,10 @@ def main():
 	#
 	# Grid parameters
 	#
-	nr		 = 256#512 #128
-	ntheta	 = 128 #256
+	nr		 = 512 #128
+	ntheta	 = 256
 	nphi	 = 1
-	rin		 = 10*cst.au
+	rin		 = 1*cst.au
 	rout	 = 10000*cst.au
 	thetaup  = 0 / 180 * np.pi 
 	#
@@ -121,13 +121,14 @@ def main():
 	zz		 = qq[0]*np.cos( tt )
 	
 	#
-	D = pd.read_pickle("res_5e+05_nocav.pkl")
+	D = pd.read_pickle("res_5e5_disk.pkl")
+#	D = pd.read_pickle("res_5e+05_nocav.pkl")
 #	D = pd.read_pickle("res_5e+05_sph.pkl")
 #	 D = pd.read_pickle("res_5e+05.pkl")
 #	D = pd.read_pickle("res_1e+05.pkl")
 
 
-	rhog = interpolator2( D["den"] , D["r_ax"] , D["th_ax"]  , rr, tt , logx=True, logz=True)
+	rhog = interpolator2( D["den_tot"] , D["r_ax"] , D["th_ax"]  , rr, tt , logx=True, logz=True)
 
 	rhod = rhog * 0.01
 	vr	= interpolator2( D["ur"] , D["r_ax"] , D["th_ax"]  , rr, tt , logx=True, logz=True) 
@@ -305,8 +306,8 @@ def main():
 	#
 	with open('radmc3d.inp','w+') as f:
 		f.write('nphot = %d\n'%(nphot))
-		f.write('scattering_mode_max = 1\n')
-#		f.write('scattering_mode_max = 0\n')
+#		f.write('scattering_mode_max = 1\n')
+		f.write('scattering_mode_max = 0\n')
 		f.write('iranfreqmode = 1\n')
 		f.write('mc_scat_maxtauabs = 5.d0\n')
 		f.write('tgas_eq_tdust = 1')

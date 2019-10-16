@@ -2,27 +2,16 @@
 # -*- coding: utf-8 -*-
 
 import numpy as np
-import natconst as cst
-print(vars(cst))
+import pandas as pd 
+#import natconst as cst
 import matplotlib as mpl
-import matplotlib.pyplot as plt
-
-from matplotlib import ticker
-from matplotlib.colors import LogNorm
-from matplotlib.cm import ScalarMappable
 import os, copy, pickle
-
-#import mytools as my
-import plotter as mp
-
 from scipy import integrate, special, optimize
 from scipy.interpolate import interp1d,interp2d,griddata
 from scipy.integrate import solve_ivp
-
 from sympy import *
-
-mpl.rc('xtick.major',size=6,width=2,pad=6,)
-mpl.rc('ytick.major',size=6,width=2,pad=2)
+import plotter as mp
+import cst
 
 ## Global Parameters ##
 alpha  = 0.01
@@ -37,13 +26,13 @@ Mdot_err			 = 1
 Disk_Structure		 = 1
 Calc_2D				 = 1
 Simple				 = 1
-acc_model = 'Hartmann2016'
 #######################
 
 high_res = 0
 Ohashi2014 = 0
 CM = 1
 TSC = 0
+Disk = 1
 use_solution_0th = 0
 mp.dbg = 0
 
@@ -54,33 +43,25 @@ class Param:
 par = Param()
 
 def main():
-	global Ms, Ls, alpha, f_dg, acc_model
-		
-	if high_res :
-		r_ax  = np.logspace( 0	, 3 , 1001	)*cst.au
-		th_ax = np.linspace( 0	 , np.pi/2 , 721	)
-	else:
-		r_ax  = np.logspace( 0	 , 3 , 601	 )*cst.au
-		th_ax = np.linspace( 0	 , np.pi/2 , 73    )
-	print(r_ax)
-	if Calc_2D:
-		for t in np.linspace( 5e5 , 5e5 , 1):## #year
-		#for t in np.linspace( 1e5 , 1e6 , 10):## #year
-#		for t in np.logspace( 4 , 6 , 5):## year
-			if Ohashi2014:
-				t=0
-			Cm = Calc_2d_map( t , r_ax , th_ax	)
-			Cm.calc()
-			Plots( Cm.res )
-			if Ohashi2014:
-				break
+	r_range	 = np.array([1,10000])*cst.au	
+	th_range = [0,np.pi/2]
+	t_range = np.array([5e5,5e5])*cst.yr
+	nr	= 301
+	nth = 73  
+	nt	= 1
+	r_ax  = np.logspace( np.log10( r_range[0] )  , np.log10( r_range[1] ) , nr	)
+	th_ax = np.linspace( th_range[0]   , th_range[1] , nth	  )
+	t_ax = np.linspace( 5e5 , 5e5 , nt)
+	for t in t_ax:
+		Cm = Calc_2d_map( t , r_ax , th_ax	)
+		Cm.calc()
+		Plots( Cm.res )
 
 def slice_at_midplane( tt,	*a_rths  ):
 	return [  a_rth[ tt==np.pi/2 ]	 for a_rth in a_rths	  ]	
 
 def Plots( re ):
-		t_yr = re['t']
-		tstamp = f'{t_yr/cst.yr:.0e}'
+		tstamp = '{:.0e}'.format(re['t']/cst.yr)
 
 		rr_p , tt_p =  np.meshgrid( re['r_ax'] , re['th_ax'] , indexing='ij' )
 		RR_p = rr_p * np.sin( tt_p )  
@@ -89,7 +70,7 @@ def Plots( re ):
 		r_lim = 500 
 
 		def draw_map( v , name , rang , log=True, V=None, cbl=None, **kwargs):
-			mp.map( RR_p/cst.au , zz_p/cst.au , v	, f"map_{name}_{tstamp}", 
+			mp.map( RR_p/cst.au , zz_p/cst.au , v	, "map_{}_{}".format(name,tstamp), 
 						xl='Radius [au]' , yl='Height [au]', cbl=cbl,
 						logx=False, logy=False, logcb=log, leg=False, 
 						xlim=[0,r_lim], ylim=[0,r_lim], cblim=rang, **kwargs )
@@ -97,49 +78,73 @@ def Plots( re ):
 		def draw_map_name( vname ,*args, **kwargs):
 			draw_map( re[vname] , vname , *args, **kwargs)
 
-		Vec = np.array( [ re[ 'uR' ] , re[ 'uz' ] ] )#/np.sqrt( re[ 'ux' ]**2	  +  re[ 'uy' ]**2 )
-#		 draw_map( re['den'], 'den',[1e-20, 1e-15] , cbl=r'log Density [g/cm$^{3}$]', div=10, Vector=Vec,n_sl=40)
+
+		# Density and velocity map
+		Vec = np.array( [ re[ 'uR' ] , re[ 'uz' ] ] )
 		draw_map( re['den'], 'den', [1e-21, 1e-16] , cbl=r'log Density [g/cm$^{3}$]', div=10, Vector=Vec,n_sl=40)
+
+		# Ratio between mu0 and mu : where these gas comes from
 		draw_map( re['mu0']/np.cos( re['tt'] ), 'mu0_mu',[0, 10] , cbl=r'$\mu_{0}/\mu$', div=10, Vector=Vec,n_sl=40,log=False)
 
-		den0, uR0 , uph0 = slice_at_midplane( tt_p , re['den'] , re['uR'] , re['uph']  )
-		den0_TSC, uR0_TSC , uph0_TSC = slice_at_midplane( tt_p , re['den_TSC'] , re['uR_TSC'] , re['uph_TSC']  )
 
-		mp.say( den0, uR0 , uph0 )
+		den0, uR0 , uph0 , den_tot0 = slice_at_midplane( tt_p , re['den'] , re['uR'] , re['uph'] ,re['den_tot'] )
+
+		if TSC:
+			den0_TSC, uR0_TSC , uph0_TSC = slice_at_midplane( tt_p , re['den_TSC'] , re['uR_TSC'] , re['uph_TSC']  )
+			mp.plot( { 'log nH2 - 6':np.log10(den0/cst.mn) -6, 
+						'-uR':-uR0/cst.kms , 
+						'uph':uph0/cst.kms ,	
+						'log nH2_TSC - 6':np.log10(den0_TSC/cst.mn) -6,
+						'-uR_TSC':-uR0_TSC/cst.kms , 
+						'uph_TSC':uph0_TSC/cst.kms }	, 
+						'vden_compare_%s'%tstamp	  , x = re['r_ax']/cst.au ,xlim=[0,500],ylim=[-2,10] , 
+						lw=[ 3, 3,3,6,6,6], c=['k', ], ls=['-','-','-','--','--','--'], 
+						vl=[re["r_CB_0"]*2/cst.au, re["r_in_lim"]/cst.au])
 
 		uph_bal = np.sqrt( re['zeta']*cst.G*re['M']/re['r_ax']	 )
 		uR_bal = np.sqrt(2*cst.G*re['M']/re['r_ax'] - uph_bal**2 ) 
 
 
+		if Disk:
+			#den_tot0 = slice_at_midplane( tt_p , ( re['den_tot'] ,) )
 
-		mp.plot( { 'log nH2 - 6':np.log10(den0/cst.mn) -6, '-uR':-uR0/cst.kms , 'uph':uph0/cst.kms,	
-				'log nH2_TSC - 6':np.log10(den0_TSC/cst.mn) -6,'-uR_TSC':-uR0_TSC/cst.kms , 'uph_TSC':uph0_TSC/cst.kms }	, f'vden_compare_{tstamp}'	  , x = re['r_ax']/cst.au ,
-				xlim=[0,500],ylim=[-2,10] , lw=[ 3, 3,3,6,6,6], c=['k', ], ls=['-','-','-','--','--','--'], vl=[re["r_CB_0"]*2/cst.au, re["r_in_lim"]/cst.au])
+			print( den0.shape , re['r_ax'].shape )
+			mp.plot( { 'nH2':den0/cst.mn ,
+						'nH2_tot':den_tot0/cst.mn }	,
+						'v_dens_%s'%tstamp	, x = re['r_ax']/cst.au , xlim=[0,1000],ylim=[1e4,1e15] ,
+						lw=[ None, 3,3,6,6], c=['k', ], ls=['-','-','-','--','--'], loglog=True)
+		exit()
+		mp.plot( { 'log nH2 - 6':np.log10(den0/cst.mn) -6, 
+					'-uR':-uR0/cst.kms , 
+					'uph':uph0/cst.kms , 
+					'-uR_bal':uR_bal/cst.kms , 
+					'uph_bal':uph_bal/cst.kms , 
+					'u_max':np.sqrt(uR0**2+ uph0**2)/cst.kms }	, 
+					'v_dens_%s'%tstamp	, x = re['r_ax']/cst.au , xlim=[0,500],ylim=[-2,7] , 
+					lw=[ None, 3,3,6,6], c=['k', ], ls=['-','-','-','--','--'])
 
+		mp.plot( { 'nH2/1e6':den0/cst.mn *1e-6, 
+					'-uR':-uR0/cst.kms , 
+					'uph':uph0/cst.kms , 
+					'-uR_bal':uR_bal/cst.kms , 
+					'uph_bal':uph_bal/cst.kms, 
+					'zeta':re['zeta'] ,	
+					'u_max':np.sqrt(uR0**2+ uph0**2)/cst.kms	}	,
+					 'v_dens_loglog_%s'%tstamp	, x = re['r_ax']/cst.au , xlim=[0.3,500] , ylim=[1e-4,1e5] ,
+					 lw=[ None, 3,3,6,6], c=['k', ], ls=['-','-','-','--','--'], loglog=True)
 
-		mp.plot( { 'log nH2 - 6':np.log10(den0/cst.mn) -6, '-uR':-uR0/cst.kms , 'uph':uph0/cst.kms , '-uR_bal':uR_bal/cst.kms , 'uph_bal':uph_bal/cst.kms , 'u_max':np.sqrt(uR0**2+ uph0**2)/cst.kms }	, f'v_dens_{tstamp}'	, x = re['r_ax']/cst.au ,
-				xlim=[0,500],ylim=[-2,7] , lw=[ None, 3,3,6,6], c=['k', ], ls=['-','-','-','--','--'])
-		mp.plot( { 'nH2/1e6':den0/cst.mn *1e-6, '-uR':-uR0/cst.kms , 'uph':uph0/cst.kms , '-uR_bal':uR_bal/cst.kms , 'uph_bal':uph_bal/cst.kms,'zeta':re['zeta'] ,	'u_max':np.sqrt(uR0**2+ uph0**2)/cst.kms	}	, f'v_dens_loglog_{tstamp}'	, x = re['r_ax']/cst.au ,
-				xlim=[0.3,500],ylim=[1e-4,1e5] , lw=[ None, 3,3,6,6], c=['k', ], ls=['-','-','-','--','--'], loglog=True)
-		mp.plot( { 'uph/uR':-uph0/uR0 }	  , f'uph2uR_{tstamp}'	  , x = re['r_ax']/cst.au , logy=True,	xlim=[0,500],ylim=[1e-4,100] )
+		mp.plot( { 'uph/uR':-uph0/uR0 }	, 
+					'uph2uR_%s'%tstamp, x = re['r_ax']/cst.au , 
+					logy=True,	xlim=[0,500],ylim=[1e-4,100] )
 	
-
-
 		return 
 
-		mp.do_map( R_au , z_au ,  np.sqrt( re[ 'ur' ]**2 + re[ 'uph' ]**2 + re[ 'uth' ]**2)	, f"map_u_{t:.0e}" ,
-					xl='Radius [au]' , yl='Height [au]', cbl='',
-					logx=False, logy=False, logcb=True, leg=False, xlim=[0,r_lim], ylim=[0,r_lim], cblim=[1e5,1e7], data='1+1D',Vector=Vec)
 
 
 
-		mp.do_plot( {"V_phi": re[ 'uph' ][:,0]/1e5,  "V_phi_tot": re[ 'vphi_tot' ][:,0]/1e5 }	, f"vphi_{t:.0e}" , xl='Distance From Star [au]' , yl='Rotation Velocity [km/s]',
-			logx=True, logy=True, ls=['--','-'], lw=[3] ,
-			c=[c_def[0],c_def[1],'salmon','lightskyblue','darkgray','darkgray'] , leg=False, xlim=[1,1000],ylim=[1e-1,1e2],
-			lbs=['Our model','Conventional','Only viscous heating','Only irradiation heating',None,None])
-
-
-
+#
+# Calculator
+#
 class Calc_2d_map:
 
 	def __init__(self , t , r_ax , th_ax ):
@@ -147,6 +152,7 @@ class Calc_2d_map:
 		self.r_ax = r_ax
 		self.th_ax = th_ax
 		self.M	  = 0
+		self.m0 = 0.975
 		self.P2			= lambda x: 0.5*(3*x**2-1)
 		self.dP2_dtheta = lambda x: -3*x*np.sqrt(1-x**2)
 
@@ -165,10 +171,11 @@ class Calc_2d_map:
 
 				if len(sol)==1 and np.isreal(sol[0]) :
 					root[i] = np.real( sol[0] )
-					raise Exception(sol)
+					#raise Exception(sol)
 #					mp.say(root[i])
 				else:
-					print(sol)
+					raise Exception(sol)
+#					print(sol)
 #			root = np.array( [ np.real( np.roots( [ zeta, 0 , 1-zeta , - mu ] ) ) for mu in mu_ax ])
 #			mp.say(root)
 			root = np.array(root)
@@ -205,22 +212,15 @@ class Calc_2d_map:
 		return interp1d(x,al0) , interp1d(x,V0)
 		
 
-
-
-	def rotate(v, th):
-		a = np.array([ [np.cos(th), -np.sin(th)] , [np.sin(th),  np.cos(th)] ])
-		return np.dot(a, v) 
-
 	def if_one(self, cond , val ):
 		return np.where( cond  , np.ones_like(val) , val )
 	def if_zero(self, cond , val ):
 		return np.where( cond  , np.zeros_like(val) , val )
 	
-	def get_Kinematics_CM( self, r , mu , Omg  , cs , t , M , Mdot , j0=None	 ):
+	def get_Kinematics_CM( self, r , mu , Omg  , cs , t , M , Mdot , j0=None , cavity_angle=None ):
 		SMALL0	= 1e-50
 		SMALL1	= 1e-49
-		m0 = 0.975
-		j0 =  Omg * ( m0 * cs * t/2 )**2  if ( j0 is None ) else j0
+		j0 =  Omg * ( self.m0 * cs * t/2 )**2  if ( j0 is None ) else j0
 		zeta =	j0**2 / ( cst.G * M * r	)
 		mu0  = self.get_mu0( mu ,zeta) 
 		sin, sin0 = np.sqrt( 1 - mu**2 ) ,	np.sqrt( 1 - mu0**2 ) 
@@ -228,8 +228,8 @@ class Calc_2d_map:
 		
 #		mu0 = np.where( mu0==0 , SMALL0 , mu0 )
 		sin = np.where( sin==0 , SMALL0 , sin )
-		Mdot = Mdot * ( mu0 < 1/np.sqrt(2) ) * np.ones_like( mu0 )
-#		Mdot = Mdot * ( mu0 < 0.1 ) * np.ones_like( mu0 )
+		if cavity_angle is not None:
+			Mdot *= ( mu0 < np.cos( cavity_angle/180*np.pi ) ) * np.ones_like( mu0 )
 	
 #		mu_to_mu0 = np.where( mu0 < SMALL1 , 1-zeta , mu/mu0 )
 #		mu_to_mu0 = np.where( mu0 < SMALL1 , 0 , mu/mu0 )
@@ -243,28 +243,26 @@ class Calc_2d_map:
 		return rho, ur, uth, uph , zeta, mu0
 	
 	def get_rCB(self, M, Omg, cs, t , j0=None):
-		m0 = 0.975
-		j0 =  Omg * ( m0 * cs * t * 0.5 )**2  if ( j0 is None ) else j0
+		j0 =  Omg * ( self.m0 * cs * t * 0.5 )**2  if ( j0 is None ) else j0
 		return	j0**2 / ( cst.G * M * 2 )
 
 	def get_Kinematics_TSC( self, r , mu , Omg , cs , t  , func=None):
-		m0 = 0.975
 		x =  r/(cs*t)
 		tau = Omg*t
 
 		if func is None:
-			al_0 = (0.5*m0/x**3)**(1/2)
-			V_0 = -(2*m0/x)**(1/2)
+			al_0 = (0.5*self.m0/x**3)**(1/2)
+			V_0 = -(2*self.m0/x)**(1/2)
 		else:
 			al_0 = func[0](x)
 			V_0  = func[1](x)
 
-		al_Q = -13/12*(m0/2)**(7/2)*x**(-5/2)
-		V_Q  = -1/6*(m0/2)**(7/2)*x**(-3/2)
-		W_Q  = -1/3*(m0/2)**(7/2)*x**(-3/2)
+		al_Q = -13/12*(self.m0/2)**(7/2)*x**(-5/2)
+		V_Q  = -1/6*(self.m0/2)**(7/2)*x**(-3/2)
+		W_Q  = -1/3*(self.m0/2)**(7/2)*x**(-3/2)
 
-		al_M = 1/12*(m0/2)**(7/2)*x**(-5/2)
-		V_M  = 1/6*(m0/2)**(7/2)*x**(-3/2)		
+		al_M = 1/12*(self.m0/2)**(7/2)*x**(-5/2)
+		V_M  = 1/6*(self.m0/2)**(7/2)*x**(-3/2)		
 
 		al = al_0 + tau**2 * ( al_M + al_Q * self.P2(mu) )
 		V  = V_0  + tau**2 * ( V_M	+ V_Q  * self.P2(mu) )
@@ -281,21 +279,26 @@ class Calc_2d_map:
 		return rho.clip(0), ur, uth, uph 
 
 	def put_Disk_sph(self, r , th , M , Md , Rd , Td , CM=False):
+		exponential_cutoff = True
+		tapered_cutoff = False
 		ind = -1
 		R = r*np.sin(th)
 		z = r*np.cos(th)
-		if CM:
-			pass
+
+		#if CM:
+		#	pass
 		
-		if 1:
+		if exponential_cutoff:
 			Sigma_0 = Md/(2*np.pi*Rd**2)/(1-2/np.e)
-			Sigma = Sigma_0 * (R/cst.au)**ind  * np.exp(- (R/Rd)**(2+ind))
-		else:
+			Sigma = Sigma_0 * (R/cst.au)**ind  * np.exp( -(R/Rd)**(2+ind) )
+
+		if tapered_cutoff:
 			Sigma_0 = Md/(2*np.pi*Rd**2) * (ind+3)
 			Sigma = Md/(2*np.pi) * (ind+3)*Rd**(-ind-3)  * (R/cst.au)**ind
 
 		H  = np.sqrt( cst.kB * Td / cst.mn ) / np.sqrt(cst.G*M/R**3)
 		rho = Sigma/np.sqrt(2*np.pi)/H * np.exp( - 0.5*z**2/H**2	)
+
 		return rho
 
 	def urth_to_uRz( self, ur , up , th_ax ):
@@ -303,51 +306,50 @@ class Calc_2d_map:
 		uz = ur * np.cos(th_ax) - up * np.sin(th_ax)
 		return uR, uz
 
-#	def u_balistic( j , )
-#		uph_bal = j/r	
-#		uR_bal = np.sqrt(2*cst.G*M/r - uph_bal**2 )	
-#		return 
+	def print_params(self, t, M, T, cs, Omg, Mdot, r_in_lim, j0, rCB):
+		print( "T	is	{:.2f}	K".format(T) )
+		print( "cs	is	{:.2f}	km/s".format(cs/cst.kms) )
+		print( "t	is	{:.2f}	yr".format(t/cst.yr) )
+		print( "M	is	{:.2f}	Msun".format(M/cst.Msun) )
+		print( "Omega	is	{:.2e}	s^-1".format(Omg) )
+		print( "dM/dt	is	{:.2e}	M/yr".format(Mdot/(cst.Msun/cst.yr)) )
+		print( "r_lim	is	{:.2f}	au".format(r_in_lim/cst.au) )
+		print( "j0	is	{:.2f}	au*km/s".format(j0/(cst.kms*cst.au)) )
+		print( "rCB	is	{:.2f}	au".format(rCB/cst.au) )
 
 	def calc(self):
 		print("start calc")
-		Disk = 1
-		self.res= {}
+
+		#
+		# Set parameters
+		#
 		T	=	10
-#		cs	= 0.35e5 
 		cs	= np.sqrt( cst.kB * T/cst.mn )
-		print(f"cs is {cs/1e5:.2f} km/s")
-		m0	= 0.975
-	
 		Omg = 1e-14 if par.Rotation else 0
-
 		r_in_lim = cs*Omg**2* self.t**3
-#		self.r_ax = self.r_ax[ self.r_ax > r_in_lim ]
-		Mdot = cs**3*m0/cst.G
-		if Ohashi2014:
-			j0 = 1.882e20 # = 6.1e−4 km s−1 pc (Ohashi+2014)
-			self.M = 0.3*cst.Msun
-		else:
-			j0=None
-			self.M = Mdot * self.t 
-		
-		if use_solution_0th:
-			funcs =  self.get_0th_order_function(self.r_ax) 
-		else:
-			funcs = None
+		Mdot = cs**3*self.m0/cst.G
+		j0 = Omg * ( self.m0 * cs * self.t * 0.5 )**2
+		self.M = Mdot * self.t 
+		rCB  = self.get_rCB(self.M, Omg, cs, self.t ) # 50 * cst.au
+		self.print_params( self.t, self.M, T, cs, Omg, Mdot, r_in_lim, j0, rCB)	
+		self.res = {'r_ax':self.r_ax, 'th_ax':self.th_ax, 't':self.t ,'M':self.M, 'r_in_lim':r_in_lim, 'r_CB_0': rCB}	
+		funcs = self.get_0th_order_function(self.r_ax) if use_solution_0th else None
 
-		print("M is ",self.M/cst.Msun)
+		mu	  = np.cos( self.th_ax )
+		si	  = np.sqrt( 1 - mu**2 )	
+		Md	= 0.1*self.M
+		Td	= 30
 
+		#	
+		# Main loop in r-axis
+		#
 		for r in self.r_ax:
-			print(r)
 			R_ax  = r * np.sin(self.th_ax)
 			z_ax  = r * np.cos(self.th_ax)
-			mu	  = np.cos( self.th_ax )
-			si	  = np.sqrt( 1 - mu**2 )	
-			rCB = self.get_rCB(self.M, Omg, cs, self.t )
 
 			if CM:	
 #			if r < r_in_lim or CM:
-				rho, ur, uth, uph, zeta, mu0  = self.get_Kinematics_CM( r , mu , Omg  , cs , self.t , self.M , Mdot ,j0=j0) 
+				rho, ur, uth, uph, zeta, mu0  = self.get_Kinematics_CM( r , mu , Omg  , cs , self.t , self.M , Mdot ,j0=j0, cavity_angle=45) 
 				uR, uz = self.urth_to_uRz( ur , uth , self.th_ax )
 				dic = {'R':R_ax, 'z': z_ax, 'den':rho, 'ur':ur,'uph':uph,'uth':uth,'uR':uR,'uz':uz , 'rr':np.full_like(self.th_ax,r) , 'tt': self.th_ax ,'zeta':zeta, 'mu0':mu0 }
 
@@ -361,15 +363,13 @@ class Calc_2d_map:
 				dic.update( {  'den_TSC':rho_TSC, 'ur_TSC':ur_TSC,'uph_TSC':uph_TSC,'uth_TSC':uth_TSC,'uR_TSC':uR_TSC,'uz_TSC':uz_TSC }  )
 
 			if Disk:
-				Md	= 0.1*self.M
-				Rd	= get_rCB(self.M, Omg, cs, self.t ) # 50 * cst.au
-				Td	= 30
-				rho_disk	 = self.put_Disk_cyl( R , z_ax , self.M , Md , Rd , Td)	
-#				shock_region = ( rho_disk / rho > (cst.gamma +1)/(cst.gamma -1)  )
-				v_Kep		 = np.sqrt(cst.G * self.M/R )
-				vphi_tot	 = uph * 1
-				vphi_tot[rho_disk > rho] = v_Kep[rho_disk > rho]
-				dic.update( {  'den_tot':rho + rho_disk, 'shock':shock_region, 'vphi_tot':vphi_tot	  }  )
+				rho_disk	 = self.put_Disk_sph( r , self.th_ax , self.M , Md , rCB , Td)	
+				disk_reg = rho_disk > rho
+				v_Kep		 = np.sqrt(cst.G * self.M / R_ax )
+				vphi_tot = np.where( disk_reg , v_Kep  , uph  )
+			
+				dic.update( {  'den_tot':rho + rho_disk,  'vr_tot':np.where( disk_reg , 0  , ur  ) , 
+								'vphi_tot':np.where(  rho_disk > rho , v_Kep  , uph  ), 'vth_tot':np.where( disk_reg , 0  , uth  )	}  )
 	
 			for key, vprof in dic.items():
 				if not key in self.res:
@@ -379,13 +379,11 @@ class Calc_2d_map:
 		for k,v in self.res.items():
 			self.res[k] = np.array(v)
 
-		self.res.update( {'r_ax':self.r_ax, 'th_ax':self.th_ax, 't':self.t ,'M':self.M, 'r_in_lim':r_in_lim, 'r_CB_0': rCB} )
-		pd.to_pickle( self.res , f"res_{self.t/cst.yr:.0e}.pkl")
-		return 
-
-
-#	exit()
-
+		# Save to pickle
+		pd.to_pickle( self.res , "res_{:.0e}.pkl".format( self.t/cst.yr ))
+		print("Saved: %s"%"res_{:.0e}.pkl".format( self.t/cst.yr ) )	
+		return self.res
+	
 ##########################################################################################################################
 
 ###########

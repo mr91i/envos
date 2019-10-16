@@ -1,15 +1,24 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 import os
 import numpy as np
 import matplotlib.pyplot as plt
 #from col import *
 from scipy.interpolate import interp2d,griddata
+plt.switch_backend('agg')
+#mpl.rc('xtick.major',size=6,width=2,pad=6,)
+#mpl.rc('ytick.major',size=6,width=2,pad=2)
+import sys
+pyver = sys.version_info[0] + 0.1*sys.version_info[1] 
+print("This is python ",pyver)
 
 dbg = 1
 
 class say:
 	def __init__( self, *something ):
 		if dbg:
-#			print( *something )
+			print( something )
 			pass
 	def exit(self):
 		exit()
@@ -23,7 +32,11 @@ class Default_params:
 		self.hd	   = ""
 		self.ext	= ".pdf"
 		self.fig_dn = "F"
-		os.makedirs(self.fig_dn, exist_ok=True)
+		if pyver >= 3.2:
+			os.makedirs(self.fig_dn, exist_ok=True )
+		else:
+			if not os.path.exists(self.fig_dn):
+				os.makedirs(self.fig_dn)
 
 		# Default values
 		self.x	  = None
@@ -137,8 +150,13 @@ def plot( y_dic , opfn, x = None , c=[None], ls=[], lw=[], alp=[], leg=True, frg
 		
 		# Plot 
 		say( 'Inputs to plot',xy ) 
-#		ax.plot( *xy , label=lb , c=c[i], ls=ls[i], lw=lw[i], alpha=alp[i], zorder=-i, *pmplot, **kwargs)
-		ax.plot( xy , label=lb , c=c[i], ls=ls[i], lw=lw[i], alpha=alp[i], zorder=-i, *pmplot, **kwargs)
+#		 ax.plot( *xy , label=lb , c=c[i], ls=ls[i], lw=lw[i], alpha=alp[i], zorder=-i, *pmplot, **kwargs)
+
+		ax.plot( *xy , label=lb , c=c[i], ls=ls[i], lw=lw[i], alpha=alp[i], zorder=-i, **kwargs)
+		if pm:
+			ax.plot( *pmplot , label=lb , c=c[i], ls=ls[i], lw=lw[i], alpha=alp[i], zorder=-i, **kwargs)
+
+#		ax.plot( xy , label=lb , c=c[i], ls=ls[i], lw=lw[i], alpha=alp[i], zorder=-i, *pmplot, **kwargs)
 
 		# Enroll flags
 		if lb and frg_leg==0: 
@@ -177,7 +195,7 @@ def plot( y_dic , opfn, x = None , c=[None], ls=[], lw=[], alp=[], leg=True, frg
 	if yl:	 plt.ylabel(yl)
 
 	# Saving
-	plt.savefig(f"{defs.fig_dn}/{opfn}{defs.ext}", transparent=True, bbox_inches='tight')
+	plt.savefig("%s/%s%s"%(defs.fig_dn,opfn,defs.ext), transparent=True, bbox_inches='tight')
 	plt.close()
 
 	return Struct(**settings)
@@ -259,8 +277,12 @@ def map( x , y , z , opfn, c=[None], ls=[None], lw=[None], alp=[None],
 			m = 8
 			plt.quiver( xx[::n,::m], yy[::n,::m] , (uu/l)[::n,::m], (vv/l)[::n,::m], angles='xy', color='red' )
 
-		x_ax = np.linspace( *xlim , 200	 )
-		y_ax = np.linspace( *ylim , 200	 )
+		
+#		x_ax = np.linspace( *xlim , 200	 )
+#		y_ax = np.linspace( *ylim , 200	 )
+		x_ax = np.linspace( xlim[0] , xlim[1] , 200	)
+		y_ax = np.linspace( ylim[0] , ylim[1] , 200	)
+
 #		x_ax = np.linspace( np.min(x) , np.max(x) , 400  )
 #		y_ax = np.linspace( np.min(x) , np.max(x) , 400  )
 
@@ -289,6 +311,6 @@ def map( x , y , z , opfn, c=[None], ls=[None], lw=[None], alp=[None],
 	if yl: plt.ylabel(yl)
 	if leg: plt.legend(**defs.args_leg)
 
-	fig.savefig(f"{defs.fig_dn}/{opfn}{defs.ext}", transparent=True, bbox_inches='tight')
+	fig.savefig("%s/%s%s"%(defs.fig_dn,opfn,defs.ext), transparent=True, bbox_inches='tight')
 	plt.close()
 

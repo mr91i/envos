@@ -23,12 +23,12 @@ DensityMap = 0
 DensProf   = 1
 TempProf   = 1
 Obs		   = 0
-SED		   = 1	
+SED		   = 0	
 Line	   = 0
 ChannelMap = 0
 PVd		   = 0
 
-Fits  = 0
+Fits  = 1
 
 ## Global parameters
 iline = 2
@@ -87,7 +87,7 @@ def Synthetic_Observation(wl=5):
 def make_fits_data():
 	common = "incl %d phi %d posang %d setthreads %d "%(incl,phi,posang,n_thread)
 	option = "fluxcons "
-	cmd = "radmc3d image iline %d widthkms 8 linenlam 100 npix 200 sizeau 500 "%(iline) + common + option
+	cmd = "radmc3d image iline %d widthkms 8 linenlam 200 npix 400 sizeau 500 "%(iline) + common + option
 #	cmd = "radmc3d image  iline %d widthkms 10 linenlam 200 npix 200 sizeau 400 "%(iline) + common + option
 #	cmd = "radmc3d image  iline %d widthkms 5 linenlam 2 zoomau -200 200 -20 20 npixx 160 npixy 16 truepix "%(iline) + common + option
 	subprocess.call(cmd,shell=True)
