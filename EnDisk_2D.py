@@ -14,27 +14,23 @@ import plotter as mp
 import cst
 
 ## Global Parameters ##
-alpha  = 0.01
-#Ms	   = 1	
-#Rs	   = 1
-f_dg   = 1e-4
-M_disk = 0.03
-scattering			 = 0
-variable_photosphere = 0
-SL_vs_Mdot			 = 0
-Mdot_err			 = 1
-Disk_Structure		 = 1
-Calc_2D				 = 1
-Simple				 = 1
-#######################
-
-high_res = 0
-Ohashi2014 = 0
 CM = 1
 TSC = 0
 Disk = 1
 use_solution_0th = 0
 mp.dbg = 0
+
+
+r_in = 1 *cst.au
+r_out = 10000 *cst.au
+nr	= 301
+th_in = 0
+th_out = np.pi/2
+nth = 73  
+t_in  = 5e5 *cst.yr
+t_out  = 5e5 *cst.yr
+nt	= 1
+#######################
 
 class Param:
 	def __init__(self):
@@ -43,22 +39,20 @@ class Param:
 par = Param()
 
 def main():
-	r_range	 = np.array([1,10000])*cst.au	
-	th_range = [0,np.pi/2]
-	t_range = np.array([5e5,5e5])*cst.yr
-	nr	= 301
-	nth = 73  
-	nt	= 1
-	r_ax  = np.logspace( np.log10( r_range[0] )  , np.log10( r_range[1] ) , nr	)
-	th_ax = np.linspace( th_range[0]   , th_range[1] , nth	  )
-	t_ax = np.linspace( 5e5 , 5e5 , nt)
+	r_ax  = np.logspace( np.log10( r_in )  , np.log10( r_out ) , nr	)
+	th_ax = np.linspace( th_in	 , th_out , nth	  )
+	t_ax = np.linspace( t_in , t_out , nt)
 	for t in t_ax:
 		Cm = Calc_2d_map( t , r_ax , th_ax	)
 		Cm.calc()
 		Plots( Cm.res )
 
 def slice_at_midplane( tt,	*a_rths  ):
-	return [  a_rth[ tt==np.pi/2 ]	 for a_rth in a_rths	  ]	
+	if len(a_rths) >= 2: 
+		return np.array( [	a_rth[ tt==np.pi/2 ]	 for a_rth in a_rths	  ]	 )
+	else:
+		return	a_rths[0][ tt==np.pi/2 ] 
+
 
 def Plots( re ):
 		tstamp = '{:.0e}'.format(re['t']/cst.yr)
@@ -87,7 +81,7 @@ def Plots( re ):
 		draw_map( re['mu0']/np.cos( re['tt'] ), 'mu0_mu',[0, 10] , cbl=r'$\mu_{0}/\mu$', div=10, Vector=Vec,n_sl=40,log=False)
 
 
-		den0, uR0 , uph0 , den_tot0 = slice_at_midplane( tt_p , re['den'] , re['uR'] , re['uph'] ,re['den_tot'] )
+		den0, uR0 , uph0 , den_tot0 = slice_at_midplane( tt_p , re['den'] , re['uR'] , re['uph'] )
 
 		if TSC:
 			den0_TSC, uR0_TSC , uph0_TSC = slice_at_midplane( tt_p , re['den_TSC'] , re['uR_TSC'] , re['uph_TSC']  )
@@ -106,9 +100,7 @@ def Plots( re ):
 
 
 		if Disk:
-			#den_tot0 = slice_at_midplane( tt_p , ( re['den_tot'] ,) )
-
-			print( den0.shape , re['r_ax'].shape )
+			den_tot0 = slice_at_midplane( tt_p ,  re['den_tot'] )
 			mp.plot( { 'nH2':den0/cst.mn ,
 						'nH2_tot':den_tot0/cst.mn }	,
 						'v_dens_%s'%tstamp	, x = re['r_ax']/cst.au , xlim=[0,1000],ylim=[1e4,1e15] ,
@@ -148,7 +140,7 @@ def Plots( re ):
 class Calc_2d_map:
 
 	def __init__(self , t , r_ax , th_ax ):
-		self.t	  = t  * cst.year
+		self.t	  = t  
 		self.r_ax = r_ax
 		self.th_ax = th_ax
 		self.M	  = 0
@@ -226,20 +218,15 @@ class Calc_2d_map:
 		sin, sin0 = np.sqrt( 1 - mu**2 ) ,	np.sqrt( 1 - mu0**2 ) 
 		vff	= np.sqrt( cst.G * M / r )
 		
-#		mu0 = np.where( mu0==0 , SMALL0 , mu0 )
 		sin = np.where( sin==0 , SMALL0 , sin )
 		if cavity_angle is not None:
 			Mdot *= ( mu0 < np.cos( cavity_angle/180*np.pi ) ) * np.ones_like( mu0 )
 	
-#		mu_to_mu0 = np.where( mu0 < SMALL1 , 1-zeta , mu/mu0 )
-#		mu_to_mu0 = np.where( mu0 < SMALL1 , 0 , mu/mu0 )
 		mu_to_mu0 = mu/mu0
 		ur	= - vff * np.sqrt( 1 + mu_to_mu0 )
 		uth =	vff * self.if_zero( sin<SMALL1 , ( mu0 - mu )/sin ) * np.sqrt( 1 + mu_to_mu0 ) 
 		uph =	vff * self.if_one(	sin<SMALL1 , sin0/sin		 ) * np.sqrt( 1 - mu_to_mu0 )
-		
 		rho = - Mdot / (4 * np.pi * r**2 * ur) / (1 + 2*zeta*self.P2(mu0))
-
 		return rho, ur, uth, uph , zeta, mu0
 	
 	def get_rCB(self, M, Omg, cs, t , j0=None):
@@ -351,7 +338,10 @@ class Calc_2d_map:
 #			if r < r_in_lim or CM:
 				rho, ur, uth, uph, zeta, mu0  = self.get_Kinematics_CM( r , mu , Omg  , cs , self.t , self.M , Mdot ,j0=j0, cavity_angle=45) 
 				uR, uz = self.urth_to_uRz( ur , uth , self.th_ax )
-				dic = {'R':R_ax, 'z': z_ax, 'den':rho, 'ur':ur,'uph':uph,'uth':uth,'uR':uR,'uz':uz , 'rr':np.full_like(self.th_ax,r) , 'tt': self.th_ax ,'zeta':zeta, 'mu0':mu0 }
+				dic = {'R':R_ax, 'z': z_ax, 'den':rho, 
+						'ur':ur,'uph':uph,'uth':uth,'uR':uR,'uz':uz , 
+						'rr':np.full_like(self.th_ax , r) , 'tt': self.th_ax ,
+						'zeta':zeta, 'mu0':mu0 }
 
 			elif TSC:
 #			else:
