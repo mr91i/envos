@@ -6,12 +6,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 #from col import *
 from scipy.interpolate import interp2d,griddata
-#plt.switch_backend('agg')
 #mpl.rc('xtick.major',size=6,width=2,pad=6,)
 #mpl.rc('ytick.major',size=6,width=2,pad=2)
 import sys
 pyver = sys.version_info[0] + 0.1*sys.version_info[1] 
 print("This is python ",pyver)
+plt.switch_backend('agg')
 
 dbg = 1
 

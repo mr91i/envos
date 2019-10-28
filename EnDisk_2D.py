@@ -16,25 +16,28 @@ import cst
 ## Global Parameters ##
 CM = 1
 TSC = 0
-Disk = 1
 use_solution_0th = 0
 mp.dbg = 0
-
 
 r_in = 1 *cst.au
 r_out = 10000 *cst.au
 nr	= 301
+
 th_in = 0
 th_out = np.pi/2
 nth = 73  
+
 t_in  = 5e5 *cst.yr
 t_out  = 5e5 *cst.yr
 nt	= 1
+ 
 #######################
 
 class Param:
 	def __init__(self):
+		self.Disk = 0
 		self.Rotation = 1
+		self.AutoMassTuning = 1
 
 par = Param()
 
@@ -99,12 +102,11 @@ def Plots( re ):
 		uR_bal = np.sqrt(2*cst.G*re['M']/re['r_ax'] - uph_bal**2 ) 
 
 
-		if Disk:
-			den_tot0 = slice_at_midplane( tt_p ,  re['den_tot'] )
-			mp.plot( { 'nH2':den0/cst.mn ,
-						'nH2_tot':den_tot0/cst.mn }	,
-						'v_dens_%s'%tstamp	, x = re['r_ax']/cst.au , xlim=[1,1000],ylim=[1e4,1e15] ,
-						lw=[ None, 3,3,6,6], c=['k', ], ls=['-','-','-','--','--'], loglog=True, vl=[re["r_CB_0"]/cst.au*2 ])
+		den_tot0 = slice_at_midplane( tt_p ,  re['den_tot'] )
+		mp.plot( { 'nH2':den0/cst.mn ,
+					'nH2_tot':den_tot0/cst.mn }	,
+					'v_dens_%s'%tstamp	, x = re['r_ax']/cst.au , xlim=[1,1000],ylim=[1e4,1e15] ,
+					lw=[ None, 3,3,6,6], c=['k', ], ls=['-','-','-','--','--'], loglog=True, vl=[re["r_CB_0"]/cst.au*2 ])
 		exit()
 		mp.plot( { 'log nH2 - 6':np.log10(den0/cst.mn) -6, 
 					'-uR':-uR0/cst.kms , 
@@ -271,6 +273,8 @@ class Calc_2d_map:
 		ind = -1
 		R = r*np.sin(th)
 		z = r*np.cos(th)
+		if not par.Disk:
+			return np.zeros_like(z)
 
 		#if CM:
 		#	pass
@@ -293,16 +297,50 @@ class Calc_2d_map:
 		uz = ur * np.cos(th_ax) - up * np.sin(th_ax)
 		return uR, uz
 
+	def give_Mass_and_time(self, Mdot ,t=None, Mstar=None):
+		if not par.AutoMassTuning:
+			return Mdot * t , t
+		else: 
+			return Mstar , Mstar / Mdot
+		
+	def give_Omega(self, cs,t,M , mode='const', v_CR=None , r_CR=None):
+		GM = cst.G * M
+		r_col = self.m0*0.5*cs*t
+		if not par.Rotation:
+			return 0
+
+		if mode=="const":
+			Omega = 1e-14
+
+		if mode=='velocity_peak':
+			## v_CR = velocity peak
+			##		= sqrt(2) * GM / l
+			## l  = (0.5*cs*t)**2 * Omega
+			## --> Omega = sqrt(2) * GM / vpeak / (0.5*cs*t)**2 
+			Omega = sqrt(2) * GM / v_CR / r_col**2
+			
+		if mode=='centrifugal_radius':
+			## r_CR = given
+			##		= l**2 /(GM)
+			##	l  = (0.5*cs*t)**2 * Omega
+			Omega = np.sqrt( GM * r_CR )/r_col**2
+		
+		return Omega	
+	
+
 	def print_params(self, t, M, T, cs, Omg, Mdot, r_in_lim, j0, rCB):
-		print( "T	is	{:.2f}	K".format(T) )
-		print( "cs	is	{:.2f}	km/s".format(cs/cst.kms) )
-		print( "t	is	{:.2f}	yr".format(t/cst.yr) )
-		print( "M	is	{:.2f}	Msun".format(M/cst.Msun) )
-		print( "Omega	is	{:.2e}	s^-1".format(Omg) )
-		print( "dM/dt	is	{:.2e}	M/yr".format(Mdot/(cst.Msun/cst.yr)) )
-		print( "r_lim	is	{:.2f}	au".format(r_in_lim/cst.au) )
-		print( "j0	is	{:.2f}	au*km/s".format(j0/(cst.kms*cst.au)) )
-		print( "rCB	is	{:.2f}	au".format(rCB/cst.au) )
+		def print_format( name , val , unit):
+			print( name.ljust(10) + "is    {:10.2g}   ".format(val) + unit.ljust(10)	   )
+		print_format( "T" , T , "K" )
+		print_format( "cs" , cs/cst.kms , "km/s" )
+		print_format( "t" , t/cst.yr , "yr" )
+		print_format( "M" , M/cst.Msun , "Msun" )
+		print_format( "Omega" , Omg , "s^-1" )
+		print_format( "dM/dt" , Mdot/(cst.Msun/cst.yr) , "M/yr" )
+		print_format( "r_lim" , r_in_lim/cst.au , "au" )
+		print_format( "j0" , j0/(cst.kms*cst.au)  , "au*km/s" )
+		print_format( "j0" , j0/(cst.kms*cst.pc)  , "pc*km/s" )
+		print_format( "rCB" , rCB/cst.au , "au" )
 
 	def calc(self):
 		print("start calc")
@@ -312,13 +350,16 @@ class Calc_2d_map:
 		#
 		T	=	10
 		cs	= np.sqrt( cst.kB * T/cst.mn )
-		Omg = 1e-14 if par.Rotation else 0
-		r_in_lim = cs*Omg**2* self.t**3
 		Mdot = cs**3*self.m0/cst.G
+
+		self.M, self.t = self.give_Mass_and_time(Mdot, Mstar=0.18*cst.Msun)		
+		Omg = self.give_Omega( cs , self.t , self.M , mode='centrifugal_radius', r_CR=100*cst.au)
+	
+		r_in_lim = cs*Omg**2* self.t**3
 		j0 = Omg * ( self.m0 * cs * self.t * 0.5 )**2
-		self.M = Mdot * self.t 
 		rCB  = self.get_rCB(self.M, Omg, cs, self.t ) # 50 * cst.au
 		req  = rCB * 2 * np.sin( 45/180 * np.pi )**2
+
 		self.print_params( self.t, self.M, T, cs, Omg, Mdot, r_in_lim, j0, rCB)	
 		self.res = {'r_ax':self.r_ax, 'th_ax':self.th_ax, 't':self.t ,'M':self.M, 'r_in_lim':r_in_lim, 'r_CB_0': rCB}	
 		funcs = self.get_0th_order_function(self.r_ax) if use_solution_0th else None
@@ -353,13 +394,12 @@ class Calc_2d_map:
 				uR_TSC, uz_TSC = self.urth_to_uRz( ur_TSC , uth_TSC , self.th_ax )
 				dic.update( {  'den_TSC':rho_TSC, 'ur_TSC':ur_TSC,'uph_TSC':uph_TSC,'uth_TSC':uth_TSC,'uR_TSC':uR_TSC,'uz_TSC':uz_TSC }  )
 
-			if Disk:
-				rho_disk	 = self.put_Disk_sph( r , self.th_ax , self.M , Md , rCB , Td)	
-				disk_reg	 = rho_disk > rho
-				v_Kep		 = np.sqrt(cst.G * self.M / R_ax )
-				vphi_tot = np.where( disk_reg , v_Kep  , uph  )
+			rho_disk = self.put_Disk_sph( r , self.th_ax , self.M , Md , rCB , Td)	
+			disk_reg = rho_disk > rho
+			v_Kep	 = np.sqrt(cst.G * self.M / R_ax )
+			vphi_tot = np.where( disk_reg , v_Kep  , uph  )
 			
-				dic.update( {  'den_tot':rho + rho_disk,  'vr_tot':np.where( disk_reg , 0  , ur  ) , 
+			dic.update( {  'den_tot':rho + rho_disk,  'vr_tot':np.where( disk_reg , 0  , ur  ) , 
 								'vphi_tot':np.where(  disk_reg , v_Kep	, uph  ), 'vth_tot':np.where( disk_reg , 0	, uth  )	}  )
 	
 			for key, vprof in dic.items():
