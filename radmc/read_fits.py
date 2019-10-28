@@ -20,15 +20,17 @@ def GridContour(xx, yy ,  z , n_lv=20 , cbmin=None, cbmax=None):
 	norm = BoundaryNorm(levels, ncolors=cmap.N, clip=True)
 	return plt.pcolormesh(xx, yy, z, cmap=cmap, norm=norm, rasterized=True)
 
-chmap = 0
-pvd = 1
+chmap = 1
+pvd = 0
 conv = 0
 beam_size = 10
 d = 140 * cst.pc
 figdir = "F/"
+mark_peak = 1
 
 
-pic = iofits.open("obs.fits")[0]
+
+pic = iofits.open("obs_wdisk.fits")[0]
 header = pic.header
 data = pic.data
 print(vars(header), data )
@@ -43,11 +45,12 @@ freq0 = freq_max + dfreq*(Nz-1)/2
 
 if conv:
 	from scipy.ndimage import gaussian_filter 
+	I_max = data.max()
 	data = np.array([ gaussian_filter(d, sigma=np.abs( beam_size/dx ) ) for d in data ])
 
 if chmap:
 	xx, yy = np.meshgrid(x,y)
-	cbmax = 0.1  # data.max()*1e4
+	cbmax = data.max()*1e4
 	for i in range(len(data)):
 		n_lv = 60
 		vkms = cst.c/1e5* dfreq*(0.5*(Nz-1)-i)/freq0
@@ -57,25 +60,29 @@ if chmap:
 		plt.xlabel("Position [au]")
 		plt.ylabel("Position [au]")
 		plt.gca().set_aspect('equal', adjustable='box')
-		plt.title(f"v = {vkms:.3f} km/s")
-		plt.savefig(figdir+"chmap_{0=4d}.pdf"%i, bbox_inches="tight" , dpi = 300)
+		plt.title(figdir+"v = {:.3f} km/s".format(vkms))
+		plt.savefig(figdir+"chmap_{:0=4d}.pdf".format(i), bbox_inches="tight" , dpi = 300)
 		plt.clf()
 
 if pvd:
-	mark_peak = 0	
 	n_lv = 20
 	vkms = cst.c/1e5* dfreq*(0.5*(Nz-1) - np.arange(len(data)) )/freq0
 	print( vkms[1] - vkms[0] )
-	exit()
+#	exit()
 
 	xx, vv = np.meshgrid(x,vkms)
 
 	from scipy import signal
-	I_pv = integrate.simps(  data[ : , int(Ny/2-0.5*beam_size/dy) : int(Ny/2+0.5*beam_size/dy) , : ] , axis=1) 
+#	I_pv = integrate.simps(  data[ : , int(Ny/2-0.5*beam_size/dy) : int(Ny/2+0.5*beam_size/dy) , : ] , axis=1) 
+	I_pv = integrate.simps(  data[ : , int(Ny/2-1) : int(Ny/2+1) , : ] , axis=1)
+	I_pv = 0.5*(data[ : , Ny/2-1 , : ] + data[ : , Ny/2 , : ]	 )
+
+
+
 	maxId = np.array( [ signal.argrelmax( I_pv[ i , : ] ) for i in range(len( I_pv[ : , 0 ])) ] )
 
-	im = GridContour(xx, vv, I_pv*1e4 , n_lv=n_lv )
-	plt.plot( x , np.sqrt(cst.G*0.77*cst.Msun/x/cst.au)/cst.kms  )
+	im = GridContour(xx, vv, I_pv*1e4 , n_lv=n_lv , cbmax = None )
+	plt.plot( x , np.sqrt(cst.G*0.77*cst.Msun/x/cst.au)/cst.kms  , c="cyan", ls=":")
 
 	if mark_peak:
 		maxxv = []

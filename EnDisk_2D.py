@@ -81,7 +81,7 @@ def Plots( re ):
 		draw_map( re['mu0']/np.cos( re['tt'] ), 'mu0_mu',[0, 10] , cbl=r'$\mu_{0}/\mu$', div=10, Vector=Vec,n_sl=40,log=False)
 
 
-		den0, uR0 , uph0 , den_tot0 = slice_at_midplane( tt_p , re['den'] , re['uR'] , re['uph'] )
+		den0, uR0 , uph0  = slice_at_midplane( tt_p , re['den'] , re['uR'] , re['uph'] )
 
 		if TSC:
 			den0_TSC, uR0_TSC , uph0_TSC = slice_at_midplane( tt_p , re['den_TSC'] , re['uR_TSC'] , re['uph_TSC']  )
@@ -103,8 +103,8 @@ def Plots( re ):
 			den_tot0 = slice_at_midplane( tt_p ,  re['den_tot'] )
 			mp.plot( { 'nH2':den0/cst.mn ,
 						'nH2_tot':den_tot0/cst.mn }	,
-						'v_dens_%s'%tstamp	, x = re['r_ax']/cst.au , xlim=[0,1000],ylim=[1e4,1e15] ,
-						lw=[ None, 3,3,6,6], c=['k', ], ls=['-','-','-','--','--'], loglog=True)
+						'v_dens_%s'%tstamp	, x = re['r_ax']/cst.au , xlim=[1,1000],ylim=[1e4,1e15] ,
+						lw=[ None, 3,3,6,6], c=['k', ], ls=['-','-','-','--','--'], loglog=True, vl=[re["r_CB_0"]/cst.au*2 ])
 		exit()
 		mp.plot( { 'log nH2 - 6':np.log10(den0/cst.mn) -6, 
 					'-uR':-uR0/cst.kms , 
@@ -318,6 +318,7 @@ class Calc_2d_map:
 		j0 = Omg * ( self.m0 * cs * self.t * 0.5 )**2
 		self.M = Mdot * self.t 
 		rCB  = self.get_rCB(self.M, Omg, cs, self.t ) # 50 * cst.au
+		req  = rCB * 2 * np.sin( 45/180 * np.pi )**2
 		self.print_params( self.t, self.M, T, cs, Omg, Mdot, r_in_lim, j0, rCB)	
 		self.res = {'r_ax':self.r_ax, 'th_ax':self.th_ax, 't':self.t ,'M':self.M, 'r_in_lim':r_in_lim, 'r_CB_0': rCB}	
 		funcs = self.get_0th_order_function(self.r_ax) if use_solution_0th else None
@@ -354,12 +355,12 @@ class Calc_2d_map:
 
 			if Disk:
 				rho_disk	 = self.put_Disk_sph( r , self.th_ax , self.M , Md , rCB , Td)	
-				disk_reg = rho_disk > rho
+				disk_reg	 = rho_disk > rho
 				v_Kep		 = np.sqrt(cst.G * self.M / R_ax )
 				vphi_tot = np.where( disk_reg , v_Kep  , uph  )
 			
 				dic.update( {  'den_tot':rho + rho_disk,  'vr_tot':np.where( disk_reg , 0  , ur  ) , 
-								'vphi_tot':np.where(  rho_disk > rho , v_Kep  , uph  ), 'vth_tot':np.where( disk_reg , 0  , uth  )	}  )
+								'vphi_tot':np.where(  disk_reg , v_Kep	, uph  ), 'vth_tot':np.where( disk_reg , 0	, uth  )	}  )
 	
 			for key, vprof in dic.items():
 				if not key in self.res:

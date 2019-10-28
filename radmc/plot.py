@@ -27,8 +27,8 @@ SED		   = 0
 Line	   = 0
 ChannelMap = 0
 PVd		   = 0
-
-Fits  = 1
+tau_surf = 0
+Fits  = 0
 
 ## Global parameters
 iline = 2
@@ -84,10 +84,23 @@ def Synthetic_Observation(wl=5):
 	fig.savefig("obs.pdf")
 
 
+def find_tau_surface():
+
+	common = "incl %d phi %d posang %d setthreads %d "%(incl,phi,posang,n_thread)
+	wl = "iline %d "%iline	#	"lambda %f "%wl
+	cmd = "radmc3d tausurf 1 npix 200 sizeau 500 " + common + wl
+#	subprocess.call(cmd,shell=True)
+	a=readImage()
+	fig = plt.figure()
+	c	= plb.contourf( a.x/cst.au , a.y/cst.au , a.image[:,:,0].T.clip(0)/cst.au, levels=np.linspace(0.0, 30, 20+1) )
+	cb = plb.colorbar(c)
+	plt.savefig("tausurf.pdf")
+
+
 def make_fits_data():
 	common = "incl %d phi %d posang %d setthreads %d "%(incl,phi,posang,n_thread)
 	option = "fluxcons "
-	cmd = "radmc3d image iline %d widthkms 12 linenlam 200 npix 400 sizeau 500 "%(iline) + common + option
+	cmd = "radmc3d image iline %d widthkms 12 linenlam 100 npix 100 sizeau 500 "%(iline) + common + option
 #	cmd = "radmc3d image  iline %d widthkms 10 linenlam 200 npix 200 sizeau 400 "%(iline) + common + option
 #	cmd = "radmc3d image  iline %d widthkms 5 linenlam 2 zoomau -200 200 -20 20 npixx 160 npixy 16 truepix "%(iline) + common + option
 	subprocess.call(cmd,shell=True)
@@ -164,6 +177,9 @@ if __name__=='__main__':
 
 	if Obs:
 		Synthetic_Observation()
+	
+	if tau_surf:
+		find_tau_surface()
 
 	if Fits:
 		make_fits_data()

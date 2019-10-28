@@ -6,7 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 #from col import *
 from scipy.interpolate import interp2d,griddata
-plt.switch_backend('agg')
+#plt.switch_backend('agg')
 #mpl.rc('xtick.major',size=6,width=2,pad=6,)
 #mpl.rc('ytick.major',size=6,width=2,pad=2)
 import sys
@@ -194,6 +194,10 @@ def plot( y_dic , opfn, x = None , c=[None], ls=[], lw=[], alp=[], leg=True, frg
 	if xl:	 plt.xlabel(xl)
 	if yl:	 plt.ylabel(yl)
 
+#	print("			aaa		   ")
+#	plt.show()
+#	raw_input('>>>	')	
+#	exit()
 	# Saving
 	plt.savefig("%s/%s%s"%(defs.fig_dn,opfn,defs.ext), transparent=True, bbox_inches='tight')
 	plt.close()

@@ -192,7 +192,7 @@ def main():
 		f.write('100\n')					 # Coordinate system: spherical
 		f.write('0\n')						 # gridinfo
 		f.write('1 1 0\n')					 # Include r,theta coordinates
-		f.write('%d %d %d\n'%(nr,ntheta,1))  # Size of grid
+		f.write('%d %d %d\n'%(nr,ntheta,nphi))	# Size of grid
 		for value in ri:
 			f.write('%13.6e\n'%(value))		 # X coordinates (cell walls)
 		for value in thetai:
