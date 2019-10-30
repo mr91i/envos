@@ -38,6 +38,7 @@ class Param:
 		self.Disk = 0
 		self.Rotation = 1
 		self.AutoMassTuning = 1
+		self.pickle_name = "L1527"
 
 par = Param()
 
@@ -352,7 +353,7 @@ class Calc_2d_map:
 		cs	= np.sqrt( cst.kB * T/cst.mn )
 		Mdot = cs**3*self.m0/cst.G
 
-		self.M, self.t = self.give_Mass_and_time(Mdot, Mstar=0.18*cst.Msun)		
+		self.M, self.t = self.give_Mass_and_time(Mdot, Mstar=0.36*cst.Msun)		
 		Omg = self.give_Omega( cs , self.t , self.M , mode='centrifugal_radius', r_CR=100*cst.au)
 	
 		r_in_lim = cs*Omg**2* self.t**3
@@ -411,8 +412,9 @@ class Calc_2d_map:
 			self.res[k] = np.array(v)
 
 		# Save to pickle
-		pd.to_pickle( self.res , "res_{:.0e}.pkl".format( self.t/cst.yr ))
-		print("Saved: %s"%"res_{:.0e}.pkl".format( self.t/cst.yr ) )	
+		stamp = "{:.0e}".format( self.t/cst.yr ) if par.pickle_name == 'time' else par.pickle_name
+		pd.to_pickle( self.res , "res_%s.pkl"%stamp)	
+		print("Saved: %s"%"res_%s.pkl"%stamp )	
 		return self.res
 	
 ##########################################################################################################################

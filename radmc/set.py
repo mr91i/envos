@@ -47,7 +47,7 @@ def interpolator2( value, x_ori , y_ori , x_new, y_new ,logx=False, logy=False, 
 				f = interp1d( x_red , v_red , 'linear' , fill_value='extrapolate')
 				v[:,i] = f(x[:,i])
 			except:
-				print("Use zeros for extrapolation, i = ",i )
+				print("Use zeros for extrapolation, i = %d"%i )
 				v[:,i] = np.nan
 		return v
 
@@ -81,6 +81,8 @@ def perform_PMODES():
 	os.system( "python3 ../EnDisk_2D.py -o output.pkl" )
 		
 def main():
+	D = pd.read_pickle("res_L1527.pkl")
+
 	nphot	 = 1000000
 	
 	#
@@ -98,9 +100,10 @@ def main():
 	#
 	# Star parameters
 	#
-	mstar	 = cst.ms
+	mstar	 = D["M"] #cst.ms
 	rstar	 = cst.rs
 	tstar	 = cst.ts
+	tstar	 = 1.2877 * cst.ts ## gives 2.75 Ls
 	pstar	 = np.array([0.,0.,0.])
 	#
 	# Make the coordinates
@@ -121,11 +124,11 @@ def main():
 	zz		 = qq[0]*np.cos( tt )
 	
 	#
-	D = pd.read_pickle("res_5e5_disk.pkl")
+#	D = pd.read_pickle("res_5e5_disk.pkl")
 #	D = pd.read_pickle("res_5e+05_nocav.pkl")
 #	D = pd.read_pickle("res_5e+05_sph.pkl")
 #	 D = pd.read_pickle("res_5e+05.pkl")
-#	D = pd.read_pickle("res_1e+05.pkl")
+##	 D = pd.read_pickle("res_1e+05.pkl")
 
 
 	rhog = interpolator2( D["den_tot"] , D["r_ax"] , D["th_ax"]  , rr, tt , logx=True, logz=True)

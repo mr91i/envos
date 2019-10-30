@@ -19,16 +19,16 @@ import subprocess
 #import myplot as mp
 #import plotter as pl
 
-DensityMap = 0
-DensProf   = 1
-TempProf   = 1
-Obs		   = 0
-SED		   = 0	
-Line	   = 0
-ChannelMap = 0
-PVd		   = 0
-tau_surf = 0
-Fits  = 0
+DensityMap	= 0
+DensProf	= 1
+TempProf	= 1
+Obs			= 0
+SED			= 0	
+Line		= 0
+ChannelMap	= 0
+PVd			= 0
+tau_surf	= 1
+Fits		= 1
 
 ## Global parameters
 iline = 2
@@ -88,7 +88,7 @@ def find_tau_surface():
 
 	common = "incl %d phi %d posang %d setthreads %d "%(incl,phi,posang,n_thread)
 	wl = "iline %d "%iline	#	"lambda %f "%wl
-	cmd = "radmc3d tausurf 1 npix 200 sizeau 500 " + common + wl
+	cmd = "radmc3d tausurf 1 npix 100 sizeau 500 " + common + wl
 #	subprocess.call(cmd,shell=True)
 	a=readImage()
 	fig = plt.figure()
@@ -97,21 +97,22 @@ def find_tau_surface():
 	plt.savefig("tausurf.pdf")
 
 
+
 def make_fits_data():
+	widthkms = 3 #10
+	linenlam = 60 #100
+	npix	 = 140 #100
+	sizeau	 = 1400 #500
 	common = "incl %d phi %d posang %d setthreads %d "%(incl,phi,posang,n_thread)
-	option = "fluxcons "
-	cmd = "radmc3d image iline %d widthkms 12 linenlam 100 npix 100 sizeau 500 "%(iline) + common + option
-#	cmd = "radmc3d image  iline %d widthkms 10 linenlam 200 npix 200 sizeau 400 "%(iline) + common + option
-#	cmd = "radmc3d image  iline %d widthkms 5 linenlam 2 zoomau -200 200 -20 20 npixx 160 npixy 16 truepix "%(iline) + common + option
+	option = ""
+	cmd = "radmc3d image iline %d widthkms %f linenlam %d npix %d sizeau %f truepix "%(iline,widthkms,linenlam,npix,sizeau) + common + option
 	subprocess.call(cmd,shell=True)
-#	if "ERROR" in ret :
-#		exit(1)
 	fig		  = plt.figure()
 	obs_data  = readImage()
 	print(vars(obs_data))
 	print(obs_data.image.shape)
 	obs_data.writeFits(fname='obs.fits', dpc=140 )
-#	fitsheadkeys = {'MEMO': 'This is just test'  }
+#	fitsheadkeys = {'Ms':  }
 #	obs_data.writeFits(fname='obs.fits', dpc=140 , fitsheadkeys=fitsheadkeys )
 
 

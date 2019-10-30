@@ -20,9 +20,9 @@ def GridContour(xx, yy ,  z , n_lv=20 , cbmin=None, cbmax=None):
 	norm = BoundaryNorm(levels, ncolors=cmap.N, clip=True)
 	return plt.pcolormesh(xx, yy, z, cmap=cmap, norm=norm, rasterized=True)
 
-chmap = 1
-pvd = 0
-conv = 0
+chmap = 0
+pvd = 1
+conv = 1
 beam_size = 10
 d = 140 * cst.pc
 figdir = "F/"
@@ -30,7 +30,7 @@ mark_peak = 1
 
 
 
-pic = iofits.open("obs_wdisk.fits")[0]
+pic = iofits.open("obs_L1527.fits")[0]
 header = pic.header
 data = pic.data
 print(vars(header), data )
@@ -67,15 +67,16 @@ if chmap:
 if pvd:
 	n_lv = 20
 	vkms = cst.c/1e5* dfreq*(0.5*(Nz-1) - np.arange(len(data)) )/freq0
-	print( vkms[1] - vkms[0] )
+	print(vkms)
+#	print( vkms[1] - vkms[0] )
 #	exit()
 
 	xx, vv = np.meshgrid(x,vkms)
 
 	from scipy import signal
-#	I_pv = integrate.simps(  data[ : , int(Ny/2-0.5*beam_size/dy) : int(Ny/2+0.5*beam_size/dy) , : ] , axis=1) 
-	I_pv = integrate.simps(  data[ : , int(Ny/2-1) : int(Ny/2+1) , : ] , axis=1)
-	I_pv = 0.5*(data[ : , Ny/2-1 , : ] + data[ : , Ny/2 , : ]	 )
+	I_pv = integrate.simps(  data[ : , int(Ny/2-0.5*beam_size/dy) : int(Ny/2+0.5*beam_size/dy) , : ] , axis=1) 
+#	I_pv = integrate.simps(  data[ : , int(Ny/2-1) : int(Ny/2+1) , : ] , axis=1)
+#	I_pv = 0.5*(data[ : , Ny/2-1 , : ] + data[ : , Ny/2 , : ]	 )
 
 
 
@@ -93,9 +94,20 @@ if pvd:
 		maxxv = np.array(maxxv)
 		plt.scatter( maxxv[:,0] , maxxv[:,1] , c="red", s=1)
 
+		maxxv = []
+		for j in range(len( I_pv[ 0 , : ] )):
+			maxi = signal.argrelmax( I_pv[ : , j ] )
+			for jj in maxi[0]:
+				maxxv.append( [ x[ j ] , vkms[jj] ] )
+		maxxv = np.array(maxxv)
+		plt.scatter( maxxv[:,0] , maxxv[:,1] , c="blue", s=1)
+
+
 	plt.xlabel("Position [au]")
 	plt.ylabel(r"Velocity [km s$^{-1}$]")
-	plt.ylim( vkms[0],vkms[-1] )
+#	plt.ylim( vkms[0],vkms[-1] )
+	plt.xlim( -250,250 )
+	plt.ylim( -3,3 )
 	cbar=plt.colorbar(im)
 	cbar.set_label(r'Intensity [10$^{-4}$ Jy pixel$^{-1}$ ]')
 	plt.savefig(figdir+"pvd.pdf" , bbox_inches="tight", dpi = 300)
