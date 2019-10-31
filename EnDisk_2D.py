@@ -353,8 +353,8 @@ class Calc_2d_map:
 		cs	= np.sqrt( cst.kB * T/cst.mn )
 		Mdot = cs**3*self.m0/cst.G
 
-		self.M, self.t = self.give_Mass_and_time(Mdot, Mstar=0.36*cst.Msun)		
-		Omg = self.give_Omega( cs , self.t , self.M , mode='centrifugal_radius', r_CR=100*cst.au)
+		self.M, self.t = self.give_Mass_and_time(Mdot, Mstar=0.18*cst.Msun)		
+		Omg = self.give_Omega( cs , self.t , self.M , mode='centrifugal_radius', r_CR=200*cst.au)
 	
 		r_in_lim = cs*Omg**2* self.t**3
 		j0 = Omg * ( self.m0 * cs * self.t * 0.5 )**2

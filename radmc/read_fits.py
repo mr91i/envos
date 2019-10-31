@@ -12,13 +12,16 @@ plt.switch_backend('agg')
 
 def GridContour(xx, yy ,  z , n_lv=20 , cbmin=None, cbmax=None):
 	cmap = plt.get_cmap('viridis')
+	dx = xx[0,1] - xx[0,0]
+	dy = yy[1,0] - yy[0,0]
+	
 	if cbmin == None:
 		cbmin = z.min()
 	if cbmax == None:
 		cbmax = z.max() 
 	levels = MaxNLocator(nbins=n_lv).tick_values(cbmin, cbmax)
 	norm = BoundaryNorm(levels, ncolors=cmap.N, clip=True)
-	return plt.pcolormesh(xx, yy, z, cmap=cmap, norm=norm, rasterized=True)
+	return plt.pcolormesh(xx-dx/2, yy-dy/2, z, cmap=cmap, norm=norm, rasterized=True)
 
 chmap = 0
 pvd = 1
@@ -40,6 +43,10 @@ dx, dy = np.array([ header["CDELT1"] , header["CDELT2"] ]) *np.pi/180.0 *d/cst.a
 Lx, Ly = Nx*dx, Ny*dy 
 x = Lx/2 - (np.arange(Nx)+0.5)*dx
 y = Ly/2 - (np.arange(Ny)+0.5)*dy
+#x = Lx/2 - (np.arange(Nx))*dx
+#y = Ly/2 - (np.arange(Ny))*dy
+#print(x,y)
+#exit()
 freq_max , dfreq = header["CRVAL3"] , header["CDELT3"]
 freq0 = freq_max + dfreq*(Nz-1)/2
 
@@ -83,22 +90,53 @@ if pvd:
 	maxId = np.array( [ signal.argrelmax( I_pv[ i , : ] ) for i in range(len( I_pv[ : , 0 ])) ] )
 
 	im = GridContour(xx, vv, I_pv*1e4 , n_lv=n_lv , cbmax = None )
-	plt.plot( x , np.sqrt(cst.G*0.77*cst.Msun/x/cst.au)/cst.kms  , c="cyan", ls=":")
+	plt.plot( x , np.sqrt(cst.G*0.18*cst.Msun/x/cst.au)/cst.kms  , c="cyan", ls=":")
+
+	from scipy.interpolate import interp1d
+	from scipy import optimize
+	from scipy.interpolate import InterpolatedUnivariateSpline
+	def get_peaks( x , y ):
+		maxi = signal.argrelmax( y )
+		maxis = []
+		for amaxi in maxi[0]:
+			print(x[amaxi] )
+			f_interp = InterpolatedUnivariateSpline(x[amaxi-2:amaxi+3] , y[amaxi-2:amaxi+3] )
+			df = f_interp.derivative(1)
+			maxis.append( optimize.root(df,x[amaxi]).x[0] )
+			solx = optimize.root(df,x[amaxi]).x
+			print(len(solx),solx )
+		return	np.array( maxis	)
+
+		try:
+			f = interp1d( x , np.gradient(y,x[1]-x[0]) )
+#			print( signal.argrelmax( y ) , x[signal.argrelmax( y )] )
+			return	optimize.fsolve( f , x[signal.argrelmax( y )] )
+		except:
+			return np.array([])
 
 	if mark_peak:
 		maxxv = []
 		for i in range(len( I_pv[ : , 0 ] )):
-			maxi = signal.argrelmax( I_pv[ i , : ] ) 
-			for ii in maxi[0]:
-				maxxv.append( [ x[ ii ] , vkms[i] ] )
+			#maxi = signal.argrelmax( I_pv[ i , : ] , order=2) 
+			maxx = get_peaks( x	, I_pv[ i , : ] )
+			#print(maxx)
+			for amaxx in maxx:
+				maxxv.append( [  amaxx , vkms[i]] )
+#			exit()
+#			for ii in maxi[0]:
+#				maxxv.append( [ x[ ii ] , vkms[i] ] )
 		maxxv = np.array(maxxv)
 		plt.scatter( maxxv[:,0] , maxxv[:,1] , c="red", s=1)
 
 		maxxv = []
 		for j in range(len( I_pv[ 0 , : ] )):
-			maxi = signal.argrelmax( I_pv[ : , j ] )
-			for jj in maxi[0]:
-				maxxv.append( [ x[ j ] , vkms[jj] ] )
+			#maxj = signal.argrelmax( I_pv[ : , j ] , order=4, mode='wrap')
+			maxv = get_peaks( vkms , I_pv[ : , j ] )
+			for amaxv in maxv:
+				maxxv.append( [  x[j] , amaxv ] )
+
+			#for jj in maxj[0]:
+			#	maxxv.append( [ x[ j ] , vkms[jj] ] )
 		maxxv = np.array(maxxv)
 		plt.scatter( maxxv[:,0] , maxxv[:,1] , c="blue", s=1)
 

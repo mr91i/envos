@@ -91,7 +91,7 @@ def main():
 	nr		 = 512 #128
 	ntheta	 = 256
 	nphi	 = 1
-	rin		 = 1*cst.au
+	rin		 = 10*cst.au
 	rout	 = 10000*cst.au
 	thetaup  = 0 / 180 * np.pi 
 	#
