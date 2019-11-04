@@ -6,11 +6,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 #from col import *
 from scipy.interpolate import interp2d,griddata
-#mpl.rc('xtick.major',size=6,width=2,pad=6,)
-#mpl.rc('ytick.major',size=6,width=2,pad=2)
 import sys
-pyver = sys.version_info[0] + 0.1*sys.version_info[1] 
-print("This is python ",pyver)
+pyver = sys.version_info[0] + 0.1*sys.version_info[1]
+print("This is python %s"%pyver)
 plt.switch_backend('agg')
 
 dbg = 1
@@ -72,7 +70,8 @@ def tex_fmt( x, pos):
 #
 def give_def_vals( vals ,  defvals ):
 	for i, v in enumerate(vals):
-		if v is None :
+
+		if ( not isinstance(v,(list,np.ndarray)) ) and (v == None or v== '' ) :
 			vals[i] = defvals[i]
 	return vals
 
@@ -146,17 +145,17 @@ def plot( y_dic , opfn, x = None , c=[None], ls=[], lw=[], alp=[], leg=True, frg
 		# Preprocessing for each plot
 		lb	   = lbs[i]  if lbs else k
 		pmplot = (x, -y) if pm	else ()	
+		print(x)
 		xy = (x , y) if (x is not None) else (y,)
-		
+		print(xy)	
+	
 		# Plot 
 		say( 'Inputs to plot',xy ) 
-#		 ax.plot( *xy , label=lb , c=c[i], ls=ls[i], lw=lw[i], alpha=alp[i], zorder=-i, *pmplot, **kwargs)
 
 		ax.plot( *xy , label=lb , c=c[i], ls=ls[i], lw=lw[i], alpha=alp[i], zorder=-i, **kwargs)
 		if pm:
 			ax.plot( *pmplot , label=lb , c=c[i], ls=ls[i], lw=lw[i], alpha=alp[i], zorder=-i, **kwargs)
 
-#		ax.plot( xy , label=lb , c=c[i], ls=ls[i], lw=lw[i], alpha=alp[i], zorder=-i, *pmplot, **kwargs)
 
 		# Enroll flags
 		if lb and frg_leg==0: 
@@ -194,10 +193,6 @@ def plot( y_dic , opfn, x = None , c=[None], ls=[], lw=[], alp=[], leg=True, frg
 	if xl:	 plt.xlabel(xl)
 	if yl:	 plt.ylabel(yl)
 
-#	print("			aaa		   ")
-#	plt.show()
-#	raw_input('>>>	')	
-#	exit()
 	# Saving
 	plt.savefig("%s/%s%s"%(defs.fig_dn,opfn,defs.ext), transparent=True, bbox_inches='tight')
 	plt.close()
@@ -212,7 +207,7 @@ def plot( y_dic , opfn, x = None , c=[None], ls=[], lw=[], alp=[], leg=True, frg
 #	cmap=plt.get_cmap('magma')
 def map( x , y , z , opfn, c=[None], ls=[None], lw=[None], alp=[None],
 			xl='', yl='', cbl='',xlim=None, ylim=None, cblim=None, logx=False, logy=False, logcb=False, loglog=False,
-			pm=False, leg=True, hl=[], vl=[], title='',fills=None,data="", Vector=None, div=10.0, n_sline=18,hist=False,		
+			pm=False, leg=False, hl=[], vl=[], title='',fills=None,data="", Vector=None, div=10.0, n_sline=18,hist=False,		
 			square=True,
 			**args):
 
@@ -282,8 +277,6 @@ def map( x , y , z , opfn, c=[None], ls=[None], lw=[None], alp=[None],
 			plt.quiver( xx[::n,::m], yy[::n,::m] , (uu/l)[::n,::m], (vv/l)[::n,::m], angles='xy', color='red' )
 
 		
-#		x_ax = np.linspace( *xlim , 200	 )
-#		y_ax = np.linspace( *ylim , 200	 )
 		x_ax = np.linspace( xlim[0] , xlim[1] , 200	)
 		y_ax = np.linspace( ylim[0] , ylim[1] , 200	)
 

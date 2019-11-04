@@ -27,7 +27,7 @@ SED			= 0
 Line		= 0
 ChannelMap	= 0
 PVd			= 0
-tau_surf	= 1
+tau_surf	= 0
 Fits		= 1
 
 ## Global parameters
@@ -100,14 +100,25 @@ def find_tau_surface():
 
 def make_fits_data():
 	widthkms = 3 #10
-	linenlam = 60 #100
-	npix	 = 140 #100
-	sizeau	 = 1400 #500
-	common = "incl %d phi %d posang %d setthreads %d "%(incl,phi,posang,n_thread)
-	option = ""
-	cmd = "radmc3d image iline %d widthkms %f linenlam %d npix %d sizeau %f truepix "%(iline,widthkms,linenlam,npix,sizeau) + common + option
+	linenlam = 60 #100 ~ 0.1km/s
+	sizeau	 = 1400 #500  
+	npix	 = 25 #100	~ 0.4''
+	common	 = "incl %d phi %d posang %d setthreads %d "%(incl,phi,posang,n_thread)
+	option	 = "fluxcons"
+	line	 = "iline %d widthkms %f linenlam %d "%(iline,widthkms,linenlam)
+#	camera	 = "npix %d sizeau %f truepix "%(npix,sizeau)
+	Lh	   = sizeau/2
+	npix   = [ npix ,  16  ]
+	print(	- npix[1]/float(npix[0]) , npix[1]/npix[0]	 )
+	zoomau = [ -Lh, Lh, -Lh*npix[1]/float(npix[0]) , Lh*npix[1]/float(npix[0]) ]
+	print( (zoomau[1] - zoomau[0])/npix[0] , (zoomau[3] - zoomau[2])/npix[1]  )
+	camera2   = "npixx {:d} npixy {:d} ".format(*npix) + "zoomau {:f} {:f} {:f} {:f} truepix ".format(*zoomau)
+	cmd		 = "radmc3d image " + line + camera2 + common + option
 	subprocess.call(cmd,shell=True)
 	fig		  = plt.figure()
+
+
+			
 	obs_data  = readImage()
 	print(vars(obs_data))
 	print(obs_data.image.shape)

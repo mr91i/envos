@@ -81,7 +81,7 @@ def perform_PMODES():
 	os.system( "python3 ../EnDisk_2D.py -o output.pkl" )
 		
 def main():
-	D = pd.read_pickle("res_L1527.pkl")
+	D = pd.read_pickle("../res_L1527.pkl")
 
 	nphot	 = 1000000
 	
@@ -207,8 +207,8 @@ def main():
 
 
 	if mode["line"]:
-		mol_name = "c18o"	
-		abun_mol = 3e-7 ## c18o
+		mol_name = "cch" #"c18o"	
+		abun_mol = 1e-7 ## c18o
 		#
 		# Write the molecule number density file. 
 		#	
