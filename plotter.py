@@ -145,9 +145,7 @@ def plot( y_dic , opfn, x = None , c=[None], ls=[], lw=[], alp=[], leg=True, frg
 		# Preprocessing for each plot
 		lb	   = lbs[i]  if lbs else k
 		pmplot = (x, -y) if pm	else ()	
-		print(x)
 		xy = (x , y) if (x is not None) else (y,)
-		print(xy)	
 	
 		# Plot 
 		say( 'Inputs to plot',xy ) 

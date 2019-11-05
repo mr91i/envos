@@ -19,7 +19,7 @@ print( parser.parse_known_args() )
 if parser.parse_known_args()[0].obj == 'L1527':
    def_cr	= 200 
    def_mass = 0.18 #0.18 
-   def_cavity_angle = 0
+   def_cavity_angle = 45
    def_pkl_name = 'L1527'
 else:
    def_cr	= 50  
@@ -39,11 +39,11 @@ mp.dbg = args.debug
 
 r_in = 1 *cst.au
 r_out = 10000 *cst.au
-nr	= 301
+nr	= 401
 
 th_in = 0		 + 1e-6
 th_out = np.pi/2 
-nth = 73  
+nth = 181 #73  
 
 t_in  = 5e5 *cst.yr
 t_out  = 5e5 *cst.yr

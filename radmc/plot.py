@@ -35,7 +35,7 @@ iline = 2
 incl = 90 
 phi  = 0
 posang = 0
-n_thread = 16
+n_thread = 1
 
 def plot_Physical_Profile():
 
@@ -97,32 +97,83 @@ def find_tau_surface():
 	plt.savefig("tausurf.pdf")
 
 
+def subcalc(args):
+	dn , cmd = args
+	print(cmd)
+	if not os.path.exists(dn):
+		os.makedirs(dn)
+#	os.system("rm %s/*"%dn)
+	os.system("cp *.inp *.dat %s/"%dn)
+	os.chdir(dn)
+	subprocess.call(cmd,shell=True)
+	return readImage()
 
 def make_fits_data():
-	widthkms = 3 #10
-	linenlam = 60 #100 ~ 0.1km/s
-	sizeau	 = 1400 #500  
-	npix	 = 25 #100	~ 0.4''
-	common	 = "incl %d phi %d posang %d setthreads %d "%(incl,phi,posang,n_thread)
-	option	 = "fluxcons"
-	line	 = "iline %d widthkms %f linenlam %d "%(iline,widthkms,linenlam)
-#	camera	 = "npix %d sizeau %f truepix "%(npix,sizeau)
-	Lh	   = sizeau/2
-	npix   = [ npix ,  16  ]
-	print(	- npix[1]/float(npix[0]) , npix[1]/npix[0]	 )
-	zoomau = [ -Lh, Lh, -Lh*npix[1]/float(npix[0]) , Lh*npix[1]/float(npix[0]) ]
-	print( (zoomau[1] - zoomau[0])/npix[0] , (zoomau[3] - zoomau[2])/npix[1]  )
-	camera2   = "npixx {:d} npixy {:d} ".format(*npix) + "zoomau {:f} {:f} {:f} {:f} truepix ".format(*zoomau)
-	cmd		 = "radmc3d image " + line + camera2 + common + option
-	subprocess.call(cmd,shell=True)
-	fig		  = plt.figure()
+	rectangle_camera = 1
+	multi_threads = 1
 
+	widthkms = 3 # 
+	linenlam = 60 # ~ 0.1km/s
+	sizeau	 = 1400 #  
+	npix	 = 100 # ~ 0.1''
+	common	 = "incl %d phi %d posang %d"%(incl,phi,posang)
+	option	 = " "
+#	line	 = "iline %d widthkms %f linenlam %d "%(iline,widthkms,linenlam)
 
-			
-	obs_data  = readImage()
-	print(vars(obs_data))
-	print(obs_data.image.shape)
+	if rectangle_camera:	
+		Lh	   = sizeau/2
+		npix   = [ npix ,  1  ]
+		zoomau = [ -Lh, Lh, -Lh*npix[1]/float(npix[0]) , Lh*npix[1]/float(npix[0]) ]
+ #		npix   = [ 100 ,  1	]
+#		zoomau = [ -700, 700, -7 , 7 ]
+
+		camera	 = "npixx {:d} npixy {:d} ".format(*npix) + "zoomau {:f} {:f} {:f} {:f} truepix ".format(*zoomau)
+
+	if multi_threads:
+		from multiprocessing import Pool
+		for i in range(16,0,-1):
+			print(i)
+			if linenlam % i == 0:
+				n_thread = i 
+				break
+		v_ranges = np.linspace( -widthkms ,  widthkms , n_thread + 1 )
+		dv = 2*widthkms/linenlam
+		cmd = lambda p :  " radmc3d image iline {:d} vkms {} widthkms {} linenlam {:d} ".format( \
+						iline , 0.5*(v_ranges[p+1] + v_ranges[p]), 0.5*(v_ranges[p+1]  - v_ranges[p]) , int(linenlam/float(n_thread)) ) \
+						+ camera + common + option
+		rets =	Pool(n_thread).map( subcalc , [ ( 'proc' + str(p) , cmd(p) ) for p in range(n_thread)	] )
+		obs_data = rets[0]
+#		print(vars(rets[0]))
+		for ret in rets[1:]:
+#			print(vars(ret))
+			print(ret.image.shape)
+			obs_data.image = np.append( obs_data.image, ret.image[:,:,1:], axis=2 )
+			obs_data.imageJyppix = np.append( obs_data.imageJyppix, ret.imageJyppix[:,:,1:], axis=2 )
+			obs_data.freq = np.append( obs_data.freq, ret.freq[1:], axis=-1 )
+			obs_data.nfreq += ret.nfreq -1
+			obs_data.wav = np.append( obs_data.wav, ret.wav[1:], axis=-1 )
+			obs_data.nwav += ret.nwav -1 
+		print(vars(obs_data))
+		print(obs_data.image.shape)
+	else:
+		cmd		 = "radmc3d image " + line + camera + common + option
+#		 cmd = "radmc3d image iline 2 widthkms 12 linenlam 100 sizeau 500 npix 200 truepix " + common + option
+		subprocess.call(cmd,shell=True)
+		obs_data = readImage()
+
 	obs_data.writeFits(fname='obs.fits', dpc=140 )
+
+
+
+#def make_fits_data():
+#	camera	 = "npix %d sizeau %f truepix "%(npix,sizeau)
+#	subprocess.call(cmd,shell=True)
+#	fig		  = plt.figure()
+#			
+#	obs_data  = readImage()
+#	print(vars(obs_data))
+#	print(obs_data.image.shape)
+#	obs_data.writeFits(fname='obs.fits', dpc=140 )
 #	fitsheadkeys = {'Ms':  }
 #	obs_data.writeFits(fname='obs.fits', dpc=140 , fitsheadkeys=fitsheadkeys )
 
