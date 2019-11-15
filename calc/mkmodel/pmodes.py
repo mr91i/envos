@@ -10,7 +10,7 @@ dn_this_file = os.path.dirname(os.path.abspath(__file__))
 dn_home = os.path.abspath(os.path.dirname(__file__)+"/../../")
 dn_pkl = dn_home+"/calc/radmc" 
 print("Execute %s:\n"%__file__)
-print(dn_pkl)
+sys.path.append(dn_home)
 import calc.plotter as mp
 from calc import cst 
 parser = argparse.ArgumentParser(description='This code calculates the kinetic structure based on a model.')
@@ -21,8 +21,12 @@ parser.add_argument('--no_param_tuning',action='store_true')
 parser.add_argument('--CM',default=True)
 parser.add_argument('--TSC',default=True)
 parser.add_argument('--obj',choices=['L1527','None'],default='L1527') 
-print( parser.parse_known_args() )
-if parser.parse_known_args()[0].obj == 'L1527':
+parser.add_argument('--cr', type=float)
+parser.add_argument('--mass',type=float)
+parser.add_argument('--cavity_angle',type=float)
+parser.add_argument('--pkl_name')
+args = parser.parse_args()
+if args.obj=='L1527':
    def_cr	= 200 
    def_mass = 0.18 #0.18 
    def_cavity_angle = 45
@@ -32,12 +36,11 @@ else:
    def_mass = 1.0	
    def_cavity_angle = 0
    def_pkl_name = None
-parser.add_argument('--cr',  default=def_cr)
-parser.add_argument('--mass',default=def_mass)
-parser.add_argument('--cavity_angle',default=def_cavity_angle,type=float)
-parser.add_argument('--pkl_name',default=def_pkl_name)
+parser.set_defaults(cr=def_cr, 
+					mass=def_mass, 
+					cavity_angle=def_cavity_angle, 
+					pkl_name=def_pkl_name)
 args = parser.parse_args()
-
 
 ## Global Parameters ##
 use_solution_0th = 0
@@ -191,7 +194,7 @@ class Calc_2d_map:
 		
 		sin = np.where( sin==0 , SMALL0 , sin )
 		if cavity_angle is not None:
-			Mdot *= ( mu0 < np.cos( cavity_angle/180*np.pi ) ) * np.ones_like( mu0 )
+			Mdot *= ( mu0 < np.cos( cavity_angle/180.0*np.pi ) ) * np.ones_like( mu0 )
 	
 		mu_to_mu0 = mu/mu0
 		ur	= - vff * np.sqrt( 1 + mu_to_mu0 )
@@ -287,6 +290,7 @@ class Calc_2d_map:
 		print_format( 'j0' , j0/(cst.kms*cst.au)  , 'au*km/s' )
 		print_format( 'j0' , j0/(cst.kms*cst.pc)  , 'pc*km/s' )
 		print_format( 'rCB' , rCB/cst.au , 'au' )
+		print_format( 'c.a.' , args.cavity_angle , '' )
 		print("")
 
 	def calc(self):

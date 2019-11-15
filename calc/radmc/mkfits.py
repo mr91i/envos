@@ -7,6 +7,10 @@ from radmc3dPy.image import *
 import numpy as np
 from matplotlib import pyplot as plt
 plt.switch_backend('agg')
+dn_radmc = os.path.dirname(os.path.abspath(__file__)) + '/'
+dn_home = os.path.abspath(os.path.dirname(__file__)+"/../../")
+print("Execute %s:\n"%__file__)
+sys.path.append(dn_home)
 
 # Global parameters
 iline = 2
@@ -16,9 +20,10 @@ posang = 0
 n_thread = 16
 rectangle_camera = 1
 multi_threads = 1
-fitsdir = home+"/sobs"
+fitsdir = dn_home+"/calc/sobs"
 
 def make_fits_data():
+	global n_thread
 	widthkms = 3
 	linenlam = 60  # ~ 0.1km/s
 	sizeau = 1960  # 1400 #
@@ -27,16 +32,19 @@ def make_fits_data():
 	option = " "
 
 	if rectangle_camera:
+		##
+		## Note: Before use rectangle imaging, 
+		##		 you need to fix a bug in a radmc3dpy.
+		## 
 		Lh = sizeau / 2
 		npix = [npix, 10]
 		zoomau = [-Lh, Lh, -Lh * npix[1]/float(npix[0]),
 				  Lh * npix[1] / float(npix[0])]
-		camera = "npixx {:d} npixy {:d} ".format(*npix) 
-				+ "zoomau {:f} {:f} {:f} {:f} truepix ".format(*zoomau)
+		camera = "npixx {:d} npixy {:d} ".format(*npix) + "zoomau {:f} {:f} {:f} {:f} truepix ".format(*zoomau)
 
 	if multi_threads:
 		from multiprocessing import Pool
-		for i in range(n_threads, 0, -1):
+		for i in range(n_thread, 0, -1):
 			if linenlam % i == 0:
 				n_thread = i
 				break
@@ -63,6 +71,18 @@ def make_fits_data():
 
 	data.writeFits(fname=fitsdir+'/obs.fits', dpc=140)
 
+
+def subcalc(args):
+	dn , cmd = args
+	print(cmd)
+	dn = dn_radmc + dn
+	if not os.path.exists(dn):
+		os.makedirs(dn)
+#	os.system("rm %s/*"%dn)
+	os.system("cp %s/{*.inp,*.dat} %s/"%(dn_radmc,dn))
+	os.chdir(dn)
+	subprocess.call(cmd,shell=True)
+	return readImage()
 
 if __name__ == '__main__':
 	make_fits_data()

@@ -7,9 +7,16 @@
 import numpy as np
 import pandas as pd
 #import cst as cst
-import natconst as cst
-import pickle
+#import natconst as cst
+import pickle, os, sys
 from scipy.interpolate import interp2d,interp1d
+dn_radmc = os.path.dirname(os.path.abspath(__file__)) + '/'
+dn_home = os.path.abspath(os.path.dirname(__file__)+"/../../")
+#dn_radmc = dn_home+"/calc/radmc"
+print("Execute %s:\n"%__file__)
+sys.path.append(dn_home)
+
+from calc import cst
 
 mode={'tgas':0,'line':1}
 
@@ -81,7 +88,7 @@ def perform_PMODES():
 	os.system( "python3 ../EnDisk_2D.py -o output.pkl" )
 		
 def main():
-	D = pd.read_pickle("../res_L1527.pkl")
+	D = pd.read_pickle(dn_radmc+"res_L1527.pkl")
 
 	nphot	 = 1000000
 	
@@ -97,14 +104,6 @@ def main():
 	#
 	# Disk parameters
 	#
-	#
-	# Star parameters
-	#
-	mstar	 = D["M"] #cst.ms
-	rstar	 = cst.rs
-	tstar	 = cst.ts
-	tstar	 = 1.2877 * cst.ts ## gives 2.75 Ls
-	pstar	 = np.array([0.,0.,0.])
 	#
 	# Make the coordinates
 	#
@@ -123,73 +122,64 @@ def main():
 	RR		 = qq[0]*np.sin( tt )
 	zz		 = qq[0]*np.cos( tt )
 	
-	#
-#	D = pd.read_pickle("res_5e5_disk.pkl")
-#	D = pd.read_pickle("res_5e+05_nocav.pkl")
-#	D = pd.read_pickle("res_5e+05_sph.pkl")
-#	 D = pd.read_pickle("res_5e+05.pkl")
-##	 D = pd.read_pickle("res_1e+05.pkl")
-
 
 	rhog = interpolator2( D["den_tot"] , D["r_ax"] , D["th_ax"]  , rr, tt , logx=True, logz=True)
-
 	rhod = rhog * 0.01
 	vr	= interpolator2( D["ur"] , D["r_ax"] , D["th_ax"]  , rr, tt , logx=True, logz=True) 
 	vth	= interpolator2( D["uth"] , D["r_ax"] , D["th_ax"]	, rr, tt , logx=True, logz=True) 
 	vph  = interpolator2( D["uph"] , D["r_ax"] , D["th_ax"]  , rr, tt , logx=True, logz=True)
 	vturb	= np.zeros((nr,ntheta,nphi)) 
+
+
 	
+
 	#
-	# Write the wavelength_micron.inp file
+	# 1. Write the wavelength_micron.inp file
 	#
-	
-	# ALMA Band 6
-	if 0:
-		lam1	 = 0.1e0
-		lam2	 = 7.0e0
-		n12		 = 5
-		lam12	 = np.logspace(np.log10(lam1),np.log10(lam2),n12)
-		lam		 = lam12
-		nlam	 = lam.size
-	else:
-		lam1	 = 0.1e0
-		lam2	 = 7.0e0
-		lam3	 = 25.e0
-		lam4	 = 1.0e4
-		n12		 = 20
-		n23		 = 100
-		n34		 = 30
-		lam12	 = np.logspace(np.log10(lam1),np.log10(lam2),n12,endpoint=False)
-		lam23	 = np.logspace(np.log10(lam2),np.log10(lam3),n23,endpoint=False)
-		lam34	 = np.logspace(np.log10(lam3),np.log10(lam4),n34,endpoint=True)
-		lam		 = np.concatenate([lam12,lam23,lam34])
-		nlam	 = lam.size
-#	
+	#
+	# Star parameters
+	#
+	mstar	 = D["M"] #cst.ms
+	rstar	 = cst.Rsun
+	tstar	 = 1.2877 * cst.Tsun ## gives 2.75 Ls
+	pstar	 = np.array([0.,0.,0.])
+	#
+	lam1	 = 0.1e0
+	lam2	 = 7.0e0
+	lam3	 = 25.e0
+	lam4	 = 1.0e4
+	n12		 = 20
+	n23		 = 100
+	n34		 = 30
+	lam12	 = np.logspace(np.log10(lam1),np.log10(lam2),n12,endpoint=False)
+	lam23	 = np.logspace(np.log10(lam2),np.log10(lam3),n23,endpoint=False)
+	lam34	 = np.logspace(np.log10(lam3),np.log10(lam4),n34,endpoint=True)
+	lam		 = np.concatenate([lam12,lam23,lam34])
+	nlam	 = lam.size
 	#
 	# Write the wavelength file
 	#
-	with open('wavelength_micron.inp','w+') as f:
+	with open(dn_radmc+'wavelength_micron.inp','w+') as f:
 		f.write('%d\n'%(nlam))
 		for value in lam:
 			f.write('%13.6e\n'%(value))
 
-
 	#
-	# Write the stars.inp file
+	# 2. Write the stars.inp file
 	#
-	with open('stars.inp','w+') as f:
+	with open(dn_radmc+'stars.inp','w+') as f:
 		f.write('2\n')
 		f.write('1 %d\n\n'%(nlam))
 		f.write('%13.6e %13.6e %13.6e %13.6e %13.6e\n\n'%(rstar,mstar,pstar[0],pstar[1],pstar[2]))
 		for value in lam:
 			f.write('%13.6e\n'%(value))
 		f.write('\n%13.6e\n'%(-tstar))
-
+	
 
 	#
-	# Write the grid file
+	# 3. Write the grid file
 	#
-	with open('amr_grid.inp','w+') as f:
+	with open(dn_radmc+'amr_grid.inp','w+') as f:
 		f.write('1\n')						 # iformat
 		f.write('0\n')						 # AMR grid style  (0=regular grid, no AMR)
 		f.write('100\n')					 # Coordinate system: spherical
@@ -204,36 +194,32 @@ def main():
 			f.write('%13.6e\n'%(value))		 # Z coordinates (cell walls)
 	
 
-
-
 	if mode["line"]:
 		mol_name = "cch" #"c18o"	
 		abun_mol = 2e-7 ## c18o
 		#
-		# Write the molecule number density file. 
+		# 4.1 Write the molecule number density file. 
 		#	
-		n_mol  = rhog * abun_mol/(2.34*cst.mp)
-		with open('numberdens_%s.inp'%(mol_name),'w+') as f:
+		n_mol  = rhog * abun_mol/(2.34*cst.amu)
+		with open(dn_radmc+'numberdens_%s.inp'%(mol_name),'w+') as f:
 			f.write('1\n')						 # Format number
 			f.write('%d\n'%(nr*ntheta*nphi))			 # Nr of cells
 			data = n_mol.ravel(order='F')			 # Create a 1-D view, fortran-style indexing
 			data.tofile(f, sep='\n', format="%13.6e")
 			f.write('\n')
 	
-	
 		#
-		# Write the lines.inp control file
+		# 4.2 Write the lines.inp control file
 		#
-		with open('lines.inp','w') as f:
+		with open(dn_radmc+'lines.inp','w') as f:
 			f.write('2\n')# 
 			f.write('1\n')# number of molecules
 			f.write('%s	 leiden	0 0 0\n'%(mol_name)) # molname1 inpstyle1 iduma1 idumb1 ncol1
-	
 
 		#
-		# Write the gas velocity field
+		# 4.3 Write the gas velocity field
 		#
-		with open('gas_velocity.inp','w+') as f:
+		with open(dn_radmc+'gas_velocity.inp','w+') as f:
 			f.write('1\n')						 # Format number
 			f.write('%d\n'%(nr*ntheta*nphi))			 # Nr of cells
 			for ip in range(nphi):
@@ -241,23 +227,21 @@ def main():
 					for ir in range(nr):
 						f.write('%13.6e %13.6e %13.6e\n'%(vr[ir,it,ip],vth[ir,it,ip],vph[ir,it,ip]))
 	
-	
 		#
-		# Write the microturbulence file
+		# 4.4 Write the microturbulence file
 		#
-		with open('microturbulence.inp','w+') as f:
+		with open(dn_radmc+'microturbulence.inp','w+') as f:
 			f.write('1\n')						 # Format number
 			f.write('%d\n'%(nr*ntheta*nphi))			 # Nr of cells
 			data = vturb.ravel(order='F')		   # Create a 1-D view, fortran-style indexing
 			data.tofile(f, sep='\n', format="%13.6e")
 			f.write('\n')
 	
-	
 		#
-		# Write the gas temperature
+		# 4.5 Write the gas temperature
 		#
 		if mode["tgas"]:
-			with open('gas_temperature.inp','w+') as f:
+			with open(dn_radmc+'gas_temperature.inp','w+') as f:
 				f.write('1\n')						 # Format number
 				f.write('%d\n'%(nr*ntheta*nphi))			 # Nr of cells
 				data = tgas.ravel(order='F')		  # Create a 1-D view, fortran-style indexing
@@ -273,14 +257,14 @@ def main():
 	#		simply make a guess and write it to file, so
 	#		that you can immediately make the images.
 	#
-#	with open('dust_temperature.dat','w+') as f:
-#		f.write('1\n')						 # Format number
+	#	with open('dust_temperature.dat','w+') as f:
+	#		f.write('1\n')						 # Format number
 
 
 	#
-	# Write the density file
+	# 5. Write the density file
 	#
-	with open('dust_density.inp','w+') as f:
+	with open(dn_radmc+'dust_density.inp','w+') as f:
 		f.write('1\n')						 # Format number
 		f.write('%d\n'%(nr*ntheta*nphi))	 # Nr of cells
 		f.write('1\n')						 # Nr of dust species
@@ -288,11 +272,10 @@ def main():
 		data.tofile(f, sep='\n', format="%13.6e")
 		f.write('\n')
 
-
 	#
-	# Dust opacity control file
+	# 6. Dust opacity control file
 	#
-	with open('dustopac.inp','w+') as f:
+	with open(dn_radmc+'dustopac.inp','w+') as f:
 		opacs = ['silicate']
 		f.write('2				 Format number of this file\n')
 		f.write('{}				 Nr of dust species\n'.format( len(opacs) ))
@@ -303,11 +286,10 @@ def main():
 			f.write('{}		 Extension of name of dustkappa_***.inp file\n'.format( op ))
 			f.write('----------------------------------------------------------------------------\n')
 
-
 	#
-	# Write the radmc3d.inp control file
+	# 7. Write the radmc3d.inp control file
 	#
-	with open('radmc3d.inp','w+') as f:
+	with open(dn_radmc+'radmc3d.inp','w+') as f:
 		f.write('nphot = %d\n'%(nphot))
 #		f.write('scattering_mode_max = 1\n')
 		f.write('scattering_mode_max = 0\n')
@@ -317,7 +299,9 @@ def main():
 	del f
 		
 	pkl = {'rr':rr,'tt':tt,'rhod':rhod}
-	pd.to_pickle(pkl, __file__+".pkl",protocol=2)
-	
+	savefile = dn_radmc+os.path.basename(__file__)+".pkl"
+	pd.to_pickle(pkl, savefile ,protocol=2)
+	print('Saved : %s\n'%savefile )
+
 if __name__=='__main__':
 	main()
