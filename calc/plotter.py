@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import os
+import os, sys
 import numpy as np
 import matplotlib.pyplot as plt
-#from col import *
 from scipy.interpolate import interp2d,griddata
-import sys
 pyver = sys.version_info[0] + 0.1*sys.version_info[1]
-print("This is python %s"%pyver)
+#print("Message from %s"% os.path.dirname(os.path.abspath(__file__)))
+def msg(s):
+	print("[plotter.py] %s"%s)
+msg("%s is used."% os.path.abspath(__file__))
+msg("This is python %s"%pyver)
+dn_this_file = os.path.dirname(os.path.abspath(__file__))
 plt.switch_backend('agg')
 
 dbg = 1
@@ -29,7 +32,7 @@ class Default_params:
 		# For saving figures
 		self.hd	   = ""
 		self.ext	= ".pdf"
-		self.fig_dn = "F"
+		self.fig_dn = os.path.abspath( dn_this_file + "/../fig" )
 		if pyver >= 3.2:
 			os.makedirs(self.fig_dn, exist_ok=True )
 		else:
@@ -126,7 +129,7 @@ def plot( y_dic , opfn, x = None , c=[None], ls=[], lw=[], alp=[], leg=True, frg
 	settings=locals()
 
 	# Start Plotting
-	print("Plotting ", opfn)
+	msg("Plotting %s"%opfn)
 	fig = plt.figure( **defs.args_fig )
 	ax	= fig.add_subplot(111)
 
@@ -192,7 +195,9 @@ def plot( y_dic , opfn, x = None , c=[None], ls=[], lw=[], alp=[], leg=True, frg
 	if yl:	 plt.ylabel(yl)
 
 	# Saving
-	plt.savefig("%s/%s%s"%(defs.fig_dn,opfn,defs.ext), transparent=True, bbox_inches='tight')
+	savefile = "%s/%s%s"%(defs.fig_dn,opfn,defs.ext)
+	fig.savefig(savefile, transparent=True, bbox_inches='tight')
+	msg("	Saved %s to %s"%(opfn,savefile))
 	plt.close()
 
 	return Struct(**settings)
@@ -210,7 +215,7 @@ def map( x , y , z , opfn, c=[None], ls=[None], lw=[None], alp=[None],
 			**args):
 
 	# Start Plotting
-	print("Plotting ", opfn)
+	msg("Plotting %s"%opfn)
 	fig = plt.figure( **defs.args_fig )
 	ax	= fig.add_subplot(111)
 	cmap=plt.get_cmap('inferno')
@@ -306,6 +311,8 @@ def map( x , y , z , opfn, c=[None], ls=[None], lw=[None], alp=[None],
 	if yl: plt.ylabel(yl)
 	if leg: plt.legend(**defs.args_leg)
 
-	fig.savefig("%s/%s%s"%(defs.fig_dn,opfn,defs.ext), transparent=True, bbox_inches='tight')
+	savefile = "%s/%s%s"%(defs.fig_dn,opfn,defs.ext)
+	fig.savefig(savefile, transparent=True, bbox_inches='tight')
+	msg("	Saved %s to %s"%(opfn,savefile))
 	plt.close()
 

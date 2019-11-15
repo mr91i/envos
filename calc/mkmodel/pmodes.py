@@ -1,12 +1,18 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-import os, copy, pickle, argparse
+import os, copy, pickle, argparse, sys
 import numpy	  as np
 import pandas	  as pd 
 import matplotlib as mpl
 from scipy import optimize, interpolate, integrate
-import plotter as mp
-import cst
+#sys.path.append('../')
+dn_this_file = os.path.dirname(os.path.abspath(__file__))
+dn_home = os.path.abspath(os.path.dirname(__file__)+"/../../")
+dn_pkl = dn_home+"/calc/radmc" 
+print("Execute %s:\n"%__file__)
+print(dn_pkl)
+import calc.plotter as mp
+from calc import cst 
 parser = argparse.ArgumentParser(description='This code calculates the kinetic structure based on a model.')
 parser.add_argument('-d','--debug',action='store_true')
 parser.add_argument('--disk',action='store_true')
@@ -141,34 +147,15 @@ class Calc_2d_map:
 		self.res = {}
 
 	def get_mu0(self, mu_ax , zeta , solver='roots'):
-#		solver='brentq'
-		
-		if solver=='roots':	
-			root = [None]*len(mu_ax)
-			for i, mu in enumerate(mu_ax):
-				sol = np.roots( [ zeta, 0 , 1-zeta , -mu ] )	
-			#	mp.say(sol)
-				sol = sol[ 0<=sol ]
-				sol = sol[ sol<=1+1e-10 ]
-
-				if len(sol)==1 and np.isreal(sol[0]) :
-					root[i] = np.real( sol[0] )
-				else:
-					raise Exception(sol)
-			mp.say(root)
-			return np.array(root)
-
-		if solver=='brentq':
-			def eq(mu0,mu):
-				if mu == 1:
-			#		return zeta*mu0*(1 + mu0) + 1
-					return mu0 - 0.5*( -1 + np.sqrt( 1 - 4/zeta ))
-				elif mu == 0:
-			#		return	zeta - 1/(1 - mu0**2)
-					return 0#mu0 - np.sqrt(1 - 1/zeta)
-				else:
-					return zeta - ( 1 - mu/mu0)/(1 - mu0**2)  
-			return np.array( [ optimize.brentq(eq, 0, 1 , args=( mu ) )  for mu in mu_ax ] ) 
+		root = [None]*len(mu_ax)
+		for i, mu in enumerate(mu_ax):
+			sol = np.roots([zeta, 0 ,1-zeta ,-mu])	
+			sol = sol[(0<=sol)&(sol<=1+1e-10)]
+			if len(sol)==1 and np.isreal(sol[0]) :
+				root[i] = np.real( sol[0] )
+			else:
+				raise Exception(sol)
+		return np.array(root)
 
 	def get_0th_order_function(self,x):
 		def f0(x, y):
@@ -287,6 +274,7 @@ class Calc_2d_map:
 			return np.sqrt( GM * r_CR )/r_col**2
 
 	def print_params(self, t, M, T, cs, Omg, Mdot, r_in_lim, j0, rCB):
+		print("Parameters:")
 		def print_format( name , val , unit):
 			print( name.ljust(10) + 'is    {:10.2g}   '.format(val) + unit.ljust(10)	   )
 		print_format( 'T' , T , 'K' )
@@ -299,6 +287,7 @@ class Calc_2d_map:
 		print_format( 'j0' , j0/(cst.kms*cst.au)  , 'au*km/s' )
 		print_format( 'j0' , j0/(cst.kms*cst.pc)  , 'pc*km/s' )
 		print_format( 'rCB' , rCB/cst.au , 'au' )
+		print("")
 
 	def calc(self):
 		#
@@ -324,7 +313,7 @@ class Calc_2d_map:
 		# Main loop in r-axis
 		#
 		for r in self.r_ax:
-			R_ax, z_ax	= r * self.si , r * self.mu
+			R_ax, z_ax	= r*self.si , r*self.mu
 			if args.CM:
 				rho, ur, uth, uph, zeta, mu0  = \
 					self.get_Kinematics_CM( r , self.mu , self.M , Mdot ,j0 , cavity_angle=args.cavity_angle) 
@@ -360,8 +349,9 @@ class Calc_2d_map:
 		
 		# Save to pickle
 		stamp = '{:.0e}'.format( self.t/cst.yr ) if args.pkl_name == 'time' else args.pkl_name
-		pd.to_pickle( self.res , 'res_%s.pkl'%stamp)	
-		print('Saved: %s'%'res_%s.pkl'%stamp )	
+		savefile = '%s/res_%s.pkl'%(dn_pkl, stamp)
+		pd.to_pickle( self.res , savefile)	
+		print('Saved : %s\n'%savefile )	
 		return self.res
 	
 ##########################################################################################################################
@@ -370,5 +360,3 @@ class Calc_2d_map:
 if __name__ == '__main__':
 	main()
 ###########
-
-
