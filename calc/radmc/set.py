@@ -18,7 +18,16 @@ sys.path.append(dn_home)
 
 from calc import cst
 
-mode={'tgas':0,'line':1}
+parser = argparse.ArgumentParser(description='This code sets input files for calculating radmc3d.')
+parser.add_argument('-d','--debug',action='store_true')
+parser.add_argument('--tgas',default=False)
+parser.add_argument('--line',default=True)
+parser.add_argument('--lowreso',default=False)
+parser.add_argument('--fdg',default=0.01,type=float)
+parser.add_argument('--mol_abun',default=2e-7,type=float)
+
+args = parser.parse_args()
+
 
 def convert_cyl_to_sph( v_cyl , R_ori , z_ori , RR , zz):
 	if 1:
@@ -95,8 +104,8 @@ def main():
 	#
 	# Grid parameters
 	#
-	nr		 = 512 #128
-	ntheta	 = 256
+	nr		 = 256 if args.lowreso else 512
+	ntheta	 = 128 if args.lowreso else 256
 	nphi	 = 1
 	rin		 = 1*cst.au
 	rout	 = 10000*cst.au
@@ -124,7 +133,7 @@ def main():
 	
 
 	rhog = interpolator2( D["den_tot"] , D["r_ax"] , D["th_ax"]  , rr, tt , logx=True, logz=True)
-	rhod = rhog * 0.01
+	rhod = rhog * args.fdg
 	vr	= interpolator2( D["ur"] , D["r_ax"] , D["th_ax"]  , rr, tt , logx=True, logz=True) 
 	vth	= interpolator2( D["uth"] , D["r_ax"] , D["th_ax"]	, rr, tt , logx=True, logz=True) 
 	vph  = interpolator2( D["uph"] , D["r_ax"] , D["th_ax"]  , rr, tt , logx=True, logz=True)
@@ -194,13 +203,13 @@ def main():
 			f.write('%13.6e\n'%(value))		 # Z coordinates (cell walls)
 	
 
-	if mode["line"]:
+	if args.line:
 		mol_name = "cch" #"c18o"	
-		abun_mol = 2e-7 ## c18o
+		mol_abun = mol_abun ## c18o
 		#
 		# 4.1 Write the molecule number density file. 
 		#	
-		n_mol  = rhog * abun_mol/(2.34*cst.amu)
+		n_mol  = rhog * mol_abun/(2.34*cst.amu)
 		with open(dn_radmc+'numberdens_%s.inp'%(mol_name),'w+') as f:
 			f.write('1\n')						 # Format number
 			f.write('%d\n'%(nr*ntheta*nphi))			 # Nr of cells
@@ -240,7 +249,7 @@ def main():
 		#
 		# 4.5 Write the gas temperature
 		#
-		if mode["tgas"]:
+		if args.tgas:
 			with open(dn_radmc+'gas_temperature.inp','w+') as f:
 				f.write('1\n')						 # Format number
 				f.write('%d\n'%(nr*ntheta*nphi))			 # Nr of cells

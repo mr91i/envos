@@ -17,6 +17,7 @@ iline = 2
 incl = 90  # 90
 phi = 0
 posang = 0
+dpc=140
 n_thread = 16
 rectangle_camera = 1
 multi_threads = 1
@@ -25,9 +26,11 @@ fitsdir = dn_home+"/calc/sobs"
 def make_fits_data():
 	global n_thread
 	widthkms = 3
-	linenlam = 60  # ~ 0.1km/s
-	sizeau = 1960  # 1400 #
-	npix = 100	# ~ 0.1''
+	dvkms = 0.1
+	linenlam = 2*widthkms/dvkms  # ~ 0.1km/s
+	sizeau = dpc*10 #
+	dxmasec = 0.1 # marcsec
+	npix = sizeau/(dpc*dxmasec)	# ~ 0.1''
 	common = "incl %d phi %d posang %d" % (incl, phi, posang)
 	option = " "
 
@@ -36,7 +39,7 @@ def make_fits_data():
 		## Note: Before use rectangle imaging, 
 		##		 you need to fix a bug in a radmc3dpy.
 		## 
-		Lh = sizeau / 2
+		Lh = sizeau / 2.0
 		npix = [npix, 10]
 		zoomau = [-Lh, Lh, -Lh * npix[1]/float(npix[0]),
 				  Lh * npix[1] / float(npix[0])]

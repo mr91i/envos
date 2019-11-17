@@ -300,13 +300,13 @@ class Calc_2d_map:
 		T	=	10
 		cs	= np.sqrt( cst.kB * T/cst.mn )
 		Mdot = cs**3*self.m0/cst.G 
-		Mdot *=	1 - args.cavity_angle/90
+		#  Mdot *=	1 - args.cavity_angle/90
 		self.M, self.t = self.give_Mass_and_time(Mdot, Mstar=args.mass*cst.Msun)	
 		Omg			   = self.give_Omega( cs , self.t , self.M , mode='centrifugal_radius', r_CR=args.cr*cst.au)
 		r_in_lim = cs*Omg**2* self.t**3
 		j0	 = Omg * ( self.m0 * cs * self.t * 0.5 )**2
 		rCB  = self.get_rCB(self.M, Omg, cs, self.t ) # 50 * cst.au
-		req  = rCB * 2 * np.sin( 45/180 * np.pi )**2
+		req  = rCB * 2 * np.sin( args.cavity_angle/180 * np.pi )**2
 		self.print_params( self.t, self.M, T, cs, Omg, Mdot, r_in_lim, j0, rCB)	
 		funcs = self.get_0th_order_function(self.r_ax) if use_solution_0th else None
 		self.res = {'r_ax':self.r_ax, 'th_ax':self.th_ax, 't':self.t ,'M':self.M, 'r_in_lim':r_in_lim, 'r_CB_0': rCB}	
