@@ -8,14 +8,14 @@ import numpy as np
 import pandas as pd
 #import cst as cst
 #import natconst as cst
-import pickle, os, sys
+import pickle, os, sys,argparse
 from scipy.interpolate import interp2d,interp1d
-dn_radmc = os.path.dirname(os.path.abspath(__file__)) + '/'
-dn_home = os.path.abspath(os.path.dirname(__file__)+"/../../")
-#dn_radmc = dn_home+"/calc/radmc"
-print("Execute %s:\n"%__file__)
-sys.path.append(dn_home)
 
+dn_here = os.path.dirname(os.path.abspath(__file__))
+dn_home = os.path.abspath(dn_here + "/../../")
+sys.path.append(dn_home)
+dn_radmc = dn_home + '/calc/radmc/'
+print("Execute %s:\n"%__file__)
 from calc import cst
 
 parser = argparse.ArgumentParser(description='This code sets input files for calculating radmc3d.')
@@ -70,7 +70,7 @@ def interpolator2( value, x_ori , y_ori , x_new, y_new ,logx=False, logy=False, 
 	f = interp2d( x_ori , y_ori , value.T , fill_value = np.nan )
 	fv = np.vectorize(f)
 	ret =  fv( x_new  , y_new ) 
-	ret = extrapolate( x_new , ret )
+#	ret = extrapolate( x_new , ret )
 
 	if logz:
 		return (10**ret).clip(0) 
@@ -205,7 +205,7 @@ def main():
 
 	if args.line:
 		mol_name = "cch" #"c18o"	
-		mol_abun = mol_abun ## c18o
+		mol_abun = args.mol_abun ## c18o
 		#
 		# 4.1 Write the molecule number density file. 
 		#	

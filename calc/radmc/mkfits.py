@@ -7,16 +7,18 @@ from radmc3dPy.image import *
 import numpy as np
 from matplotlib import pyplot as plt
 plt.switch_backend('agg')
-dn_radmc = os.path.dirname(os.path.abspath(__file__)) + '/'
-dn_home = os.path.abspath(os.path.dirname(__file__)+"/../../")
-print("Execute %s:\n"%__file__)
+
+dn_here = os.path.dirname(os.path.abspath(os.path.realpath(__file__)))
+dn_home = os.path.abspath(dn_here + "/../../")
 sys.path.append(dn_home)
+dn_radmc = dn_home + '/calc/radmc/'
+print("Execute %s:\n"%__file__)
 
 # Global parameters
 iline = 2
 incl = 90  # 90
 phi = 0
-posang = 0
+posang = 180
 dpc=140
 n_thread = 16
 rectangle_camera = 1
@@ -30,9 +32,11 @@ def make_fits_data():
 	linenlam = 2*widthkms/dvkms  # ~ 0.1km/s
 	sizeau = dpc*10 #
 	dxmasec = 0.1 # marcsec
-	npix = sizeau/(dpc*dxmasec)	# ~ 0.1''
+	npix = int(sizeau/(dpc*dxmasec)) # ~ 0.1''
 	common = "incl %d phi %d posang %d" % (incl, phi, posang)
 	option = " "
+	for k, v in locals().items():
+		print("{} is {}".format(k,v))	
 
 	if rectangle_camera:
 		##

@@ -5,14 +5,17 @@ import numpy	  as np
 import pandas	  as pd 
 import matplotlib as mpl
 from scipy import optimize, interpolate, integrate
-#sys.path.append('../')
-dn_this_file = os.path.dirname(os.path.abspath(__file__))
-dn_home = os.path.abspath(os.path.dirname(__file__)+"/../../")
-dn_pkl = dn_home+"/calc/radmc" 
-print("Execute %s:\n"%__file__)
+
+
+dn_here = os.path.dirname(os.path.abspath(os.path.realpath(__file__)))
+dn_home = os.path.abspath(dn_here + "/../../")
 sys.path.append(dn_home)
+dn_pkl = dn_home + '/calc/radmc/'
+print("Execute %s:\n"%__file__)
 import calc.plotter as mp
 from calc import cst 
+
+
 parser = argparse.ArgumentParser(description='This code calculates the kinetic structure based on a model.')
 parser.add_argument('-d','--debug',action='store_true')
 parser.add_argument('--disk',action='store_true')
@@ -52,7 +55,7 @@ nr	= 401
 
 th_in = 0		 + 1e-6
 th_out = np.pi/2 
-nth = 181 #73  
+nth = 271 #181 #73	
 
 t_in  = 5e5 *cst.yr
 t_out  = 5e5 *cst.yr
