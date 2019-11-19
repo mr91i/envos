@@ -7,15 +7,18 @@ import natconst as cst
 import matplotlib as mpl
 from mpl_toolkits.mplot3d import axes3d
 
-#mpl.use('Agg')
 
 from matplotlib import pyplot as plt
 plt.switch_backend('agg')
 from matplotlib import cm
-#import matplotlib.pylab as plb
-#from radmc3dPy.image import *	 # Make sure that the shell variable PYTHONPATH points to the RADMC-3D python directory
-#from radmc3dPy.analyze import *  # Make sure that the shell variable PYTHONPATH points to the RADMC-3D python directory
+import matplotlib.pylab as plb
+from radmc3dPy.image import *	# Make sure that the shell variable PYTHONPATH points to the RADMC-3D python directory
+from radmc3dPy.analyze import *  # Make sure that the shell variable PYTHONPATH points to the RADMC-3D python directory
 #from radmc3dPy.natconst import * # Make sure that the shell variable PYTHONPATH points to the RADMC-3D python directory
+#from radmc3dPy.analyze import 
+# If error raise bacause of "No module named _libfunc",
+# please add the path "~/bin/python/radmc3dPy/models" to $PYTHONPATH
+# 
 import subprocess
 
 #dn_home = os.path.dirname( os.path.abspath(__file__) )
@@ -24,8 +27,8 @@ dn_home = os.path.abspath(dn_here + "/../../")
 sys.path.append(dn_home)
 dn_fig = dn_home + '/fig/'
 print("Execute %s:\n"%__file__,dn_home)
+os.chdir(dn_here)
 
-exit()
 
 #import myplot as mp
 #import plotter as pl
@@ -34,6 +37,7 @@ DensityMap	= 0
 DensProf	= 1
 TempProf	= 1
 ChemTimeProf= 1
+Emissivity_prof =1
 Obs			= 0
 SED			= 0	
 Line		= 0
@@ -52,40 +56,38 @@ n_thread = 1
 def plot_Physical_Profile():
 
 	data = readData(ddens=True,dtemp=True,binary=False)
-	rr, tt = np.meshgrid(data.grid.x/cst.au, data.grid.y, indexing='xy')
-	plt.xlim([0,500])
-	plt.ylim([0,500])
+	xau = data.grid.x/cst.au
+	rr, tt = np.meshgrid(xau , data.grid.y, indexing='xy')
 
-	if DensProf:
+	def plot_plof( d , fname ,yl=None):
 		fig  = plt.figure()
-		c  = plb.contourf( rr*np.sin(tt) , rr*np.cos(tt) , np.log10(data.rhodust[:,:,0,0].T), 30)
+		print(rr.shape, d.shape, d[:,-1].shape,xau.shape)
+		c  = plb.contourf( rr*np.sin(tt) , rr*np.cos(tt), np.log10(d), 30)
 		cb = plb.colorbar(c)
-		fig.savefig(dn_fig+"dens.pdf")
-
+		plt.xlim([0,500])
+		plt.ylim([0,500])
+		fig.savefig(dn_fig+fname+".pdf")
 		fig  = plt.figure()
-		print( data.rhodust.shape)
-		plb.plot( data.grid.x/cst.au , data.rhodust[:,-1,0,0].T)
+		plb.plot( xau , d[-1,:] )
 		plt.xlim([10,10000])
-		#plt.ylim([1,1000])	
+		plt.ylim(yl)
 		plt.xscale('log')
 		plt.yscale('log')
-		fig.savefig(dn_fig+"dens_plf.pdf")
+		fig.savefig(dn_fig+fname+"_plf.pdf")
+		print("Saved : "+dn_fig+fname+"_plf.pdf")
 		plb.show()
+
+		
+
+	print(xau.shape, data.rhodust.shape)
+	if DensProf:
+		plot_plof(data.rhodust[:,:,0,0].T*100/(2*cst.mp), "nden",yl=[1e0,1e10])
 
 	if TempProf:
-		fig  = plt.figure()
-		c  = plb.contourf( rr*np.sin(tt) , rr*np.cos(tt), data.dusttemp[:,:,0,0].T, 30)
-		cb = plb.colorbar(c)
-		fig.savefig(dn_fig+"temp.pdf")
+		plot_plof(data.dusttemp[:,:,0,0].T, "temp", yl=[1,1000])
 
-		fig  = plt.figure()
-		plb.plot( data.grid.x/cst.au , data.dusttemp[:,-1,0,0].T)
-		plt.xlim([10,10000])
-		plt.ylim([1,1000])	
-		plt.xscale('log')
-		plt.yscale('log')
-		fig.savefig(dn_fig+"temp_plf.pdf")
-		plb.show()
+	if Emissivity_prof:
+		plot_plof(data.dusttemp[:,:,0,0].T*data.rhodust[:,:,0,0].T, "emis",yl=[1e-25,1e-15])
 
 	if ChemTimeProf:
 		def chemical_dest_time(rho, T, spc="CCH"):
@@ -94,15 +96,8 @@ def plot_Physical_Profile():
 				return 1/(rho/cst.mp/2* k)
 		t_dest = chemical_dest_time(data.rhodust[:,:,0,0].T*100, data.dusttemp[:,:,0,0].T)
 		t_dyn = 5.023e6 * np.sqrt( rr **3 /0.18 ) ## sqrt(au^3/GMsun) = 5.023e6
-		fig  = plt.figure()
-#		import pdb; pdb.set_trace()
-		plb.plot( data.grid.x/cst.au , (t_dest/t_dyn)[-1] )
-		plt.xlim([10,10000])
-		plt.ylim([1e-6,1e6])
-		plt.xscale('log')
-		plt.yscale('log')
-		fig.savefig(dn_fig+"tchem_plf.pdf")
-		plb.show()		
+		plot_plof( t_dest/t_dyn, "tche", yl=[1e-8,1e8])
+	
 	
 def find_tau_surface():
 	common = "incl %d phi %d posang %d setthreads %d "%(incl,phi,posang,n_thread)
@@ -116,10 +111,9 @@ def find_tau_surface():
 	plt.savefig(dn_fig+"tausurf.pdf")
 
 if __name__=='__main__':
-	
+
 	if DensProf or TempProf or ChemTimeProf:
 		plot_Physical_Profile()
-	
+
 	if tau_surf:
 		find_tau_surface()
-

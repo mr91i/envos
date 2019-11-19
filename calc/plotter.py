@@ -244,6 +244,7 @@ def map( x , y , z , opfn, c=[None], ls=[None], lw=[None], alp=[None],
 	z	= np.log10(np.abs(z)) if logcb else z 
 
 	if (cbmax+delta - cbmin)/delta > 100:
+		print("Wrong!")
 		exit()
 	interval = np.arange( cbmin , cbmax+delta , delta )
 

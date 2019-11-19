@@ -33,8 +33,8 @@ def make_fits_data():
 	sizeau = dpc*10 #
 	dxmasec = 0.1 # marcsec
 	npix = int(sizeau/(dpc*dxmasec)) # ~ 0.1''
-	common = "incl %d phi %d posang %d" % (incl, phi, posang)
-	option = " "
+	common = "incl %d phi %d posang %d " % (incl, phi, posang)
+	option = "noscat circ "
 	for k, v in locals().items():
 		print("{} is {}".format(k,v))	
 

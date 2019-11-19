@@ -13,7 +13,7 @@ sys.dont_write_bytecode = True if args.genpyc else False
 count=0
 def main():
 	if args.one:
-		pexe(ca=85)
+		pexe(lowreso='')
 	else:
 		for ca in [0,30,45,60,75,80,85]:
 			pexe(ca=ca)
@@ -27,7 +27,7 @@ def main():
 		for abun in [1e-5,1e-6,1e-7,1e-8,1e-9,1e-10,1e-20]:
 			pexe(mol_abun=abun)
 
-	print("\nTotal number of runs is %i."%count)
+	print('\nTotal number of runs is %i.'%count)
 
 ###################################################
 
@@ -36,19 +36,19 @@ def exe(cmd):
 		if args.dryrun:
 			print(cmd)
 			return 0
-		subprocess.check_call('echo `date` \"%s\" >> .executed_cmd.txt'%cmd, shell=True )
+		subprocess.check_call('echo `date` \'%s\' >> .executed_cmd.txt'%cmd, shell=True )
 		retcode = subprocess.check_call( cmd, shell=True )
 		return 0
 		#retcode = subprocess.check_call( cmd.split() )
 	except subprocess.CalledProcessError as e:
-		print("Error generated:")
-		print(" - return code is %s"%e.returncode)
-		print(" - cmd is \"%s\""%e.cmd)
-		print(" - output is %s"%e.output)
+		print('Error generated:')
+		print(' - return code is %s'%e.returncode)
+		print(' - cmd is \'%s\''%e.cmd)
+		print(' - output is %s'%e.output)
 		#exit()
 		raise Exception()
 		
-def pexe( cr=None, ca=None, mass=None, mol_abun=None):
+def pexe( cr=None, ca=None, mass=None, mol_abun=None, lowreso=None):
 	global count
 	count += 1
 #	name,  =  params(cr,ca,mass)
@@ -56,34 +56,35 @@ def pexe( cr=None, ca=None, mass=None, mol_abun=None):
 		l=[]
 		for k, v in d.items():
 			if v is not None:
-				l.append("--%s %g"%(k,v))
-		return " ".join(l)
+				print(v)
+				l.append('--{} {}'.format(k,v))
+		return ' '.join(l)
 
 	def ngen(d):
 		l=[]
 		for k, v in d.items():
 			if v is not None:
-				l.append("%s%g"%(k,v))
-		return "_".join(l)
+				l.append('%s%g'%(k,v))
+		return '_'.join(l)
 		
-#	d = {"cr":cr,"cavity_angle":ca,"mass":mass}i#	prinit("".join( [ "--%s %f"%(k,v) if not v is  for k, v in d.items() ])	 )
+#	d = {'cr':cr,'cavity_angle':ca,'mass':mass}i#	prinit(''.join( [ '--%s %f'%(k,v) if not v is  for k, v in d.items() ])	 )
 	try:
 		## Make a model : cr, ca, mass, ...
-		exe('python calc/mkmodel/pmodes.py '+agen({"cr":cr,"cavity_angle":ca,"mass":mass}))	
+		exe('python calc/mkmodel/mkmodel.py '+agen({'cr':cr,'cavity_angle':ca,'mass':mass}))	
 		## Make a setting for radmc3d : opacity, d/g, molecule, ...
-		exe('python calc/radmc/set.py '+agen({"mol_abun":mol_abun} ))
+		exe('python calc/radmc/set.py '+agen({'mol_abun':mol_abun,'lowreso':lowreso} ))
 		## Execute radmc3d : number of threads
-		exe('cd calc/radmc; radmc3d mctherm setthreads 16')
+		exe('cd calc/radmc ; radmc3d mctherm setthreads 16')
 		## Make a 3D-data cube (x-y-freq data): inclination, slicing angle, ... 
 		exe('yes | python calc/radmc/mkfits.py')
 		## Make figures of data in radmc3d : None
-		exe('cd calc/radmc ;  python plot.py')
+		exe('python plot.py')
 		## Make a PV diagram
 		exe('python calc/sobs/sobs.py')	
-		exe('cp -r fig fig_'+ngen({"cr":cr,"ca":ca,"m":mass,"ma":mol_abun}) )
-		## This figure filenames may contain period ".", so please care about it.
+		exe('cp -r fig fig_'+ngen({'cr':cr,'ca':ca,'m':mass,'ma':mol_abun}) )
+		## This figure filenames may contain period '.', so please care about it.
 	except Exception:
-		print("Error...")
+		print('Error...')
 		return 1
 		
 

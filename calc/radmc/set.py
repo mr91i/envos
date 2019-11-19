@@ -22,7 +22,7 @@ parser = argparse.ArgumentParser(description='This code sets input files for cal
 parser.add_argument('-d','--debug',action='store_true')
 parser.add_argument('--tgas',default=False)
 parser.add_argument('--line',default=True)
-parser.add_argument('--lowreso',default=False)
+parser.add_argument('--lowreso',action='store_true')
 parser.add_argument('--fdg',default=0.01,type=float)
 parser.add_argument('--mol_abun',default=2e-7,type=float)
 
@@ -107,7 +107,7 @@ def main():
 	nr		 = 256 if args.lowreso else 512
 	ntheta	 = 128 if args.lowreso else 256
 	nphi	 = 1
-	rin		 = 1*cst.au
+	rin		 = 10*cst.au
 	rout	 = 10000*cst.au
 	thetaup  = 0 / 180 * np.pi 
 	#

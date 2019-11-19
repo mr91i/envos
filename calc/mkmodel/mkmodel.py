@@ -49,7 +49,7 @@ args = parser.parse_args()
 use_solution_0th = 0
 mp.dbg = args.debug
 
-r_in = 1 *cst.au
+r_in = 10 *cst.au
 r_out = 10000 *cst.au
 nr	= 401
 
@@ -94,7 +94,7 @@ def Plots( re , r_lim=500):
 		Vec = np.array( [ re[ 'uR' ] , re[ 'uz' ] ] )
 		draw_map( re['den'], 'den', [1e-21, 1e-16] , cbl=r'log Density [g/cm$^{3}$]', div=10, Vector=Vec,n_sl=40)
 
-		# Ratio between mu0 and mu : where these gas comes from
+		# Ratio between mu0 and mu : where these gas come from
 		draw_map( re['mu0']/np.cos( re['tt'] ), 'mu0_mu',[0, 10] , cbl=r'$\mu_{0}/\mu$', div=10, Vector=Vec,n_sl=40,log=False)
 
 		## Analyze radial profiles at the midplane
@@ -110,16 +110,19 @@ def Plots( re , r_lim=500):
 					lw=[3,6], c=[None,'k'], ls=['--','-'], 
 					loglog=True, vl=[ 2*re['r_CB_0']/cst.au ])
 
+
 		# Make a "balistic" orbit similar procedure to Oya+2014
-		uph_bal = np.sqrt( re['zeta']*cst.G*re['M']/re['r_ax']	 )
-		uR_bal = np.sqrt(2*cst.G*re['M']/re['r_ax'] - uph_bal**2 ) 
+#		uph_bal = np.sqrt( re['zeta']*cst.G*re['M']/re['r_ax']	 )
+#		uR_bal = np.sqrt(2*cst.G*re['M']/re['r_ax'] - uph_bal**2 ) 
 		mp.plot( {	'-uR':-uR0/cst.kms ,
-					'uph':uph0/cst.kms ,
-					'-uR_bal':uR_bal/cst.kms ,
-					'uph_bal':uph_bal/cst.kms ,
-					'u_max':np.sqrt(uR0**2+ uph0**2)/cst.kms }	,
+					'uph':uph0/cst.kms }	,
 					'v_%s'%tstamp  , ylim=[-2,7] ,	xlim=[0,500] , 
-					lw=[ None, 3,3,6,6], c=['k', ], ls=['-','-','-','--','--'])
+					lw=[ 2,2,4,4], ls=['-','-','--','--'])
+
+		mp.plot( {	'-uR':-uR0/max(uph0) ,
+					'uph':uph0/max(uph0) }	,
+					'vnorm_%s'%tstamp  , ylim=[0,1.5] ,	x=re['r_ax']/re['r_CB_0'], xlim=[0,3] , 
+					lw=[ 2,2,4,4], ls=['-','-','--','--'])
 
 		if args.TSC:
 			# see when and how much the results is different
@@ -193,16 +196,16 @@ class Calc_2d_map:
 		zeta =	j0**2 / ( cst.G * M * r	)
 		mu0  = self.get_mu0( mu ,zeta) 
 		sin, sin0 = np.sqrt( 1 - mu**2 ) ,	np.sqrt( 1 - mu0**2 ) 
-		vff	= np.sqrt( cst.G * M / r )
+		v0 = np.sqrt( cst.G * M / r )
 		
 		sin = np.where( sin==0 , SMALL0 , sin )
 		if cavity_angle is not None:
 			Mdot *= ( mu0 < np.cos( cavity_angle/180.0*np.pi ) ) * np.ones_like( mu0 )
 	
 		mu_to_mu0 = mu/mu0
-		ur	= - vff * np.sqrt( 1 + mu_to_mu0 )
-		uth =	vff * self.if_zero( sin<SMALL1 , ( mu0 - mu )/sin ) * np.sqrt( 1 + mu_to_mu0 ) 
-		uph =	vff * self.if_one(	sin<SMALL1 , sin0/sin		 ) * np.sqrt( 1 - mu_to_mu0 )
+		ur	= - v0 * np.sqrt( 1 + mu_to_mu0 )
+		uth =	v0 * self.if_zero( sin<SMALL1 , ( mu0 - mu )/sin ) * np.sqrt( 1 + mu_to_mu0 ) 
+		uph =	v0 * self.if_one(	sin<SMALL1 , sin0/sin		 ) * np.sqrt( 1 - mu_to_mu0 )
 		rho = - Mdot / (4 * np.pi * r**2 * ur) / (1 + 2*zeta*self.P2(mu0))
 		return rho, ur, uth, uph , zeta, mu0
 	
@@ -231,6 +234,17 @@ class Calc_2d_map:
 		uth = cs*W
 		uph = cs**2*Gamma/(Omg*r*np.sqrt(1-mu**2))
 		return rho.clip(0), ur, uth, uph 
+
+	def get_Kinematics_SimpleBalistic(self, r, r0, rCB, mu, M, j , p=-1.5, rho0=None , Mdot=None ):
+		vff = np.sqrt( 2 * cst.G * M / r )
+#		rho = rho0*(r/r0)**p *np.ones_like(mu)
+		b_env = r*np.sqrt(1-mu**2)>=rCB
+		rho = np.where( b_env, Mdot/(4*np.pi*r**2 *vff*np.sqrt(2)), 0 )
+		ur = np.where( b_env , - vff * np.sqrt(1-j**2/(2*cst.G*M*r)),0 )
+		uth = np.where( b_env, 0, 0)
+		uph = np.where( b_env, j/r, 0)
+		return rho, ur, uth, uph 
+		
 
 	def put_Disk_sph(self, r , th , M , Md , Rd , Td , CM=False, mode='exponential_cutoff' , ind=-1):
 		if not args.disk:
@@ -322,8 +336,11 @@ class Calc_2d_map:
 		for r in self.r_ax:
 			R_ax, z_ax	= r*self.si , r*self.mu
 			if args.CM:
-				rho, ur, uth, uph, zeta, mu0  = \
-					self.get_Kinematics_CM( r , self.mu , self.M , Mdot ,j0 , cavity_angle=args.cavity_angle) 
+#				rho, ur, uth, uph, zeta, mu0  = \
+#					self.get_Kinematics_CM( r , self.mu , self.M , Mdot ,j0 , cavity_angle=args.cavity_angle) 
+				rho, ur, uth, uph = self.get_Kinematics_SimpleBalistic( r, self.r_ax[-1], rCB, self.mu, self.M, j0 , Mdot=Mdot) 
+				zeta = 0
+				mu0 = np.zeros_like(self.mu)
 				uR, uz = self.urth_to_uRz( ur , uth , self.th_ax )
 
 			rho_disk = self.put_Disk_sph( r , self.th_ax , self.M , Md , rCB , Td)	
