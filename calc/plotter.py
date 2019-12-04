@@ -211,14 +211,13 @@ def plot( y_dic , opfn, x = None , c=[None], ls=[], lw=[], alp=[], leg=True, frg
 def map( x , y , z , opfn, c=[None], ls=[None], lw=[None], alp=[None],
 			xl='', yl='', cbl='',xlim=None, ylim=None, cblim=None, logx=False, logy=False, logcb=False, loglog=False,
 			pm=False, leg=False, hl=[], vl=[], title='',fills=None,data="", Vector=None, div=10.0, n_sline=18,hist=False,		
-			square=True,
+			square=True,cmap=plt.get_cmap('inferno'),seeds_angle=[0,np.pi/2],
 			**args):
 
 	# Start Plotting
 	msg("Plotting %s"%opfn)
 	fig = plt.figure( **defs.args_fig )
 	ax	= fig.add_subplot(111)
-	cmap=plt.get_cmap('inferno')
 
 	y = y[0] if data=="1+1D" else y
 	if not isinstance(x[0],(list,np.ndarray)): 
@@ -241,7 +240,7 @@ def map( x , y , z , opfn, c=[None], ls=[None], lw=[None], alp=[None],
 		cbmin , cbmax = cblim
 
 	delta = ( cbmax  - cbmin  )/div
-	z	= np.log10(np.abs(z)) if logcb else z 
+	z	= np.log10( np.where( z!=0, abs(z), np.nan ) ) if logcb else z 
 
 	if (cbmax+delta - cbmin)/delta > 100:
 		print("Wrong!")
@@ -267,7 +266,7 @@ def map( x , y , z , opfn, c=[None], ls=[None], lw=[None], alp=[None],
 	if Vector is not None:
 		uu = Vector[0]
 		vv = Vector[1]
-		th_seed = np.linspace(0 , np.pi/2 , n_sline	)
+		th_seed = np.linspace(seeds_angle[0] , seeds_angle[1] , n_sline	)
 		rad  = np.max(xlim)
 	
 		seed_points = np.array( [ rad * np.sin(th_seed) , rad * np.cos(th_seed) ]).T

@@ -46,7 +46,7 @@ def Contour(xx, yy ,  z , n_lv=20 , cbmin=None, cbmax=None,mode="default",cmap =
 #	levels = MaxNLocator(nbins=n_lv).tick_values(cbmin, cbmax)
 	levels =np.linspace(cbmin, cbmax,n_lv+1)
 	print(cbmin, cbmax,levels)
-#		levels = MaxNLocator(nbins=n_lv).tick_values(tick_min, tick_max)
+#	levels = MaxNLocator(nbins=n_lv).tick_values(tick_min, tick_max)
 	norm = BoundaryNorm(levels, ncolors=cmap.N, clip=True)
 	if mode=="grid":
 #		n_lv = 6	
@@ -62,8 +62,12 @@ def Contour(xx, yy ,  z , n_lv=20 , cbmin=None, cbmax=None,mode="default",cmap =
 	if mode=="contourf":
 		return plt.contourf( xx , yy , z , n_lv , cmap=cmap)
 	if mode=="contour":
+		print("levels is ", levels)
+		jM, iM =	np.unravel_index(np.argmax(z), z.shape)
+		plt.scatter( xx[jM,iM] , yy[jM,iM] , c='y', s=10, zorder=10)
 		return plt.contour( xx , yy , z , cmap=cmap, levels=levels)
-		return plt.contour( xx , yy , z , n_lv , cmap=cmap, vmin=cbmin, vmax=cbmax ,levels=levels)
+
+#		return plt.contour( xx , yy , z , n_lv , cmap=cmap, vmin=cbmin, vmax=cbmax ,levels=levels)
 	if mode=="scatter":
 		return plt.scatter(xx, yy, vmin=cbmin, vmax=cbmax, c=z ,s=1 , cmap=cmap)
 	
@@ -73,12 +77,19 @@ chmap = 0
 pvd = 1
 conv = 1
 # x[au] = d[pc] * theta[marc]
-beam_size = np.sqrt( 0.4 * 0.9	)/2*140 # au
+distance = 137 * cst.pc
+beamsx = 0.4 * distance/cst.pc
+beamsy = 0.9 * distance/cst.pc
+beam_size = np.sqrt( beamsx * beamsy ) # au
+beam_area = np.pi * beamsx * beamsy / 4.0
 
 v_width = 0.5 # kms
-distance = 140 * cst.pc
 figdir = dn_home+"/fig/"
-mark_peak = [1,1]
+op_LocalPeak_P = 0
+op_LocalPeak_V = 0
+op_LocalPeak_2D = 0
+op_Kepler = 0
+op_Maximums_2D = 1
 Ms = 0.18
 
 fitsfilename = "obs_L1527_cr200"
@@ -110,22 +121,19 @@ if conv:
 	from scipy.ndimage import gaussian_filter , gaussian_filter1d
 	I_max = data.max()
 #	print(data.shape, v_width/dv , np.abs( beam_size/dy ) ,   np.abs( beam_size/dx ) )
-	std = np.array([ v_width/dv , np.abs( beam_size/dy ) , np.abs( beam_size/dx )] )/2.354820 ## same FWHM
-	data = gaussian_filter(data, sigma=std )
-	data *= np.abs(dx*dy*dv) /( (np.pi/4*0.9*0.4) * v_width )
+#	std = np.array([ v_width/dv , np.abs( beam_size/dy ) , np.abs( beam_size/dx )] )/2.354820 ## same FWHM
+#	data = gaussian_filter(data, sigma=std )
+#	data *= np.abs(dx*dy*dv) /( (np.pi/4*0.9*0.4) * v_width )
 
-#	data = gaussian_filter(data, sigma=( np.abs( beam_size/dx ) ,	np.abs( beam_size/dy ) , v_width/dv	) )
+	from astropy.convolution import convolve, Gaussian2DKernel, Box1DKernel
 
-#	print(data.shape)	
-#	data = np.array([ gaussian_filter(d, sigma=np.abs( beam_size/dx ) ) for d in data ])	
-#	data_n = []
-#	for data_x in data.transpose(2,1,0) :
-#		data_nn = []
-#		for data_xy in data_x :
-#			data_nn.append( gaussian_filter1d( data_xy , sigma = v_width/dv ))#v_width/dv ) )
-#		data_n.append( data_nn )
-#	data = np.array( data_n ).transpose( 2, 1, 0 ) 
-#	print(data.shape)
+	for i in range(data.shape[0]):
+		data[i] = convolve(data[i], Gaussian2DKernel(abs(beam_size/dx/2.35482)) )
+	for j in range(data.shape[1]):
+		for k in range(data.shape[2]): 
+			data[:,j,k] = convolve(data[:,j,k], Box1DKernel(v_width/dv) )
+	data *= np.abs(dx*dy*dv) /( beam_area * v_width )
+
 	
 if chmap:
 	xx, yy = np.meshgrid(x,y)
@@ -170,7 +178,9 @@ if pvd:
 	im = Contour(xx, vv, I_pv , n_lv=n_lv , mode="contour",cbmin=0)
 #	im = Contour(xx, vv, I_pv , n_lv=n_lv , mode="contour", cmap=plt.get_cmap('Greys'),cbmin=0)
 
-	plt.plot( x , np.sqrt(cst.G*Ms*cst.Msun/x/cst.au)/cst.kms	, c="cyan", ls=":")
+
+	if op_Kepler:
+		plt.plot( -x , np.sqrt(cst.G*Ms*cst.Msun/x/cst.au)/cst.kms	, c="cyan", ls=":")
 
 	from scipy.interpolate import interp1d
 	from scipy import optimize
@@ -182,21 +192,23 @@ if pvd:
 			maxis.append( optimize.root(df,x[mi]).x[0] )
 		return np.array( maxis )
 
-	if mark_peak:
-		if mark_peak[0]:
+	if op_LocalPeak_V or op_LocalPeak_P:
+		if op_LocalPeak_V:
 			for I_v, a_v in zip( I_pv.transpose(0,1) , vkms ):
 				for xM in get_peaks(x,I_v):
 					plt.plot(  xM , a_v , c="red", markersize=1 , marker='o')
 
-		if mark_peak[1]:
+		if op_LocalPeak_P:
 			for I_p, a_x in zip( I_pv.transpose(1,0) , x ):
 				for vM in get_peaks(vkms,I_p):
 					plt.plot(  a_x , vM , c="blue", markersize=1 , marker='o')
 
-	for jM, iM in peak_local_max(I_pv, min_distance=5):
-		plt.scatter( x[iM] , vkms[jM] , c="k", s=20, zorder=10)
-		print("Local Max:	{:.1f}	au	, {:.1f}	km/s".format( x[iM] , vkms[jM] ) )
-
+	if op_LocalPeak_2D:
+		for jM, iM in peak_local_max(I_pv, min_distance=5):
+			plt.scatter( x[iM] , vkms[jM] , c="k", s=20, zorder=10)
+			print("Local Max:	{:.1f}	au	, {:.1f}	km/s  ({}, {})".format( x[iM] , vkms[jM] , jM,iM ) )
+#	if op_Maximums_2D:
+#		print( np.where(I_pv == np.max(I_pv))  
 
 #	plt.xscale('log')
 #	plt.yscale('log')
@@ -212,7 +224,10 @@ if pvd:
 #				, length = 10 ,width = 1)
 #	plt.xlim( -250,250 )
 #	plt.ylim( -3,3 )
+#	print(vars(im))
+	im.set_clim(0, I_pv.max())
 	cbar=plt.colorbar(im)
 	cbar.set_label(r'Intensity [ Jy pixel$^{-1}$ ]')
+	cbar.set_label(r'Intensity [ Jy beam$^{-1}$ (km/s)$^{-1}$ ]')
 	plt.savefig(figdir+"pvd.pdf" , bbox_inches="tight", dpi = 300)
 	print("Saved : "+figdir+"pvd.pdf")

@@ -1,6 +1,6 @@
 #!/usr/bin/env python2
 # -*- coding: utf-8 -*-
-import subprocess
+import subprocess, argparse
 from radmc3dPy.natconst import *
 from radmc3dPy.analyze import *
 from radmc3dPy.image import *
@@ -14,42 +14,51 @@ sys.path.append(dn_home)
 dn_radmc = dn_home + '/calc/radmc/'
 print("Execute %s:\n"%__file__)
 
+
+parser = argparse.ArgumentParser(description='This code makes a fits file by synthetic observation.')
+parser.add_argument('-d','--debug',action='store_true')
+parser.add_argument('--incl',default=85,type=float)
+parser.add_argument('--phi',default=0)
+parser.add_argument('--posang',default=180)
+parser.add_argument('--dpc',default=137)
+parser.add_argument('--iline',default=2)
+parser.add_argument('--n_thread',default=16)
+parser.add_argument('--rect_camera',default=True)
+parser.add_argument('--multi_threads',default=True)
+
+args = parser.parse_args()
+
 # Global parameters
-iline = 2
-incl = 90  # 90
-phi = 0
-posang = 180
-dpc=140
-n_thread = 16
-rectangle_camera = 1
-multi_threads = 1
+n_thread = args.n_thread
 fitsdir = dn_home+"/calc/sobs"
 
 def make_fits_data():
 	global n_thread
 	widthkms = 3
-	dvkms = 0.1
+	dvkms = 0.05
 	linenlam = 2*widthkms/dvkms  # ~ 0.1km/s
-	sizeau = dpc*10 #
-	dxmasec = 0.1 # marcsec
-	npix = int(sizeau/(dpc*dxmasec)) # ~ 0.1''
-	common = "incl %d phi %d posang %d " % (incl, phi, posang)
-	option = "noscat circ "
+	sizeau = args.dpc*15 #
+	dxmasec = 0.05 # marcsec
+	npix = int(sizeau/(args.dpc*dxmasec)) # ~ 0.1''
+	common = "incl %d phi %d posang %d " % (args.incl, args.phi, args.posang)
+	option = "noscat "
 	for k, v in locals().items():
 		print("{} is {}".format(k,v))	
 
-	if rectangle_camera:
+	if args.rect_camera:
 		##
 		## Note: Before use rectangle imaging, 
 		##		 you need to fix a bug in a radmc3dpy.
 		## 
 		Lh = sizeau / 2.0
-		npix = [npix, 10]
-		zoomau = [-Lh, Lh, -Lh * npix[1]/float(npix[0]),
-				  Lh * npix[1] / float(npix[0])]
-		camera = "npixx {:d} npixy {:d} ".format(*npix) + "zoomau {:f} {:f} {:f} {:f} truepix ".format(*zoomau)
+		npixx = npix ## dx = L/npix
+		npixy = 1
+		pix_yx = npixy/float(npixx)
+		zoomau = np.array([ -1, 1, -pix_yx, pix_yx ]) * Lh
 
-	if multi_threads:
+		camera = "npixx {:d} npixy {:d} ".format(npixx,npixy) + "zoomau {:f} {:f} {:f} {:f} truepix ".format(*zoomau)
+
+	if args.multi_threads:
 		from multiprocessing import Pool
 		for i in range(n_thread, 0, -1):
 			if linenlam % i == 0:
@@ -59,7 +68,7 @@ def make_fits_data():
 		dv = 2 * widthkms / linenlam
 
 		def cmd(p): return "radmc3d image iline {:d} vkms {} widthkms {} linenlam {:d} ".format(
-			iline, 0.5 * (v_ranges[p + 1] + v_ranges[p]), 
+			args.iline, 0.5 * (v_ranges[p + 1] + v_ranges[p]), 
 			0.5 * (v_ranges[p + 1] - v_ranges[p]), 
 			int(linenlam / float(n_thread))) + camera + common + option
 		rets = Pool(n_thread).map(subcalc, [('proc' + str(p), cmd(p)) for p in range(n_thread)])
@@ -76,7 +85,7 @@ def make_fits_data():
 		subprocess.call(cmd, shell=True)
 		data = readImage()
 
-	data.writeFits(fname=fitsdir+'/obs.fits', dpc=140)
+	data.writeFits(fname=fitsdir+'/obs.fits', dpc=args.dpc)
 
 
 def subcalc(args):

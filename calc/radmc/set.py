@@ -11,7 +11,7 @@ import pandas as pd
 import pickle, os, sys,argparse
 from scipy.interpolate import interp2d,interp1d
 
-dn_here = os.path.dirname(os.path.abspath(__file__))
+dn_here = os.path.dirname(os.path.abspath(os.path.realpath(__file__)))
 dn_home = os.path.abspath(dn_here + "/../../")
 sys.path.append(dn_home)
 dn_radmc = dn_home + '/calc/radmc/'
@@ -21,13 +21,13 @@ from calc import cst
 parser = argparse.ArgumentParser(description='This code sets input files for calculating radmc3d.')
 parser.add_argument('-d','--debug',action='store_true')
 parser.add_argument('--tgas',default=False)
+parser.add_argument('--turb',default=False)
 parser.add_argument('--line',default=True)
-parser.add_argument('--lowreso',action='store_true')
+parser.add_argument('--lowreso',default=False,type=int)
 parser.add_argument('--fdg',default=0.01,type=float)
 parser.add_argument('--mol_abun',default=2e-7,type=float)
 
 args = parser.parse_args()
-
 
 def convert_cyl_to_sph( v_cyl , R_ori , z_ori , RR , zz):
 	if 1:
@@ -41,7 +41,7 @@ def convert_cyl_to_sph( v_cyl , R_ori , z_ori , RR , zz):
 		v_sph = fv( RR , zz)
 	return v_sph
 
-def interpolator2( value, x_ori , y_ori , x_new, y_new ,logx=False, logy=False, logz=False ):
+def interpolator2( value, x_ori , y_ori , x_new, y_new ,logx=False, logy=False, logz=False, pm=False):
 
 	if logx:
 		x_ori = np.log10(x_ori)
@@ -67,13 +67,17 @@ def interpolator2( value, x_ori , y_ori , x_new, y_new ,logx=False, logy=False, 
 				v[:,i] = np.nan
 		return v
 
-	f = interp2d( x_ori , y_ori , value.T , fill_value = np.nan )
+	f = interp2d( x_ori , y_ori , value.T , fill_value = 0 )
 	fv = np.vectorize(f)
 	ret =  fv( x_new  , y_new ) 
 #	ret = extrapolate( x_new , ret )
-
 	if logz:
-		return (10**ret).clip(0) 
+		if pm:
+			f2 = interp2d( x_ori , y_ori , sign.T , fill_value = np.nan )
+			fv2 = np.vectorize(f2)
+			sgn =  fv2( x_new  , y_new )
+			return np.where( sgn!=0, np.sign(sgn)*10**ret, 0 ) 
+		return 10**ret #np.where( sgn!=0, np.sign(sgn)*10**ret, 0 ) 
 	else:
 		return ret
 
@@ -99,17 +103,18 @@ def perform_PMODES():
 def main():
 	D = pd.read_pickle(dn_radmc+"res_L1527.pkl")
 
-	nphot	 = 1000000
+	nphot	 = 100000
 	
 	#
 	# Grid parameters
 	#
-	nr		 = 256 if args.lowreso else 512
-	ntheta	 = 128 if args.lowreso else 256
+	nr		 = 128 if args.lowreso else 512
+	ntheta	 = 64 if args.lowreso else 256
 	nphi	 = 1
 	rin		 = 10*cst.au
-	rout	 = 10000*cst.au
-	thetaup  = 0 / 180 * np.pi 
+	rout	 = 1000*cst.au
+	thetaup  = 0.0 / 180.0 * np.pi 
+	print(nr)
 	#
 	# Disk parameters
 	#
@@ -117,7 +122,10 @@ def main():
 	# Make the coordinates
 	#
 	ri	 = np.logspace(np.log10(rin),np.log10(rout),nr+1)
-	thetai	 = np.linspace(thetaup,0.5e0*np.pi,ntheta+1)
+#	thetai	 = np.linspace(thetaup,0.5e0*np.pi,ntheta+1)
+	thetai1	 = np.linspace(thetaup,0.25e0*np.pi,ntheta/4.0+1)
+	thetai2  = np.linspace(0.25e0*np.pi,0.5e0*np.pi,ntheta*3/4.0+1)[1:]
+	thetai		= np.concatenate([thetai1,thetai2])
 	phii	 = np.linspace(0.e0,np.pi*2.e0,nphi+1)
 	rc	 = 0.5 * ( ri[0:nr] + ri[1:nr+1] )
 	thetac	 = 0.5 * ( thetai[0:ntheta] + thetai[1:ntheta+1] )
@@ -132,14 +140,31 @@ def main():
 	zz		 = qq[0]*np.cos( tt )
 	
 
-	rhog = interpolator2( D["den_tot"] , D["r_ax"] , D["th_ax"]  , rr, tt , logx=True, logz=True)
+	rhog = interpolator2( D["den_tot"][:,:,0] , D["r_ax"] , D["th_ax"]	, rr, tt , logx=True, logz=True)
 	rhod = rhog * args.fdg
-	vr	= interpolator2( D["ur"] , D["r_ax"] , D["th_ax"]  , rr, tt , logx=True, logz=True) 
-	vth	= interpolator2( D["uth"] , D["r_ax"] , D["th_ax"]	, rr, tt , logx=True, logz=True) 
-	vph  = interpolator2( D["uph"] , D["r_ax"] , D["th_ax"]  , rr, tt , logx=True, logz=True)
+	vr	= interpolator2( D["ur"][:,:,0] , D["r_ax"] , D["th_ax"]  , rr, tt , logx=True, logz=True) 
+	vth	= interpolator2( D["uth"][:,:,0] , D["r_ax"] , D["th_ax"]	, rr, tt , logx=True, logz=True, pm=True) 
+	vph  = interpolator2( D["uph"][:,:,0] , D["r_ax"] , D["th_ax"]	, rr, tt , logx=True, logz=True)
 	vturb	= np.zeros((nr,ntheta,nphi)) 
 
+#	rhog[rhog==np.nan] = 0
+#	vr[vr==0] = np.nan
+#	vth[vth==0] = np.nan
+#	vph[vph==0] = np.nan
+#	vr[vr==np.nan] = 0
+#	vth[vth==np.nan] = 0
+#	vph[vph==np.nan] = 0
+	rhog = np.nan_to_num(rhog)
+	vr = np.nan_to_num(vr)
+	vth = np.nan_to_num(vth)
+	vph = np.nan_to_num(vph)
 
+	
+#	print(vth,D["uth"])
+#	exit()
+
+	if args.tgas:
+		tgas = 30*np.ones_like(rhog)
 	
 
 	#
@@ -239,12 +264,13 @@ def main():
 		#
 		# 4.4 Write the microturbulence file
 		#
-		with open(dn_radmc+'microturbulence.inp','w+') as f:
-			f.write('1\n')						 # Format number
-			f.write('%d\n'%(nr*ntheta*nphi))			 # Nr of cells
-			data = vturb.ravel(order='F')		   # Create a 1-D view, fortran-style indexing
-			data.tofile(f, sep='\n', format="%13.6e")
-			f.write('\n')
+		if args.turb:
+			with open(dn_radmc+'microturbulence.inp','w+') as f:
+				f.write('1\n')						 # Format number
+				f.write('%d\n'%(nr*ntheta*nphi))			 # Nr of cells
+				data = vturb.ravel(order='F')		   # Create a 1-D view, fortran-style indexing
+				data.tofile(f, sep='\n', format="%13.6e")
+				f.write('\n')
 	
 		#
 		# 4.5 Write the gas temperature
@@ -257,6 +283,12 @@ def main():
 				data.tofile(f, sep='\n', format="%13.6e")
 				f.write('\n')
 
+		#	with open(dn_radmc+'dust_temperature.dat','w+') as f:
+		#		f.write('1\n')						 # Format number
+		#		f.write('%d\n'%(nr*ntheta*nphi))			 # Nr of cells
+		#		data = tgas.ravel(order='F')		  # Create a 1-D view, fortran-style indexing
+		#		data.tofile(f, sep='\n', format="%13.6e")
+		#		f.write('\n')
 
 	#
 	# Write the dust temperature file
@@ -304,7 +336,7 @@ def main():
 		f.write('scattering_mode_max = 0\n')
 		f.write('iranfreqmode = 1\n')
 		f.write('mc_scat_maxtauabs = 5.d0\n')
-		f.write('tgas_eq_tdust = 1')
+		f.write('tgas_eq_tdust = %d'%(1 if args.tgas else 0))
 	del f
 		
 	pkl = {'rr':rr,'tt':tt,'rhod':rhod}

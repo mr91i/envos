@@ -13,7 +13,7 @@ sys.dont_write_bytecode = True if args.genpyc else False
 count=0
 def main():
 	if args.one:
-		pexe(lowreso='')
+		pexe(lowreso=False,tgas=True,fdg=0.,model="Simple")
 	else:
 		for ca in [0,30,45,60,75,80,85]:
 			pexe(ca=ca)
@@ -36,7 +36,9 @@ def exe(cmd):
 		if args.dryrun:
 			print(cmd)
 			return 0
-		subprocess.check_call('echo `date` \'%s\' >> .executed_cmd.txt'%cmd, shell=True )
+		subprocess.check_call(r'echo `date "+%Y/%m/%d-%H:%M:%S"` "		" "{}" >> .executed_cmd.txt'.format(cmd), shell=True )
+#		subprocess.check_call('echo `date \"+\%Y/\%m/\%d-\%H:\%M:\%S\" ` \'%s\' >> .executed_cmd.txt'%cmd, shell=True )
+		print("Execute: {}".format(cmd))
 		retcode = subprocess.check_call( cmd, shell=True )
 		return 0
 		#retcode = subprocess.check_call( cmd.split() )
@@ -48,7 +50,7 @@ def exe(cmd):
 		#exit()
 		raise Exception()
 		
-def pexe( cr=None, ca=None, mass=None, mol_abun=None, lowreso=None):
+def pexe( cr=None, ca=None, mass=None, mol_abun=None, lowreso=None, tgas=None, fdg=None, model=None):
 	global count
 	count += 1
 #	name,  =  params(cr,ca,mass)
@@ -56,7 +58,8 @@ def pexe( cr=None, ca=None, mass=None, mol_abun=None, lowreso=None):
 		l=[]
 		for k, v in d.items():
 			if v is not None:
-				print(v)
+				if isinstance(v,bool):
+					v = int(v)
 				l.append('--{} {}'.format(k,v))
 		return ' '.join(l)
 
@@ -70,21 +73,21 @@ def pexe( cr=None, ca=None, mass=None, mol_abun=None, lowreso=None):
 #	d = {'cr':cr,'cavity_angle':ca,'mass':mass}i#	prinit(''.join( [ '--%s %f'%(k,v) if not v is  for k, v in d.items() ])	 )
 	try:
 		## Make a model : cr, ca, mass, ...
-		exe('python calc/mkmodel/mkmodel.py '+agen({'cr':cr,'cavity_angle':ca,'mass':mass}))	
+		exe('python calc/mkmodel/mkmodel.py '+agen({'cr':cr,'cavity_angle':ca,'mass':mass,'model':model}))	
 		## Make a setting for radmc3d : opacity, d/g, molecule, ...
-		exe('python calc/radmc/set.py '+agen({'mol_abun':mol_abun,'lowreso':lowreso} ))
+		exe('python calc/radmc/set.py '+agen({'mol_abun':mol_abun,'lowreso':lowreso,'tgas':tgas,'fdg':fdg} ))
 		## Execute radmc3d : number of threads
 		exe('cd calc/radmc ; radmc3d mctherm setthreads 16')
 		## Make a 3D-data cube (x-y-freq data): inclination, slicing angle, ... 
 		exe('yes | python calc/radmc/mkfits.py')
 		## Make figures of data in radmc3d : None
-		exe('python plot.py')
+		exe('python calc/radmc/plot.py')
 		## Make a PV diagram
 		exe('python calc/sobs/sobs.py')	
 		exe('cp -r fig fig_'+ngen({'cr':cr,'ca':ca,'m':mass,'ma':mol_abun}) )
 		## This figure filenames may contain period '.', so please care about it.
-	except Exception:
-		print('Error...')
+	except Exception as e:
+		print('Error...',e)
 		return 1
 		
 
