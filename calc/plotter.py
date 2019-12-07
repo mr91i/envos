@@ -5,6 +5,7 @@ import os, sys
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.interpolate import interp2d,griddata
+from collections import OrderedDict as od
 pyver = sys.version_info[0] + 0.1*sys.version_info[1]
 #print("Message from %s"% os.path.dirname(os.path.abspath(__file__)))
 def msg(s):
@@ -14,7 +15,7 @@ msg("This is python %s"%pyver)
 dn_this_file = os.path.dirname(os.path.abspath(__file__))
 plt.switch_backend('agg')
 
-dbg = 1
+dbg = 0
 
 class say:
 	def __init__( self, *something ):
@@ -95,12 +96,18 @@ def set_default_to_None( opt , defopt ):
 	if isinstance( opt , list ):
 		return [ ( defopt if a == None else a ) for a in opt ]
 
-def conv_list_to_dict( l ):
-	if isinstance( l[0] , (int,float) ):
-		return { '' : l }
-	elif isinstance( l[0] , (list,tuple) ):	
-		return { i: v for i,v in enumerate(l) }
+def process_list( l ):
+	if isinstance( l , (list,tuple) ) :
+		if len(l[0])==2:
+			return l
+		else:
+			return [ [ i , al ] for i , al in enumerate(l) ]
+	elif isinstance( l , dict ):
+		return [ [ k, v ] for k,v in l.items() ]
+	elif isinstance( l[0] , (int,float) ):
+		return [ '' , l ]
 	else:
+		print(l)
 		exit()
 
 def reproduce_map( v , x1_ax , x2_ax , X1_ax , X2_ax  ):
@@ -121,7 +128,7 @@ def reproduce_map2( v , x1_mg , x2_mg , X1_ax , X2_ax  ):
 #
 # Plot function : draw lines 
 #
-def plot( y_dic , opfn, x = None , c=[None], ls=[], lw=[], alp=[], leg=True, frg_leg=0,  title='', 
+def plot( y_list , opfn, x = None , c=[None], ls=[], lw=[], alp=[], leg=True, frg_leg=0,  title='', 
 			xl='', yl='', xlim=None, ylim=None, logx=False, logy=False, loglog=False,
 			pm=False, hl=[], vl=[], fills=None, arrow=[], lbs=None,
 			*args, **kwargs):
@@ -134,17 +141,17 @@ def plot( y_dic , opfn, x = None , c=[None], ls=[], lw=[], alp=[], leg=True, frg
 	ax	= fig.add_subplot(111)
 
 	# Preprocesing
-	if isinstance( y_dic , (list,tuple) ):
-		y_dic = conv_list_to_dict( y_dic )
-	say( 'Inputs to give_def_vals : ' ,  [x,xlim,xl] ,	[defs.x,defs.xlim,defs.xl]	)
-	x,xlim,xl = give_def_vals( [x,xlim,xl] ,  [defs.x,defs.xlim,defs.xl] )
-	say( 'Inputs to give_def_vals : ' ,  [x,xlim,xl] )
+	y_list = process_list(y_list)
 
-	set_options( len(y_dic) , [c,ls,lw,alp] ,  [defs.c,defs.ls,defs.lw,defs.alp]  )	
+#	say( 'Inputs to give_def_vals : ' ,  [x,xlim,xl] ,	[defs.x,defs.xlim,defs.xl]	)
+	x,xlim,xl = give_def_vals( [x,xlim,xl] ,  [defs.x,defs.xlim,defs.xl] )
+#	say( 'Inputs to give_def_vals : ' ,  [x,xlim,xl] )
+
+	set_options( len(y_list) , [c,ls,lw,alp] ,	[defs.c,defs.ls,defs.lw,defs.alp]  )	
 
 
 	# Main plot
-	for i, (k, y) in enumerate( y_dic.items() ):
+	for i, (k, y) in enumerate( y_list ):
 		# Preprocessing for each plot
 		lb	   = lbs[i]  if lbs else k
 		pmplot = (x, -y) if pm	else ()	
@@ -156,7 +163,6 @@ def plot( y_dic , opfn, x = None , c=[None], ls=[], lw=[], alp=[], leg=True, frg
 		ax.plot( *xy , label=lb , c=c[i], ls=ls[i], lw=lw[i], alpha=alp[i], zorder=-i, **kwargs)
 		if pm:
 			ax.plot( *pmplot , label=lb , c=c[i], ls=ls[i], lw=lw[i], alpha=alp[i], zorder=-i, **kwargs)
-
 
 		# Enroll flags
 		if lb and frg_leg==0: 

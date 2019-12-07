@@ -1,21 +1,15 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
-#
-# Import libraries
-#
+from __future__ import print_function,	absolute_import, division
+import pickle, os, sys,argparse
 import numpy as np
 import pandas as pd
-#import cst as cst
-#import natconst as cst
-import pickle, os, sys,argparse
-from scipy.interpolate import interp2d,interp1d
-
+from scipy.interpolate import interp2d, interp1d
 dn_here = os.path.dirname(os.path.abspath(os.path.realpath(__file__)))
-dn_home = os.path.abspath(dn_here + "/../../")
+dn_home = os.path.abspath(dn_here + '/../../')
 sys.path.append(dn_home)
 dn_radmc = dn_home + '/calc/radmc/'
-print("Execute %s:\n"%__file__)
+print('Execute %s:\n'%__file__)
 from calc import cst
 
 parser = argparse.ArgumentParser(description='This code sets input files for calculating radmc3d.')
@@ -26,12 +20,10 @@ parser.add_argument('--line',default=True)
 parser.add_argument('--lowreso',default=False,type=int)
 parser.add_argument('--fdg',default=0.01,type=float)
 parser.add_argument('--mol_abun',default=2e-7,type=float)
-
 args = parser.parse_args()
 
 def convert_cyl_to_sph( v_cyl , R_ori , z_ori , RR , zz):
 	if 1:
-		print( np.log10( R_ori[1:] ) , np.log10( z_ori[1:] ) , np.log10( v_cyl[1:,1:] )		)
 		f = interp2d( np.log10( R_ori[1:] ) , np.log10( z_ori[1:] ) , np.log10( v_cyl[1:,1:] )	)
 		fv = np.vectorize(f)
 		v_sph = 10**fv(  np.log10( RR ) ,  np.log10( zz ) )
@@ -55,22 +47,9 @@ def interpolator2( value, x_ori , y_ori , x_new, y_new ,logx=False, logy=False, 
 		sign  = np.sign(value)
 		value = np.log10(np.abs(value))		
 
-	def extrapolate( x , v ):
-		for i in range( len(v[0,:] )):
-			x_red = x[:,i][np.isfinite(v[:,i])]
-			v_red = v[:,i][np.isfinite(v[:,i])]
-			try:
-				f = interp1d( x_red , v_red , 'linear' , fill_value='extrapolate')
-				v[:,i] = f(x[:,i])
-			except:
-				print("Use zeros for extrapolation, i = %d"%i )
-				v[:,i] = np.nan
-		return v
-
 	f = interp2d( x_ori , y_ori , value.T , fill_value = 0 )
 	fv = np.vectorize(f)
 	ret =  fv( x_new  , y_new ) 
-#	ret = extrapolate( x_new , ret )
 	if logz:
 		if pm:
 			f2 = interp2d( x_ori , y_ori , sign.T , fill_value = np.nan )
@@ -81,27 +60,8 @@ def interpolator2( value, x_ori , y_ori , x_new, y_new ,logx=False, logy=False, 
 	else:
 		return ret
 
-
-
-#def Produce_Calculate_Parameter():
-
-
-#class Params():
-	# Given parameters
-	# Mass of central star , not including disk and envelope
-#	self.M = 1 
-#	self.T = 1
-	# Model parameter
-#	self.R = 1
-	# Dependent parameters
-#	self.L = 1 # StellarEvolution(R)
-#	self.age = 1 # StellarEvolution(M,L)
-
-def perform_PMODES():
-	os.system( "python3 ../EnDisk_2D.py -o output.pkl" )
-		
 def main():
-	D = pd.read_pickle(dn_radmc+"res_L1527.pkl")
+	D = pd.read_pickle(dn_radmc+'res_L1527.pkl')
 
 	nphot	 = 100000
 	
@@ -114,7 +74,6 @@ def main():
 	rin		 = 10*cst.au
 	rout	 = 1000*cst.au
 	thetaup  = 0.0 / 180.0 * np.pi 
-	print(nr)
 	#
 	# Disk parameters
 	#
@@ -123,65 +82,50 @@ def main():
 	#
 	ri	 = np.logspace(np.log10(rin),np.log10(rout),nr+1)
 #	thetai	 = np.linspace(thetaup,0.5e0*np.pi,ntheta+1)
-	thetai1	 = np.linspace(thetaup,0.25e0*np.pi,ntheta/4.0+1)
-	thetai2  = np.linspace(0.25e0*np.pi,0.5e0*np.pi,ntheta*3/4.0+1)[1:]
-	thetai		= np.concatenate([thetai1,thetai2])
-	phii	 = np.linspace(0.e0,np.pi*2.e0,nphi+1)
-	rc	 = 0.5 * ( ri[0:nr] + ri[1:nr+1] )
+	thetai1	 = np.linspace(thetaup,0.25*np.pi,ntheta/4.+1)
+	thetai2  = np.linspace(0.25*np.pi,0.5*np.pi,ntheta*3/4.+1)[1:]
+	thetai	 = np.concatenate([thetai1,thetai2])
+	phii	 = np.linspace(0,2*np.pi,nphi+1)
+	rc		 = 0.5 * ( ri[0:nr] + ri[1:nr+1] )
 	thetac	 = 0.5 * ( thetai[0:ntheta] + thetai[1:ntheta+1] )
 	phic	 = 0.5 * ( phii[0:nphi] + phii[1:nphi+1] )
 	#
 	# Make the grid
 	#
-	qq		 = np.meshgrid(rc,thetac,phic,indexing='ij')
-	rr		 = qq[0]
-	tt		 = qq[1]
-	RR		 = qq[0]*np.sin( tt )
-	zz		 = qq[0]*np.cos( tt )
+	rr,tt	 = np.meshgrid(rc,thetac,phic,indexing='ij')
+	RR		 = rr*np.sin( tt )
+	zz		 = rr*np.cos( tt )
 	
-
-	rhog = interpolator2( D["den_tot"][:,:,0] , D["r_ax"] , D["th_ax"]	, rr, tt , logx=True, logz=True)
+	rhog = interpolator2( D.den_tot[:,:,0] , D.r_ax , D.th_ax	, rr, tt , logx=True, logz=True)
 	rhod = rhog * args.fdg
-	vr	= interpolator2( D["ur"][:,:,0] , D["r_ax"] , D["th_ax"]  , rr, tt , logx=True, logz=True) 
-	vth	= interpolator2( D["uth"][:,:,0] , D["r_ax"] , D["th_ax"]	, rr, tt , logx=True, logz=True, pm=True) 
-	vph  = interpolator2( D["uph"][:,:,0] , D["r_ax"] , D["th_ax"]	, rr, tt , logx=True, logz=True)
+	vr	= interpolator2( D.ur[:,:,0] , D.r_ax , D.th_ax  , rr, tt , logx=True, logz=True) 
+	vth	= interpolator2( D.uth[:,:,0] , D.r_ax , D.th_ax	, rr, tt , logx=True, logz=True, pm=True) 
+	vph  = interpolator2( D.uph[:,:,0] , D.r_ax , D.th_ax	, rr, tt , logx=True, logz=True)
 	vturb	= np.zeros((nr,ntheta,nphi)) 
 
-#	rhog[rhog==np.nan] = 0
-#	vr[vr==0] = np.nan
-#	vth[vth==0] = np.nan
-#	vph[vph==0] = np.nan
-#	vr[vr==np.nan] = 0
-#	vth[vth==np.nan] = 0
-#	vph[vph==np.nan] = 0
 	rhog = np.nan_to_num(rhog)
 	vr = np.nan_to_num(vr)
 	vth = np.nan_to_num(vth)
 	vph = np.nan_to_num(vph)
 
-	
-#	print(vth,D["uth"])
-#	exit()
-
 	if args.tgas:
 		tgas = 30*np.ones_like(rhog)
 	
-
 	#
 	# 1. Write the wavelength_micron.inp file
 	#
 	#
 	# Star parameters
 	#
-	mstar	 = D["M"] #cst.ms
-	rstar	 = cst.Rsun
-	tstar	 = 1.2877 * cst.Tsun ## gives 2.75 Ls
+	mstar	 = D.Ms #cst.ms
+	rstar	 = D.Rs
+	tstar	 = D.Ts   #1.2877 * cst.Tsun ## gives 2.75 Ls
 	pstar	 = np.array([0.,0.,0.])
 	#
-	lam1	 = 0.1e0
-	lam2	 = 7.0e0
-	lam3	 = 25.e0
-	lam4	 = 1.0e4
+	lam1	 = 0.1
+	lam2	 = 7
+	lam3	 = 25
+	lam4	 = 1e4
 	n12		 = 20
 	n23		 = 100
 	n34		 = 30
@@ -229,7 +173,7 @@ def main():
 	
 
 	if args.line:
-		mol_name = "cch" #"c18o"	
+		mol_name = 'cch' #'c18o'	
 		mol_abun = args.mol_abun ## c18o
 		#
 		# 4.1 Write the molecule number density file. 
@@ -239,7 +183,7 @@ def main():
 			f.write('1\n')						 # Format number
 			f.write('%d\n'%(nr*ntheta*nphi))			 # Nr of cells
 			data = n_mol.ravel(order='F')			 # Create a 1-D view, fortran-style indexing
-			data.tofile(f, sep='\n', format="%13.6e")
+			data.tofile(f, sep='\n', format='%13.6e')
 			f.write('\n')
 	
 		#
@@ -269,7 +213,7 @@ def main():
 				f.write('1\n')						 # Format number
 				f.write('%d\n'%(nr*ntheta*nphi))			 # Nr of cells
 				data = vturb.ravel(order='F')		   # Create a 1-D view, fortran-style indexing
-				data.tofile(f, sep='\n', format="%13.6e")
+				data.tofile(f, sep='\n', format='%13.6e')
 				f.write('\n')
 	
 		#
@@ -280,21 +224,21 @@ def main():
 				f.write('1\n')						 # Format number
 				f.write('%d\n'%(nr*ntheta*nphi))			 # Nr of cells
 				data = tgas.ravel(order='F')		  # Create a 1-D view, fortran-style indexing
-				data.tofile(f, sep='\n', format="%13.6e")
+				data.tofile(f, sep='\n', format='%13.6e')
 				f.write('\n')
 
 		#	with open(dn_radmc+'dust_temperature.dat','w+') as f:
 		#		f.write('1\n')						 # Format number
 		#		f.write('%d\n'%(nr*ntheta*nphi))			 # Nr of cells
 		#		data = tgas.ravel(order='F')		  # Create a 1-D view, fortran-style indexing
-		#		data.tofile(f, sep='\n', format="%13.6e")
+		#		data.tofile(f, sep='\n', format='%13.6e')
 		#		f.write('\n')
 
 	#
 	# Write the dust temperature file
 	# NOTE: You can also remove this, and compute the dust
 	#		temperature self-consistently with the shell 
-	#		command "radmc3d mctherm". Here, however, we 
+	#		command 'radmc3d mctherm'. Here, however, we 
 	#		simply make a guess and write it to file, so
 	#		that you can immediately make the images.
 	#
@@ -310,7 +254,7 @@ def main():
 		f.write('%d\n'%(nr*ntheta*nphi))	 # Nr of cells
 		f.write('1\n')						 # Nr of dust species
 		data = rhod.ravel(order='F')		 # Create a 1-D view, fortran-style indexing
-		data.tofile(f, sep='\n', format="%13.6e")
+		data.tofile(f, sep='\n', format='%13.6e')
 		f.write('\n')
 
 	#
@@ -332,15 +276,14 @@ def main():
 	#
 	with open(dn_radmc+'radmc3d.inp','w+') as f:
 		f.write('nphot = %d\n'%(nphot))
-#		f.write('scattering_mode_max = 1\n')
-		f.write('scattering_mode_max = 0\n')
+		f.write('scattering_mode_max = 0\n') # 1: with scattering 
 		f.write('iranfreqmode = 1\n')
 		f.write('mc_scat_maxtauabs = 5.d0\n')
 		f.write('tgas_eq_tdust = %d'%(1 if args.tgas else 0))
 	del f
 		
 	pkl = {'rr':rr,'tt':tt,'rhod':rhod}
-	savefile = dn_radmc+os.path.basename(__file__)+".pkl"
+	savefile = dn_radmc+os.path.basename(__file__)+'.pkl'
 	pd.to_pickle(pkl, savefile ,protocol=2)
 	print('Saved : %s\n'%savefile )
 

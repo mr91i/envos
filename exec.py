@@ -13,7 +13,7 @@ sys.dont_write_bytecode = True if args.genpyc else False
 count=0
 def main():
 	if args.one:
-		pexe(lowreso=False,tgas=True,fdg=0.,model="Simple")
+		pexe(lowreso=False, tgas=True, fdg=0., model="CM")
 	else:
 		for ca in [0,30,45,60,75,80,85]:
 			pexe(ca=ca)

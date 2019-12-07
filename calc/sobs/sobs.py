@@ -54,9 +54,9 @@ def Contour(xx, yy ,  z , n_lv=20 , cbmin=None, cbmax=None,mode="default",cmap =
 #		tick_min = 3*std
 #		tick_max = 15*std		
 		## Make interface coordinate
-		xxi = np.hstack(( xx-dx/2 , (xx[:,-1]+dx/2).reshape(-1,1) ))
+		xxi = np.hstack(( xx-dx/2. , (xx[:,-1]+dx/2.).reshape(-1,1) ))
 		xxi = np.vstack(( xxi , xxi[-1] ))
-		yyi = np.vstack(( yy-dy/2 , (yy[-1,:]+dy/2).reshape(1,-1) ))
+		yyi = np.vstack(( yy-dy/2. , (yy[-1,:]+dy/2.).reshape(1,-1) ))
 		yyi = np.hstack(( yyi , yyi[:,-1].reshape(-1,1)  ))
 		return plt.pcolormesh(xxi, yyi, z , cmap=cmap, norm=norm, rasterized=True)
 	if mode=="contourf":
@@ -64,7 +64,7 @@ def Contour(xx, yy ,  z , n_lv=20 , cbmin=None, cbmax=None,mode="default",cmap =
 	if mode=="contour":
 		print("levels is ", levels)
 		jM, iM =	np.unravel_index(np.argmax(z), z.shape)
-		plt.scatter( xx[jM,iM] , yy[jM,iM] , c='y', s=10, zorder=10)
+		plt.scatter( xx[jM,iM] , yy[jM,iM] , c='y', s=8, zorder=12)
 		return plt.contour( xx , yy , z , cmap=cmap, levels=levels)
 
 #		return plt.contour( xx , yy , z , n_lv , cmap=cmap, vmin=cbmin, vmax=cbmax ,levels=levels)
@@ -87,7 +87,7 @@ v_width = 0.5 # kms
 figdir = dn_home+"/fig/"
 op_LocalPeak_P = 0
 op_LocalPeak_V = 0
-op_LocalPeak_2D = 0
+op_LocalPeak_2D = 1
 op_Kepler = 0
 op_Maximums_2D = 1
 Ms = 0.18
@@ -103,10 +103,10 @@ Nx, Ny, Nz = header["NAXIS1"], header["NAXIS2"], header["NAXIS3"]
 dx, dy = np.array([ header["CDELT1"] , header["CDELT2"] ]) *np.pi/180.0 *distance/cst.au
 Lx, Ly = Nx*dx, Ny*dy 
 ## center of pixel
-x = Lx/2 - (np.arange(Nx)+0.5)*dx
-y = Ly/2 - (np.arange(Ny)+0.5)*dy
+x = Lx/2. - (np.arange(Nx)+0.5)*dx
+y = Ly/2. - (np.arange(Ny)+0.5)*dy
 freq_max , dfreq = header["CRVAL3"] , header["CDELT3"]
-freq0 = freq_max + dfreq*(Nz-1)/2
+freq0 = freq_max + dfreq*(Nz-1)/2.
 vkms = cst.c/1e5* dfreq*(0.5*(Nz-1) - np.arange(len(data)) )/freq0
 dv = vkms[1] - vkms[0]
 
