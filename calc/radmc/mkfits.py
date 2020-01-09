@@ -1,10 +1,13 @@
 #!/usr/bin/env python2
 # -*- coding: utf-8 -*-
+from __future__ import print_function,	absolute_import, division
 import subprocess, argparse
 from radmc3dPy.natconst import *
 from radmc3dPy.analyze import *
 from radmc3dPy.image import *
 import numpy as np
+import pandas	  as pd
+
 from matplotlib import pyplot as plt
 plt.switch_backend('agg')
 
@@ -21,57 +24,56 @@ parser.add_argument('--incl',default=85,type=float)
 parser.add_argument('--phi',default=0)
 parser.add_argument('--posang',default=180)
 parser.add_argument('--dpc',default=137)
-parser.add_argument('--iline',default=2)
-parser.add_argument('--n_thread',default=16)
+parser.add_argument('--iline',default=1)
+parser.add_argument('--n_thread',default=14)
 parser.add_argument('--rect_camera',default=True)
-parser.add_argument('--multi_threads',default=True)
+parser.add_argument('--omp',default=True)
 
 args = parser.parse_args()
 
 # Global parameters
 n_thread = args.n_thread
-fitsdir = dn_home+"/calc/sobs"
+fitsdir = dn_home+"/calc/analyze"
 
-def make_fits_data():
+def make_fits_data(widthkms=3, dvkms=0.04, sizeau=args.dpc*15, dxasec=0.08, npixy=1):
 	global n_thread
-	widthkms = 3
-	dvkms = 0.05
-	linenlam = 2*widthkms/dvkms  # ~ 0.1km/s
-	sizeau = args.dpc*15 #
-	dxmasec = 0.05 # marcsec
-	npix = int(sizeau/(args.dpc*dxmasec)) # ~ 0.1''
+	linenlam = int( 2*widthkms/dvkms )	# ~ 0.1km/s
+	npix	=  int(sizeau/(args.dpc*dxasec)) # ~ 0.1''
 	common = "incl %d phi %d posang %d " % (args.incl, args.phi, args.posang)
-	option = "noscat "
+	option = "noscat nostar "
 	for k, v in locals().items():
 		print("{} is {}".format(k,v))	
 
+
 	if args.rect_camera:
 		##
-		## Note: Before use rectangle imaging, 
-		##		 you need to fix a bug in a radmc3dpy.
+		## Note: Before using rectangle imaging, 
+		##		 you need to fix a bug in radmc3dpy.
 		## 
-		Lh = sizeau / 2.0
-		npixx = npix ## dx = L/npix
-		npixy = 1
-		pix_yx = npixy/float(npixx)
+		Lh	   = 0.5 * sizeau
+		npixx  = npix ## dx = L/npix
+		pix_yx = npixy/npixx
 		zoomau = np.array([ -1, 1, -pix_yx, pix_yx ]) * Lh
 
 		camera = "npixx {:d} npixy {:d} ".format(npixx,npixy) + "zoomau {:f} {:f} {:f} {:f} truepix ".format(*zoomau)
 
-	if args.multi_threads:
+	if args.omp:
 		from multiprocessing import Pool
+
 		for i in range(n_thread, 0, -1):
 			if linenlam % i == 0:
 				n_thread = i
 				break
-		v_ranges = np.linspace(-widthkms, widthkms, n_thread + 1)
+
+		v_ranges = np.linspace( -widthkms, widthkms, n_thread + 1)
 		dv = 2 * widthkms / linenlam
 
 		def cmd(p): return "radmc3d image iline {:d} vkms {} widthkms {} linenlam {:d} ".format(
 			args.iline, 0.5 * (v_ranges[p + 1] + v_ranges[p]), 
 			0.5 * (v_ranges[p + 1] - v_ranges[p]), 
 			int(linenlam / float(n_thread))) + camera + common + option
-		rets = Pool(n_thread).map(subcalc, [('proc' + str(p), cmd(p)) for p in range(n_thread)])
+
+		rets = Pool(n_thread).map(subcalc, [(p,'proc' + str(p), cmd(p)) for p in range(n_thread)])
 		data = rets[0]
 		for ret in rets[1:]:
 			data.image = np.append(data.image, ret.image[:, :, 1:], axis=2)
@@ -81,15 +83,22 @@ def make_fits_data():
 			data.wav = np.append(data.wav, ret.wav[1:], axis=-1)
 			data.nwav += ret.nwav - 1
 	else:
+		line = "iline {:d} widthkms {} linenlam {:d} ".format(
+			args.iline,widthkms,linenlam )
 		cmd = "radmc3d image " + line + camera + common + option
 		subprocess.call(cmd, shell=True)
-		data = readImage()
+		data =	readImage()
+#:		print(vars(data))
+		exit()
+#		data = emissivity()
+		#data = readImage()
 
 	data.writeFits(fname=fitsdir+'/obs.fits', dpc=args.dpc)
+	pd.to_pickle( data , dn_here+'/obs.pkl')
 
 
 def subcalc(args):
-	dn , cmd = args
+	p, dn , cmd = args
 	print(cmd)
 	dn = dn_radmc + dn
 	if not os.path.exists(dn):
@@ -97,8 +106,24 @@ def subcalc(args):
 #	os.system("rm %s/*"%dn)
 	os.system("cp %s/{*.inp,*.dat} %s/"%(dn_radmc,dn))
 	os.chdir(dn)
-	subprocess.call(cmd,shell=True)
+	if p==1:
+		subprocess.call(cmd,shell=True)
+	else:
+		subprocess.call(cmd,shell=True,stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 	return readImage()
 
+#def emissivity():
+#	data = readData(ddens=True,gdens=True,gtemp=True,dtemp=True,gvel=True,ispec='cch',binary=False)
+##	xauc = data.grid.x/cst.au
+##	xaui = data.grid.xi/cst.au
+##	rrc, ttc = np.meshgrid(xauc , data.grid.y, indexing='xy')
+##	rri, tti = np.meshgrid(xaui , data.grid.yi, indexing='xy')
+#	print(data)
+#	if isinstance(data.gastemp,float) and  data.gastemp == -1:
+#		data.gastemp = data.dusttemp	
+#	print( data.gastemp * data.ndens_mol )
+#	print(data)
+#	return data.gastemp * data.ndens_mol
+
 if __name__ == '__main__':
-	make_fits_data()
+	make_fits_data(widthkms=5.12, dvkms=0.04, sizeau=2000 , dxasec=0.08)

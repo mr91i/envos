@@ -2,9 +2,11 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function,	absolute_import, division
 import pickle, os, sys,argparse
+from collections import namedtuple
 import numpy as np
 import pandas as pd
-from scipy.interpolate import interp2d, interp1d
+from scipy.interpolate import interp2d, interp1d, griddata
+import itertools
 dn_here = os.path.dirname(os.path.abspath(os.path.realpath(__file__)))
 dn_home = os.path.abspath(dn_here + '/../../')
 sys.path.append(dn_home)
@@ -14,13 +16,14 @@ from calc import cst
 
 parser = argparse.ArgumentParser(description='This code sets input files for calculating radmc3d.')
 parser.add_argument('-d','--debug',action='store_true')
-parser.add_argument('--tgas',default=False)
+parser.add_argument('--tgas',choices=['tdust','const'], default='tdust')
 parser.add_argument('--turb',default=False)
 parser.add_argument('--line',default=True)
 parser.add_argument('--lowreso',default=False,type=int)
 parser.add_argument('--fdg',default=0.01,type=float)
 parser.add_argument('--mol_abun',default=2e-7,type=float)
 args = parser.parse_args()
+dpc = 137
 
 def convert_cyl_to_sph( v_cyl , R_ori , z_ori , RR , zz):
 	if 1:
@@ -60,10 +63,68 @@ def interpolator2( value, x_ori , y_ori , x_new, y_new ,logx=False, logy=False, 
 	else:
 		return ret
 
+
+def interpolator3( value, xyz_ori, xyz_new, logx=False, logy=False, logz=False, logv=False, pm=False):
+
+	from scipy.interpolate import RegularGridInterpolator
+
+	def points(xyz):
+		return	np.array( list( itertools.product(xyz[0],xyz[1],xyz[2]) )  )
+
+	if logx:
+		xyz_ori[0] = np.log10(xyz_ori[0])
+		xyz_new[0] = np.log10(xyz_new[0])
+
+	if logy:
+		xyz_ori[1] = np.log10(xyz_ori[1])
+		xyz_new[1] = np.log10(xyz_new[1])
+
+	if logz:
+		xyz_ori[2] = np.log10(xyz_ori[2])
+		xyz_new[2] = np.log10(xyz_new[2])
+
+	if logv:
+		sign  = np.sign(value)
+		value = np.log10(np.abs(value))
+
+#	 f = interp2d( x_ori , y_ori , value.T , fill_value = 0 )
+#	print(	np.reshape(xyz_ori) )
+	#, value.shape, np.stack(xyz_new, axis=1).shape )
+
+#	print(xyz_ori)
+#	print(	 points(xyz_ori)	)
+#	print(	 points(xyz_new)   )
+#	print(	value	)
+#	f =	griddata( points(xyz_ori)  , value.flatten() , points(xyz_new) )
+	print(xyz_ori, xyz_new )
+	f = RegularGridInterpolator( xyz_ori , value )
+
+
+	print(	 f(   points( xyz_new )	   )	 )
+#	fv = np.vectorize(f)
+#	print(fv( [16],[0]))
+#	print(	 xyz_new[0], xyz_new[1] , xyz_new[2]   )
+#	print( fv( xyz_new[0], xyz_new[1] , xyz_new[2]	) )
+	return f
+ #	 fv = np.vectorize(f)
+#	 ret =	fv( x_new  , y_new )
+	if logz:
+		if pm:
+			f2 = interp2d( x_ori , y_ori , sign.T , fill_value = np.nan )
+			fv2 = np.vectorize(f2)
+			sgn =  fv2( x_new  , y_new )
+			return np.where( sgn!=0, np.sign(sgn)*10**ret, 0 )
+		return 10**ret #np.where( sgn!=0, np.sign(sgn)*10**ret, 0 ) 
+	else:
+		return ret
+
+
 def main():
 	D = pd.read_pickle(dn_radmc+'res_L1527.pkl')
+	D = namedtuple("Model", D.keys())(*D.values()) 
+	
 
-	nphot	 = 100000
+	nphot	 = 1000000
 	
 	#
 	# Grid parameters
@@ -71,7 +132,7 @@ def main():
 	nr		 = 128 if args.lowreso else 512
 	ntheta	 = 64 if args.lowreso else 256
 	nphi	 = 1
-	rin		 = 10*cst.au
+	rin		 = 1*cst.au
 	rout	 = 1000*cst.au
 	thetaup  = 0.0 / 180.0 * np.pi 
 	#
@@ -80,7 +141,7 @@ def main():
 	#
 	# Make the coordinates
 	#
-	ri	 = np.logspace(np.log10(rin),np.log10(rout),nr+1)
+	ri		 = np.logspace(np.log10(rin),np.log10(rout),nr+1)
 #	thetai	 = np.linspace(thetaup,0.5e0*np.pi,ntheta+1)
 	thetai1	 = np.linspace(thetaup,0.25*np.pi,ntheta/4.+1)
 	thetai2  = np.linspace(0.25*np.pi,0.5*np.pi,ntheta*3/4.+1)[1:]
@@ -89,14 +150,32 @@ def main():
 	rc		 = 0.5 * ( ri[0:nr] + ri[1:nr+1] )
 	thetac	 = 0.5 * ( thetai[0:ntheta] + thetai[1:ntheta+1] )
 	phic	 = 0.5 * ( phii[0:nphi] + phii[1:nphi+1] )
+
+	# mask
+	#mask = ri * thetac
+	#ri = 
+	
+
 	#
 	# Make the grid
 	#
-	rr,tt	 = np.meshgrid(rc,thetac,phic,indexing='ij')
+	mg		 = np.meshgrid(rc,thetac,phic,indexing='ij')
+	rr,tt,pp = mg
 	RR		 = rr*np.sin( tt )
 	zz		 = rr*np.cos( tt )
 	
-	rhog = interpolator2( D.den_tot[:,:,0] , D.r_ax , D.th_ax	, rr, tt , logx=True, logz=True)
+	print(D.den_tot.shape)
+#	print(D.den_1tot[499,59,0])
+#	print(D.den_tot.flatten('K')[30000])
+#	exit()
+
+#	rhog  = 1e-20 * np.ones_like(rr)
+
+#interpolator2( D.den_tot[:,:,0] , D.r_ax , D.th_ax  , rr, tt , logx=True, logz=True)
+#	rhog = interpolator3( D.den_tot , [D.r_ax,D.th_ax, D.ph_ax] , [rc,thetac,phic] , logx=True)
+#	print(rhog)
+#	exit()
+	rhog  = interpolator2( D.den_tot[:,:,0] , D.r_ax , D.th_ax	, rr, tt , logx=True, logz=True)
 	rhod = rhog * args.fdg
 	vr	= interpolator2( D.ur[:,:,0] , D.r_ax , D.th_ax  , rr, tt , logx=True, logz=True) 
 	vth	= interpolator2( D.uth[:,:,0] , D.r_ax , D.th_ax	, rr, tt , logx=True, logz=True, pm=True) 
@@ -108,16 +187,18 @@ def main():
 	vth = np.nan_to_num(vth)
 	vph = np.nan_to_num(vph)
 
-	if args.tgas:
-		tgas = 30*np.ones_like(rhog)
+	if args.tgas=='const':
+		tgas = 420*np.ones_like(rhog)
 	
+	#
 	#
 	# 1. Write the wavelength_micron.inp file
 	#
 	#
 	# Star parameters
 	#
-	mstar	 = D.Ms #cst.ms
+	print("Set stellar parameters.")
+	mstar	 = D.M #cst.ms
 	rstar	 = D.Rs
 	tstar	 = D.Ts   #1.2877 * cst.Tsun ## gives 2.75 Ls
 	pstar	 = np.array([0.,0.,0.])
@@ -173,7 +254,7 @@ def main():
 	
 
 	if args.line:
-		mol_name = 'cch' #'c18o'	
+		mol_name = 'c18o'	
 		mol_abun = args.mol_abun ## c18o
 		#
 		# 4.1 Write the molecule number density file. 
@@ -219,20 +300,24 @@ def main():
 		#
 		# 4.5 Write the gas temperature
 		#
-		if args.tgas:
+		if args.tgas=='const':
 			with open(dn_radmc+'gas_temperature.inp','w+') as f:
 				f.write('1\n')						 # Format number
 				f.write('%d\n'%(nr*ntheta*nphi))			 # Nr of cells
 				data = tgas.ravel(order='F')		  # Create a 1-D view, fortran-style indexing
 				data.tofile(f, sep='\n', format='%13.6e')
 				f.write('\n')
+		#	print("cp {0}gas_temperature.inp {0}dust_temperature.inp".format(dn_radmc))
+		#	os.system("cp {0}gas_temperature.inp {0}dust_temperature.dat".format(dn_radmc))
 
-		#	with open(dn_radmc+'dust_temperature.dat','w+') as f:
-		#		f.write('1\n')						 # Format number
-		#		f.write('%d\n'%(nr*ntheta*nphi))			 # Nr of cells
-		#		data = tgas.ravel(order='F')		  # Create a 1-D view, fortran-style indexing
-		#		data.tofile(f, sep='\n', format='%13.6e')
-		#		f.write('\n')
+
+			with open(dn_radmc+'dust_temperature.dat','w+') as f:
+				f.write('1\n')						 # Format number
+				f.write('%d\n'%(nr*ntheta*nphi))			 
+				f.write('1\n')						 # Format number
+				data = tgas.ravel(order='F')		  # Create a 1-D view, fortran-style indexing
+				data.tofile(f, sep='\n', format='%13.6e')
+				f.write('\n')
 
 	#
 	# Write the dust temperature file
@@ -279,7 +364,7 @@ def main():
 		f.write('scattering_mode_max = 0\n') # 1: with scattering 
 		f.write('iranfreqmode = 1\n')
 		f.write('mc_scat_maxtauabs = 5.d0\n')
-		f.write('tgas_eq_tdust = %d'%(1 if args.tgas else 0))
+		f.write('tgas_eq_tdust = %d'%(0 if args.tgas=='tdust' else 1))
 	del f
 		
 	pkl = {'rr':rr,'tt':tt,'rhod':rhod}

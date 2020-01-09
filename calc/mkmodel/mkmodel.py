@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function,	absolute_import, division
 import os, copy, pickle, argparse, sys
+from collections import namedtuple
 import numpy	  as np
 import pandas	  as pd 
 import matplotlib.cm as cm
@@ -28,6 +29,7 @@ parser.add_argument('--cr', type=float)
 parser.add_argument('--mass',type=float)
 parser.add_argument('--L',type=float)
 parser.add_argument('--cavity_angle',type=float,default=None)
+parser.add_argument('--SimpleDensity',action='store_true')
 parser.add_argument('--pkl_name')
 args = parser.parse_args()
 if args.obj=='L1527':
@@ -51,7 +53,6 @@ args = parser.parse_args()
 ## Global Parameters ##
 use_solution_0th = 0
 mp.dbg = args.debug
-Simple_density = 1
 r_in   = 1 *cst.au
 r_out  = 1e4 *cst.au
 nr	   = 601 
@@ -110,7 +111,7 @@ class Calc_2d_map:
 		self.Rs = cst.Rsun
 		print(	args.L,  cst.Lsun )
 		self.Ls = args.L * cst.Lsun
-		self.Ts = self.Ls**0.25 * cst.Tsun
+		self.Ts = args.L**0.25 * cst.Tsun
 		self.print_params()	
 
 	def print_params(self):
@@ -140,7 +141,7 @@ class Calc_2d_map:
 
 		rho, ur, uth, uph, zeta, mu0 = solver(r)
 
-		if Simple_density:
+		if args.SimpleDensity:
 			rho = self.get_Kinematics_SimpleBalistic( r )[0]
 	
 		uR = ur * self.sin + uth * self.mu
@@ -267,22 +268,15 @@ class Calc_2d_map:
 
 		# Save to pickle
 		self.Save_pickle() 
-		print(self.__module__,self.__init__)
-		for x in dir(self):
-			print( x, ':', type(eval("self."+x) ) )
-
 		return self
 
 	def Save_pickle(self):
 		stamp = '{:.0e}'.format( self.t/cst.yr ) if args.pkl_name == 'time' else args.pkl_name
 		savefile = '%s/res_%s.pkl'%(dn_pkl, stamp)
-		pd.to_pickle( class_to_dict(self) , savefile)
+#		Md = namedtuple("Model", self.__dict__.keys())(*self.__dict__.values())
+#		print(Md)
+		pd.to_pickle( self.__dict__ , savefile)
 		print('Saved : %s\n'%savefile )	
-
-	def class_to_dict(cls):
-		print(cls.__dict__)
-		return cls.__dict__	
-
 
 	def give_Mass_and_time(self, t=None, Mstar=None):
 		if args.no_param_tuning :
