@@ -35,10 +35,10 @@ args = parser.parse_args()
 n_thread = args.n_thread
 fitsdir = dn_home+"/calc/analyze"
 
-def make_fits_data(widthkms=3, dvkms=0.04, sizeau=args.dpc*15, dxasec=0.08, npixy=1):
+def make_fits_data(widthkms=3, dvkms=0.04, sizexau=args.dpc*15, sizeyau=args.dpc*1, dxasec=0.08, npixy=2):
 	global n_thread
 	linenlam = int( 2*widthkms/dvkms )	# ~ 0.1km/s
-	npix	=  int(sizeau/(args.dpc*dxasec)) # ~ 0.1''
+	npix	=  int(sizexau/(args.dpc*dxasec)) # ~ 0.1''
 	common = "incl %d phi %d posang %d " % (args.incl, args.phi, args.posang)
 	option = "noscat nostar "
 	for k, v in locals().items():
@@ -50,11 +50,12 @@ def make_fits_data(widthkms=3, dvkms=0.04, sizeau=args.dpc*15, dxasec=0.08, npix
 		## Note: Before using rectangle imaging, 
 		##		 you need to fix a bug in radmc3dpy.
 		## 
-		Lh	   = 0.5 * sizeau
+		npixy  = int(sizeyau/dxasec/args.dpc)
+		Lh	   = 0.5 * sizexau
 		npixx  = npix ## dx = L/npix
 		pix_yx = npixy/npixx
 		zoomau = np.array([ -1, 1, -pix_yx, pix_yx ]) * Lh
-
+#		zoomau = np.array([ -Lh, Lh, -sizeyau/2, sizeyau/2 ]) 
 		camera = "npixx {:d} npixy {:d} ".format(npixx,npixy) + "zoomau {:f} {:f} {:f} {:f} truepix ".format(*zoomau)
 
 	if args.omp:
@@ -126,4 +127,4 @@ def subcalc(args):
 #	return data.gastemp * data.ndens_mol
 
 if __name__ == '__main__':
-	make_fits_data(widthkms=5.12, dvkms=0.04, sizeau=2000 , dxasec=0.08)
+	make_fits_data(widthkms=5.12, dvkms=0.04, sizexau=2000, sizeyau=80, dxasec=0.08)

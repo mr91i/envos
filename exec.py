@@ -13,7 +13,7 @@ sys.dont_write_bytecode = True if args.genpyc else False
 count=0
 def main():
 	if args.one:
-		pexe(tgas="const", fdg=0., mol_abun=1e-40, model="Simple")
+		pexe(lowreso=True, tgas="const", fdg=0., mol_abun=1e-40, model="Simple", ca=70)
 #		pexe(model="CM")
 	else:
 
@@ -102,7 +102,7 @@ def pexe( cr=None, ca=None, mass=None, mol_abun=None, lowreso=None, tgas=None, f
 		## Make figures of data in radmc3d : None
 		exe('python calc/radmc/plot.py')
 		## Make a PV diagram
-		exe('python calc/analyze/analyze.py')
+		exe('python3 calc/analyze/analyze.py')
 		exe('cp -r fig fig_'+ngen([model],{'cr':cr,'ca':ca,'m':mass,'ma':mol_abun,'tgas':tgas}) )
 		## This figure filenames may contain period '.', so please care about it.
 	except Exception as e:

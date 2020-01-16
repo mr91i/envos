@@ -132,7 +132,7 @@ def main():
 	nr		 = 128 if args.lowreso else 512
 	ntheta	 = 64 if args.lowreso else 256
 	nphi	 = 1
-	rin		 = 1*cst.au
+	rin		 = 10*cst.au
 	rout	 = 1000*cst.au
 	thetaup  = 0.0 / 180.0 * np.pi 
 	#
@@ -188,7 +188,7 @@ def main():
 	vph = np.nan_to_num(vph)
 
 	if args.tgas=='const':
-		tgas = 420*np.ones_like(rhog)
+		tgas = 75.91*np.ones_like(rhog)
 	
 	#
 	#

@@ -78,12 +78,13 @@ pvd = 1
 conv = 1
 # x[au] = d[pc] * theta[marc]
 distance = 137 * cst.pc
-beamsx = 0.4 * distance/cst.pc
-beamsy = 0.9 * distance/cst.pc
-beam_size = 0.516 * distance/cst.pc## np.sqrt( beamsx * beamsy ) # au
+beamsx = 1e-20 # 0.4 * distance/cst.pc
+beamsy = 1e-20 # 0.9 * distance/cst.pc
+#beam_size = 0.516 * distance/cst.pc## np.sqrt( beamsx * beamsy ) # au
+beam_size = 1e-20 # np.sqrt( beamsx * beamsy ) 
 beam_area = np.pi * beamsx * beamsy / 4.0
 
-v_width = 0.5 # kms
+v_width = 1e-20 #0.5 # kms
 figdir = dn_home+"/fig/"
 op_LocalPeak_P = 0
 op_LocalPeak_V = 0
@@ -110,6 +111,8 @@ freq0 = freq_max + dfreq*(Nz-1)/2.
 vkms = cst.c/1e5* dfreq*(0.5*(Nz-1) - np.arange(len(data)) )/freq0
 dv = vkms[1] - vkms[0]
 
+#print(vkms)
+#exit()
 
 
 
@@ -166,11 +169,13 @@ def make_PVdiagram():
 #	xx,vv = np.log10((xx,vv))
 
 
+	
 	if len(y) > 1:
-		print(y,data)
-		interp_func = interpolate.interp1d( y ,  data , axis=1 , kind='cubic')
-		int_ax = np.linspace( -beam_size*0.5 , beam_size*0.5 , 11	)
-		I_pv = integrate.simps( interp_func(int_ax) , x=int_ax , axis=1 )
+		print(y,data.shape,beam_size*0.5)
+		interp_func = interpolate.interp1d( y ,  data , axis=1 , kind='cubic',	fill_value="extrapolate" )
+		int_ax = np.linspace( -beam_size*0.5 , beam_size*0.5 , 41	)
+		I_pv = integrate.simps( interp_func(int_ax) , x=int_ax , axis=1 )/len(int_ax)
+#		I_pv = np.average( data , axis=1 )
 	else:	
 		I_pv = data[ : , 0 , : ] 
 
@@ -187,8 +192,8 @@ def make_PVdiagram():
 #	im = Contour(xx, vv, I_pv , n_lv=n_lv , mode="grid")
 
 	
-	im = Contour(xx, vv, I_pv , n_lv=n_lv , mode="contour",cbmin=0.0)
-#	im = Contour(xx, vv, I_pv , n_lv=n_lv , mode="contourf",cbmin=0)
+#	im = Contour(xx, vv, I_pv , n_lv=n_lv , mode="contour",cbmin=0.0)
+	im = Contour(xx, vv, I_pv , n_lv=n_lv , mode="contourf",cbmin=0)
 #	im = Contour(xx, vv, I_pv , n_lv=n_lv , mode="contour", cmap=plt.get_cmap('Greys'),cbmin=0)
 
 
@@ -231,7 +236,7 @@ def make_PVdiagram():
 	plt.xlabel("Position [au]")
 	plt.ylabel(r"Velocity [km s$^{-1}$]")
 #	plt.xlim( x[0],x[-1] )
-	plt.xlim( -500, 500 )
+	plt.xlim( -7*137, 7*137 )
 #	plt.ylim( vkms[0],vkms[-1] )
 	plt.ylim( -2.5, 2.5 )
 	#im.set_xaxis(True, which='minor')
