@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
+from __future__ import print_function
 import os
 import sys
 import numpy as np
@@ -10,19 +10,24 @@ from scipy.interpolate import interp2d, griddata
 pyver = sys.version_info[0] + 0.1*sys.version_info[1]
 #print("Message from %s"% os.path.dirname(os.path.abspath(__file__)))
 
-def msg(s):
-	print("[plotter.py] %s"%s)
+debug = 0
+def msg(*s, **args):
+	if "debug" in args:
+		if args["debug"]==True:
+			print("[debug] ", end='')
+		else:
+			return
+	else:
+		print("[plotter.py] ", end='')
+	print(*s)
+	if ("exit" in args) and (args["exit"]==True):
+		exit()
+
+
+
 msg("%s is used."% os.path.abspath(__file__))
 msg("This is python %s"%pyver)
 dn_this_file = os.path.dirname(os.path.abspath(__file__))
-
-dbg = 0
-
-def say(*something, exit=False):
-	if dbg:
-		print(something)
-	if exit:
-		exit()
 
 class Struct:
 	def __init__(self, **entries):
@@ -114,8 +119,11 @@ def reproduce_map2( v , x1_mg , x2_mg , X1_ax , X2_ax  ):
 	return v_new
 
 class Plotter:
+#	def_logx = False
+#	def_logy = False
 	def __init__(self, fig_dir_path, x=None, xlim=None, xl='',
 				 c=[], ls=[], lw=[], alp=[], pm=False,
+				 logx=False, logy=False, leg=False,
 				 args_leg={"loc":'best'}, args_fig={}):
 
 		# For saving figures
@@ -133,10 +141,17 @@ class Plotter:
 		self.lw = lw
 		self.alp = alp
 		self.pm = pm
+		self.leg = leg
 		self.args_leg = args_leg
 		self.args_fig = args_fig
-
 		self.fig = None
+		self.logx = logx
+		self.logy = logy
+#		set_default(logx=logx)
+		
+#	def set_default(**args):
+#		for k,v in args.items():		
+#			setattr(self, k, v)
 
 	@staticmethod
 	def _mkdir(dpath):
@@ -154,40 +169,43 @@ class Plotter:
 			else:
 				return False
 
+		def isvector(x):
+			return not np.isscalar(x)
 
 		def check_vector_type(vec):
 			## [k, x, y]
 			if len(vec) == 3 \
 			   and isinstance(vec[0], str) \
-			   and np.isscalar(vec[1]) \
-			   and np.isscalar(vec[2]) \
+			   and isvector(vec[1]) \
+			   and isvector(vec[2]) \
 			   and len(vec[1]) == len(vec[2]):
 				return 1
 
 			## [k, y]
 			elif len(vec) == 2 \
 			   and isinstance(vec[0], str) \
-			   and np.isscalar(vec[1]) \
+			   and isvector(vec[1]) \
 			   and (len(self.x) == len(vec[1])):
 				return 2
 
 			## [x, y]
 			elif len(vec) == 2 \
-			   and np.isscalar(vec[0]) \
-			   and np.isscalar(vec[1]) \
+			   and isvector(vec[0]) \
+			   and isvector(vec[1]) \
 			   and (len(vec[0]) == len(vec[1])):
 				return 3
 
 			## y
 			elif len(vec) == len(self.x) \
-			   and np.isscalar(vec):
+			   and isvector(vec):
 				return 4
 
 			else:
 				return -1
 
-		if np.isscalar(l):
+		if isvector(l):
 			itype = check_vector_type(l)
+			print(itype)
 			if itype == 1:
 				return [l]
 
@@ -202,6 +220,7 @@ class Plotter:
 			else:
 
 				jtype = check_vector_type(l[0])
+				print(jtype)
 				if jtype == 1:
 					return l
 	
@@ -241,7 +260,7 @@ class Plotter:
 			 hl=[], vl=[], fills=None, arrow=[], lbs=None,
 			 datatype="",
 			 *args, **kwargs):
-	
+
 		settings=locals()
 	
 		# Start Plotting
@@ -265,7 +284,7 @@ class Plotter:
 			alp = alp[i] if len(alp) >= i+1 else None
 
 			# Plot 
-			say( 'Inputs to plot', xy) 
+			msg('Inputs to plot', xy, debug=1) 
 			ax.plot( *xy, label=lbs, c=c[i], ls=ls[i], lw=lw[i], alpha=alp[i], zorder=-i, **kwargs)
 			if pm:
 				ax.plot( x, -y, label=lb , c=c[i], ls=ls[i], lw=lw[i], alpha=alp[i], zorder=-i, **kwargs)
@@ -310,7 +329,7 @@ class Plotter:
 		if xlim is None:
 			xlim = self.xlim
 		if xlim:
-			plt.xlim(xlim)
+			plt.xlim(xlim or self.xlim)
 	
 		if ylim:
 			plt.ylim(ylim)
@@ -329,7 +348,7 @@ class Plotter:
 		msg("	Saved %s to %s"%(opfn,savefile))
 		plt.close()
 	
-		return Struct(**settings)
+		return Struct(**suettings)
 	
 	
 	#
@@ -367,7 +386,7 @@ class Plotter:
 			ylim = [ np.min(y) , np.max(y) ]
 		if cblim==None:
 			cblim = [ np.min(z[z>0]) , np.max(z) ]
-			say(z, cblim)
+			msg(z, cblim)
 	
 		if logcb:
 			cbmin , cbmax = np.log10(cblim)
@@ -443,15 +462,19 @@ class Plotter:
 		if square:
 			plt.gca().set_aspect('equal', adjustable='box')
 
-		if logx or loglog:
+		if (logx or self.logx) or loglog:
 			plt.xscale("log")
 
-		if logy or loglog:
+		if (logx or self.logx) or loglog:
 			plt.yscale('log', nonposy='clip')
 
+		if xlim is None:
+			xlim = self.xlim
 		if xlim:
 			plt.xlim(xlim)
 
+		if ylim is None:
+			ylim = self.ylim
 		if ylim:
 			plt.ylim(ylim)
 
@@ -461,7 +484,7 @@ class Plotter:
 		if yl:
 			plt.ylabel(yl)
 
-		if leg:
+		if leg or self.leg:
 			plt.legend(**self.args_leg)
 
 		self.fig = fig
