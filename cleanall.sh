@@ -1,10 +1,10 @@
-rm -f log
-echo Removed ./log
+#rm -f log
+#echo Removed ./log
 
-rm -rf calc/*.pyc calc/__pycache__
+rm -rf pmodes/*.pyc pmodes/__pycache__
 echo "Cleaned ./calc"
 
-rm -rf calc/radmc/{\
+rm -rf radmc/{\
 *.{o,mod,pyc,dat,out,info,used,uout,udat},\
 amr_grid.inp,gas_temperature.inp,wavelength_micron.inp,\
 dustopac.inp,dust_density.inp,stars.inp,radmc3d.inp,*wavelength_micron.inp\
@@ -14,7 +14,7 @@ proc*,microturbulence.inp,gas_velocity.inp,numberdens_*.inp,lines.inp}
 #echo radmc Directory cleaned to basic
 echo "Cleaned ./calc/radmc"
 
-rm -rf calc/sobs/*.fits
+rm -rf radmc/*.fits
 echo "Cleaned ./calc/sobs"
 
 rm -rf fig/*
