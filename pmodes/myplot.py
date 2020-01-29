@@ -5,6 +5,7 @@ from scipy.interpolate import interp2d, griddata
 import os
 import sys
 import numpy as np
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 plt.switch_backend('agg')
 pyver = sys.version_info[0] + 0.1*sys.version_info[1]
@@ -32,7 +33,7 @@ dn_this_file = os.path.dirname(os.path.abspath(__file__))
 
 
 class Struct:
-    def __init__(self, **entries):
+    def __init__(self, entries):
         self.__dict__.update(entries)
 
 
@@ -124,9 +125,9 @@ class Default_params:
 class Plotter:
     #   def_logx = False
     #   def_logy = False
-    def __init__(self, fig_dir_path, x=None, y=None, xlim=None, ylim=None, cblim=None, xl=None, yl=None, 
+    def __init__(self, fig_dir_path, x=None, y=None, xlim=None, ylim=None, cblim=None, xl=None, yl=None,
                  c=[], ls=[], lw=[], alp=[], pm=False,
-                 logx=False, logy=False, logcb=False, leg=False,
+                 logx=False, logy=False, logcb=False, logxy=False, leg=False,
                  args_leg={"loc": 'best'}, args_fig={}):
 
         # For saving figures
@@ -141,7 +142,7 @@ class Plotter:
         self.y = y
         self.xlim = xlim
         self.ylim = ylim
-        self.cblim = cblim 
+        self.cblim = cblim
         self.xl = xl
         self.yl = yl
         self.c = c
@@ -155,6 +156,7 @@ class Plotter:
         self.fig = None
         self.logx = logx
         self.logy = logy
+        self.logxy = logxy
         self.logcb = logcb
 #       set_default(logx=logx)
 
@@ -178,9 +180,8 @@ class Plotter:
         else:
             return None
 
-
     def reform_ylist(self, x, l):
-        x0 = x if x is not None else  self.x
+        x0 = x if x is not None else self.x
 
         def checktype(a, types):
             if len(a) == len(types):
@@ -269,12 +270,14 @@ class Plotter:
     def plot(self, y_list, out=None, x=None, c=[None],
              ls=[], lw=[], alp=[], leg=True, frg_leg=0, title='',
              xl='', yl='', xlim=None, ylim=None,
-             logx=False, logy=False, loglog=False, pm=False,
+             logx=False, logy=False, logxy=False, pm=False,
              hl=[], vl=[], fills=None, arrow=[], lbs=None,
-             datatype="", save=True,
+             datatype="", save=True, result="fig",
              *args, **kwargs):
 
-        settings = locals()
+        input_settings = locals()  
+        for k, v in input_settings.items():
+            setattr(self, "inp_"+k, v)
 
         # Start Plotting
         msg("Plotting %s" % out)
@@ -285,7 +288,6 @@ class Plotter:
         data = self.reform_ylist(x, y_list)
 
 #       set_options( len(y_list) , [c,ls,lw,alp] ,  [defs.c,defs.ls,defs.lw,defs.alp]  )
-
 
         # Main plot
         for i, (k, x, y) in enumerate(data):
@@ -337,16 +339,16 @@ class Plotter:
         if leg and frg_leg == 1:
             plt.legend(**self.args_leg)
 
-        if logx or loglog:
+        if (logx or self.logx) or (logxy or self.logxy):
             plt.xscale("log", nonposx='clip')
 
-        if logy or loglog:
+        if (logy or self.logy) or (logxy or self.logxy):
             plt.yscale('log', nonposy='clip')
 
-        plt.xlim( self.notNone(xlim, self.xlim) )
-        plt.ylim( self.notNone(ylim, self.ylim) )
-        plt.xlabel( self.notNone(xl, self.xl) )
-        plt.ylabel( self.notNone(yl, self.yl) )
+        plt.xlim(self.notNone(xlim, self.xlim))
+        plt.ylim(self.notNone(ylim, self.ylim))
+        plt.xlabel(self.notNone(xl, self.xl))
+        plt.ylabel(self.notNone(yl, self.yl))
 
         self.fig = fig
 
@@ -354,8 +356,10 @@ class Plotter:
         if save:
             self.save(out)
 
-        return fig
-
+        if result=="fig":
+            return fig
+        elif result=="class":
+            return Struct(input_settings)
     #
     # Plot function : draw a map
     #
@@ -367,13 +371,16 @@ class Plotter:
             cmap=plt.get_cmap('inferno'),
             xl='', yl='', cbl='',
             xlim=None, ylim=None, cblim=None,
-            logx=None, logy=None, logcb=None, loglog=False,
+            logx=None, logy=None, logcb=None, logxy=False,
             pm=False, leg=False, hl=[], vl=[], title='',
             fills=None, data="", Vector=None,
             div=10.0, n_sline=18, hist=False,
             square=True, seeds_angle=[0, np.pi/2],
-            save=True,
+            save=True,result="fig",
             **args):
+
+        for k, v in locals().items():
+            setattr(self, "inp_"+k, v)
 
         # Start Plotting
         msg("Plotting %s" % out)
@@ -390,13 +397,13 @@ class Plotter:
             xx = x
             yy = y
 
-        plt.xlim( self.notNone(xlim, self.xlim) )
-        plt.ylim( self.notNone(ylim, self.ylim) )
-        plt.xlabel( self.notNone(xl, self.xl) )
-        plt.ylabel( self.notNone(yl, self.yl) )
+        plt.xlim(self.notNone(xlim, self.xlim))
+        plt.ylim(self.notNone(ylim, self.ylim))
+        plt.xlabel(self.notNone(xl, self.xl))
+        plt.ylabel(self.notNone(yl, self.yl))
 
-        cblim = self.notNone(cblim, self.cblim)  
-        if self.notNone(logcb, self.logcb): #(logcb or self.logcb):
+        cblim = self.notNone(cblim, self.cblim)
+        if self.notNone(logcb, self.logcb):  # (logcb or self.logcb):
             cblim = np.log10(cblim)
 
             print(z, np.max(z), np.min(z))
@@ -405,7 +412,6 @@ class Plotter:
 
         if cblim is not None:
             delta = (cblim[1] - cblim[0])/float(div)
-            
 
         if (cblim[1]+delta - cblim[0])/delta > 100:
             print("Wrong!")
@@ -470,14 +476,11 @@ class Plotter:
         if square:
             plt.gca().set_aspect('equal', adjustable='box')
 
-        if (logx or self.logx) or loglog:
+        if (logx or self.logx) or (logxy or self.logxy):
             plt.xscale("log", nonposx='clip')
 
-        if (logx or self.logx) or loglog:
+        if (logx or self.logx) or (logxy or self.logxy):
             plt.yscale('log', nonposy='clip')
-
-
-
 
         if leg or self.leg:
             plt.legend(**self.args_leg)
@@ -487,11 +490,14 @@ class Plotter:
         if save:
             self.save(out)
 
-        return fig
+        if result=="fig":
+            return fig
+        elif result=="class":
+            return Struct(self) 
 
     def save(self, out):
         savefile = "%s/%s%s" % (self.fig_dn, out, self.ext)
-        #print(self.fig_dn)
+        # print(self.fig_dn)
         self.fig.savefig(savefile, transparent=True, bbox_inches='tight')
         msg("   Saved %s to %s" % (out, savefile))
         plt.close()
@@ -500,23 +506,23 @@ class Plotter:
 #   def _contour_plot(xx, yy, z, n_lv=20, cbmin=None, cblim[1]=None,
 #                     mode="default", cmap=plt.get_cmap('viridis'),
 #                     smooth=False):
-#   
+#
 #       dx = xx[0, 1] - xx[0, 0]
 #       if len(yy) > 1:
 #           dy = yy[1, 0] - yy[0, 0]
 #       else:
 #           dy = dx*10
-#   
+#
 #       if cbmin == None:
 #           cbmin = z.min()
-#   
+#
 #       if cblim[1] == None:
 #           cblim[1] = z.max()
-#   
+#
 #       levels = np.linspace(cbmin, cblim[1], n_lv+1)
 #       norm = BoundaryNorm(levels, ncolors=cmap.N)
 #   #   print("levels is ", levels, ' norm is', vars(norm) )
-#   
+#
 #       if mode == "grid":
 #           #       n_lv = 6
 #           #       std = np.std(z)
@@ -528,15 +534,63 @@ class Plotter:
 #           yyi = np.vstack((yy-dy/2., (yy[-1, :]+dy/2.).reshape(1, -1)))
 #           yyi = np.hstack((yyi, yyi[:, -1].reshape(-1, 1)))
 #           return plt.pcolormesh(xxi, yyi, z, cmap=cmap, norm=norm, rasterized=True)
-#   
+#
 #       if mode == "contourf":
 #           return plt.contourf(xx, yy, z, n_lv, cmap=cmap)
-#   
+#
 #       if mode == "contour":
 #           jM, iM = np.unravel_index(np.argmax(z), z.shape)
 #           plt.scatter(xx[jM, iM], yy[jM, iM], c='y', s=6, zorder=12)
 #           return plt.contour(xx, yy, z, cmap=cmap, levels=levels)
-#   
+#
 #   #       return plt.contour( xx , yy , z , n_lv , cmap=cmap, vmin=cbmin, vmax=cblim[1] ,levels=levels)
 #       if mode == "scatter":
 #           return plt.scatter(xx, yy, vmin=cblim[0], vmax=cblim[1], c=z, s=1, cmap=cmap)
+
+
+
+
+
+
+from cycler import cycler
+from matplotlib.colors import LinearSegmentedColormap
+
+def generate_cmap(colors):
+    values = range(len(colors))
+    vmax = np.ceil(np.max(values))
+    color_list = []
+    for v, c in zip(values, colors):
+        color_list.append((v / vmax, c))
+    return LinearSegmentedColormap.from_list('custom_cmap', color_list)
+
+def generate_cmap_rgb(cmap):
+    return [(int(c[1:3], 16)/255., int(c[3:5], 16)/255., int(c[5:7], 16)/255.) for c in cmap]
+
+c_def = ["#3498db", "#e74c3c", "#1abc9c", "#9b59b6", "#f1c40f", "#34495e",
+         "#446cb3", "#d24d57", "#27ae60", "#663399", "#f7ca18", "#bdc3c7", "#2c3e50"]
+c_def_rgb = generate_cmap_rgb(c_def)
+c_cycle = cycler(color=c_def)
+mpl.rc('font', weight='bold', size=17)
+mpl.rc('lines', linewidth=4, color="#2c3e50", markeredgewidth=0.9,
+       marker=None, markersize=4)
+mpl.rc('patch', linewidth=1, edgecolor='k')
+mpl.rc('text', color='#2c3e50')
+mpl.rc('axes', linewidth=2, facecolor='none', titlesize=30, labelsize=20,
+       labelweight='bold', prop_cycle=c_cycle, grid=False)
+mpl.rc('xtick.major', size=6, width=2)
+mpl.rc('ytick.major', size=6, width=2)
+mpl.rc('xtick.minor', size=3, width=2)
+mpl.rc('ytick.minor', size=3, width=2)
+mpl.rc('xtick', direction="in", bottom=True, top=True)
+mpl.rc('ytick', direction="in", left=True, right=True)
+mpl.rc('grid', color='#c0392b', alpha=0.3, linewidth=1)
+mpl.rc('legend', loc='upper right', numpoints=1, fontsize=12, borderpad=0.5,
+       markerscale=1, labelspacing=0.2, frameon=True, facecolor='w',
+       framealpha=0.9, edgecolor='#303030', handlelength=1, handleheight=0.5,
+       fancybox=False)
+golden_ratio = np.array([1, (1+np.sqrt(5))*0.5])
+golden_ratio_rev = np.array([(1+np.sqrt(5))*0.5, 1])
+mpl.rc('figure', figsize=golden_ratio_rev*5, dpi=160, edgecolor="k")
+mpl.rc('savefig', dpi=200, facecolor='none', edgecolor='none')
+mpl.rc('path', simplify=True, simplify_threshold=1)
+mpl.rc('pdf', compression=9, fonttype=3)
