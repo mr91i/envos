@@ -91,92 +91,40 @@ class Calc_2d_map:
         print('')
 
     def calc(self):
-        function = np.frompyfunc( self.calc_physical_structure_for_theta, 2, 0)
-        function(self.r_ax, self.ph_ax)
-        print(self.rho, self.rho.shape, np.max(self.rho), np.min(self.rho))
-        exit()
-
-#                R_ax, z_ax = r*self.sin, r*self.mu
-#                rho, ur, uth, uph, zeta, mu0, uR, uz = self.calc_Kinematics(
-#                    r, model=self.model)
-#                rho_disk = self.put_Disk_sph(r, mode='CM_visc')
-#                b_disk = rho_disk > np.nan_to_num(rho)
-#                v_Kep = np.sqrt(self.GM / R_ax)
-#
-#                vals = {'R': R_ax, 'z': z_ax, 'rho': rho,
-#                        'ur': ur, 'uph': uph, 'uth': uth, 'uR': uR, 'uz': uz,
-#                        'rr': np.full_like(self.th_ax, r),
-#                        'tt': self.th_ax, 'zeta': zeta,
-#                        'mu0': mu0,
-#                        'rho_tot': rho + rho_disk,
-#                        'vr_tot': np.where(b_disk, 0, ur),
-#                        'vphi_tot': np.where(b_disk, v_Kep, uph),
-#                        'vth_tot': np.where(b_disk, 0, uth)
-#                        }
-#
-#                if inp.submodel is not None:
-#                    rho_sub, ur_sub, uth_sub, uph_sub, zeta_sub, mu0_sub, uR_sub, uz_sub = self.calc_Kinematics(
-#                        r, model=inp.submodel)
-#                    vals.update({'rho_sub': rho_sub, 'ur_sub': ur_sub, 'uph_sub': uph_sub,
-#                                 'uth_sub': uth_sub, 'uR_sub': uR_sub, 'uz_sub': uz_sub})
-#
-#                # Accumurate list to res
-#                # Stack: stacked_value = stack( vals )
-#                # [ r1:[ t1 t2 ... tn  ], ... rn:[  ]  ]
-#                self.stack(vals, vals_rt)
-#            self.stack(vals_rt, vals_prt)
-
-        # Convert stacked values to ndarray and add to "self" class
-#        for k, v_prt in vals_prt.items():
- #           setattr(self, k, np.array(v_prt).transpose(1, 2, 0)) # prt --> rtp
-
-        # Save to pickle
+        vals_prt = {} 
+        for p in self.ph_ax:
+            vals_rt = {}
+            for r in self.r_ax:
+                vals = self.calc_physical_structure_for_theta2(r,p)       
+                self.stack(vals, vals_rt)
+            self.stack(vals_rt, vals_prt)
+        for k, v_prt in vals_prt.items():
+            setattr(self, k, np.array(v_prt).transpose(1,2,0))
         self.Save_pickle()
         return self
 
-    def calc_physical_structure_for_theta(self, r, phi):
-        R_ax, z_ax = r*self.sin, r*self.mu
 
+    def calc_physical_structure_for_theta2(self, r, phi):
+        RR, zz = r*self.sin, r*self.mu
         rho, ur, uth, uph, zeta, mu0, uR, uz = self.calc_Kinematics(
             r, model=self.model)
-        #print(rho, rho.shape, np.max(rho), np.min(rho))
         rho_disk = self.put_Disk_sph(r, mode='CM_visc')
         b_disk = rho_disk > np.nan_to_num(rho)
-        v_Kep = np.sqrt(self.GM / R_ax)
+        v_Kep = np.sqrt(self.GM / RR)
         rho_tot = rho + rho_disk
         vr_tot = np.where(b_disk, 0, ur)
         vphi_tot = np.where(b_disk, v_Kep, uph)
         vth_tot = np.where(b_disk, 0, uth)
-        rr = np.full_like(self.th_ax, r),
+        rr = np.full_like(self.th_ax, r)
         tt = self.th_ax
-
         if inp.submodel is not None:
             rho_sub, ur_sub, uth_sub, uph_sub, zeta_sub, mu0_sub, uR_sub, uz_sub = self.calc_Kinematics(
                 r, model=inp.submodel)
-#            vals.update({'rho_sub': rho_sub, 'ur_sub': ur_sub, 'uph_sub': uph_sub,
- #                        'uth_sub': uth_sub, 'uR_sub': uR_sub, 'uz_sub': uz_sub})
         ret = locals()
         del ret["self"]
-        #return ret
+        return ret
 
-        ir = np.where( self.r_ax == r )
-        ip = np.where( self.ph_ax == phi ) #        print(ir, ip)
-
-        import copy
-        for k, v in ret.items():        
-            if not k in self.__dict__:
-                setattr(self, k, self.empty_data_rtp)
-
-            val = copy.copy( getattr(self, k) )
-            val[ir, :, ip] = v
-        
-            setattr(self, k, val)
-            #if "rho" in self.__dict__:
-            #    print( "    ",k, np.max( self.rho ) )
-            
-#        print(np.max(getattr(self, "rho")) )
-
-    def stack(self, dict_vals, dict_stacked):
+    def stack(self, dict_vals, dict_stacked):    
         for k, v in dict_vals.items():
             if not k in dict_stacked:
                 dict_stacked[k] = []
@@ -207,7 +155,7 @@ class Calc_2d_map:
 
     def get_Kinematics_CM(self, r):
         zeta = self.j0**2 / (self.GM * r)
-        mu0 = self.get_mu0(zeta)
+        mu0 = self.get_mu0(zeta, method='cubic')
         sin0 = np.sqrt(1 - mu0**2)
         v0 = np.sqrt(self.GM / r)
         # np.where( np.logical_and(mu0==0,mu==0) , 1-zeta, mu/mu0 )
@@ -220,20 +168,19 @@ class Calc_2d_map:
             mask = np.where(mu0 < self.mu_cav, 1, 0)
         return rho*mask, ur*mask, uth*mask, uph*mask, zeta, mu0
 
+    @staticmethod
+    def sol1(m,zeta):
+        sols = [ round(sol, 10) for sol in np.roots([zeta, 0, 1-zeta, -m]).real if 0 <= round(sol, 10) <= 1 ]
+        return sols[0]
+
+    @staticmethod
+    def sol2(m,zeta):
+        sols = [ round(sol, 10) for sol in CubicSolver.solve(zeta, 0, 1-zeta, -m).real if 0 <= round(sol, 10) <= 1 ]
+        return sols[0]
+
     def get_mu0(self, zeta, method='roots'):
-        def sol1(m):
-            sols = [ round(sol, 10) for sol in np.roots([zeta, 0, 1-zeta, -m]).real if 0 <= round(sol, 10) <= 1 ]
-#            if not 0 <= round(sols[0], 10) <= 1:
- #               print( np.roots([zeta, 0, 1-zeta, -m]) )
-            return sols[0]
-           # return round(sols[0], 10) if 0 <= round(sols[0], 10) <= 1 else np.nan
-
-        def sol2(m):
-            sols = CubicSolver.solve(zeta, 0, 1-zeta, -m).real
-            return round(sols[0], 10) if 0 <= round(sols[0], 10) <= 1 else np.nan
-
-        solver = {"roots":sol1, "cubic":sol2}[method]
-        return np.array([solver(m) for m in self.mu])
+        solver = {"roots":self.sol1, "cubic":self.sol2}[method]
+        return np.array([solver(m, zeta) for m in self.mu])
 
     def get_Kinematics_SimpleBalistic(self, r, p=-1.5, r0=None, rho0=None, dMdt=None, h=0.1, fillv=0):
         vff = np.sqrt(2 * self.GM / r)
@@ -362,14 +309,15 @@ def Plots(D, r_lim=500):
                xl='x [au]', yl='y [au]', cbl=cbl, logcb=log,
                xlim=[-1000, 1000], ylim=[-1000, 1000], cblim=rang, seeds_angle=[0, 2*np.pi], **kwinp)
 
+
+    print(vars(D))
     # Density and velocity map
     Vec = np.array([D.uR.take(0, 2), D.uz.take(0, 2)])
 
     print(D.rho, D.rho.shape, D.rho[:,:,0].shape)
-#    exit()
     plmap.map(z=D.rho.take(0, 2), out='map_rho_%s'%tstamp, cblim=[1e-21, 1e-16], cbl=r'log Density [g/cm$^{3}$]', div=10, Vector=Vec, n_sl=40)
-    exit()
 
+    exit()
     # Ratio between mu0 and mu : where these gas come from
     plmap.map(z=np.arccos(D.mu0.take(0, 2))*180/np.pi, out='map_theta0_%s'%tstamp, cblim=[0, 90], cbl=r'\theta_0', div=10, Vector=Vec, n_sl=40, logcb=False)
 

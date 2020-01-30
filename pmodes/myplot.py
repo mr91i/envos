@@ -406,8 +406,8 @@ class Plotter:
         if self.notNone(logcb, self.logcb):  # (logcb or self.logcb):
             cblim = np.log10(cblim)
 
-            print(z, np.max(z), np.min(z))
-            exit()
+           # print(z, np.max(z), np.min(z))
+            
             z = np.log10(np.where(z != 0, abs(z), np.nan))
 
         if cblim is not None:
@@ -498,7 +498,8 @@ class Plotter:
     def save(self, out):
         savefile = "%s/%s%s" % (self.fig_dn, out, self.ext)
         # print(self.fig_dn)
-        self.fig.savefig(savefile, transparent=True, bbox_inches='tight')
+        print(self.fig)
+        self.fig.savefig(savefile, bbox_inches='tight')
         msg("   Saved %s to %s" % (out, savefile))
         plt.close()
 
