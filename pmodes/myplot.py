@@ -127,7 +127,7 @@ class Plotter:
     #   def_logy = False
     def __init__(self, fig_dir_path, x=None, y=None, xlim=None, ylim=None, cblim=None, xl=None, yl=None,
                  c=[], ls=[], lw=[], alp=[], pm=False,
-                 logx=False, logy=False, logcb=False, logxy=False, leg=False,
+                 logx=False, logy=False, logcb=False, logxy=False, leg=False, fn_wrapper=lambda s:s, decorator=lambda y:y,
                  args_leg={"loc": 'best'}, args_fig={}):
 
         # For saving figures
@@ -158,6 +158,8 @@ class Plotter:
         self.logy = logy
         self.logxy = logxy
         self.logcb = logcb
+        self.fn_wrapper = fn_wrapper 
+        self.decorator = decorator
 #       set_default(logx=logx)
 
 #   def set_default(**args):
@@ -293,7 +295,7 @@ class Plotter:
         for i, (k, x, y) in enumerate(data):
             # Preprocessing for each plot
             lb_i = lbs[i] if lbs else k
-            xy_i = (x, y) if (x is not None) else (y,)
+            xy_i = (x, self.decorator(y)) if (x is not None) else (self.decorator(y),)
             c_i = c[i] if len(c) >= i+1 else None
             ls_i = ls[i] if len(ls) >= i+1 else None
             lw_i = lw[i] if len(lw) >= i+1 else None
@@ -366,7 +368,7 @@ class Plotter:
     #   cmap=plt.get_cmap('cividis')
     #   cmap=plt.get_cmap('magma')
 
-    def map(self, x=None, y=None, z=None, out=None, mode='contourf',
+    def map(self, z=None, out=None, x=None, y=None, mode='contourf',
             c=[None], ls=[None], lw=[None], alp=[None],
             cmap=plt.get_cmap('inferno'),
             xl='', yl='', cbl='',
@@ -397,6 +399,8 @@ class Plotter:
             xx = x
             yy = y
 
+        z = self.decorator(z)
+    
         plt.xlim(self.notNone(xlim, self.xlim))
         plt.ylim(self.notNone(ylim, self.ylim))
         plt.xlabel(self.notNone(xl, self.xl))
@@ -405,9 +409,7 @@ class Plotter:
         cblim = self.notNone(cblim, self.cblim)
         if self.notNone(logcb, self.logcb):  # (logcb or self.logcb):
             cblim = np.log10(cblim)
-
-           # print(z, np.max(z), np.min(z))
-            
+            #print(z, np.max(z), np.min(z) )            
             z = np.log10(np.where(z != 0, abs(z), np.nan))
 
         if cblim is not None:
@@ -496,9 +498,7 @@ class Plotter:
             return Struct(self) 
 
     def save(self, out):
-        savefile = "%s/%s%s" % (self.fig_dn, out, self.ext)
-        # print(self.fig_dn)
-        print(self.fig)
+        savefile = "%s/%s%s" % (self.fig_dn, self.fn_wrapper(out), self.ext)
         self.fig.savefig(savefile, bbox_inches='tight')
         msg("   Saved %s to %s" % (out, savefile))
         plt.close()
