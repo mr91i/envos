@@ -35,7 +35,8 @@ class EnvelopeDiskModel:
         **args):
 
         for k, v in locals().items():
-            setattr(self, k, v)
+            if k is not 'self':
+                setattr(self, k, v)
 
         # Non Variable aramters Through Calculation
         self.model = self.read_inp_ire_model(ire_model)
@@ -308,8 +309,7 @@ def Plots(D, r_lim=500):
     # Density and velocity map
     plmap.map(D.rho, 'rho', cblim=[1e-21, 1e-16], cbl=r'log Density [g/cm$^{3}$]', div=10, Vector=Vec, n_sl=40)
     # Ratio between mu0 and mu : where these gas come from
-    plmap.map(np.arccos(D.mu0)*180/np.pi, 'theta0', cblim=[0, 90], cbl=r'\theta_0', div=10, Vector=Vec, n_sl=40, logcb=False)
-
+    plmap.map(np.arccos(D.mu0)*180/np.pi, 'theta0', cblim=[0, 90], cbl=r'$\theta_0$ [degree]', div=10, Vector=Vec, n_sl=40, logcb=False)
 
     def zdeco_plane(z):
         if z.shape[2] == 1:
@@ -317,29 +317,30 @@ def Plots(D, r_lim=500):
         else:
             return z.take(-1,1)
 
+    ux = D.ur * np.cos(ph_mg) - D.uph*np.sin(ph_mg)
+    uy = D.ur * np.sin(ph_mg) + D.uph*np.cos(ph_mg)
+    Vec = np.array([ux.take(-1, 1), uy.take(-1, 1)])
+
     plplane = mp.Plotter(dn_home+"/fig", x=x_mg.take(-1, 1)/cst.au, y=y_mg.take(-1, 1)/cst.au,
                        logx=False, logy=False, leg=False,
-                       xl='Radius [au]', yl='Height [au]', xlim=[-1000, 1000], ylim=[-1000, 1000],
+                       xl='x [au]', yl='y [au] (-:our direction)', xlim=[-1000, 1000], ylim=[-1000, 1000],
                        fn_wrapper=lambda s:'plmap_%s_%s'%(s, stamp),
                        decorator=zdeco_plane)
 
     # Analyze radial profiles at the midplane
     # Slicing
     V_LS = x_mg/r_mg * D.uph - y_mg/r_mg*D.ur
-    ux = D.ur * np.cos(ph_mg) - D.uph*np.sin(ph_mg)
-    uy = D.ur * np.sin(ph_mg) + D.uph*np.cos(ph_mg)
-    Vec = np.array([ux.take(-1, 1), uy.take(-1, 1)])
 
-    plplane.map(V_LS/1e5, 'Vls', cblim=[-2.0, 2.0], cbl=r'V_LS [km s$^{-1}$]',
-                   div=20, n_sl=40, logcb=False, cmap=cm.get_cmap('seismic'), Vector=Vec)
+    plplane.map(V_LS/1e5, 'Vls', cblim=[-2.0, 2.0], cbl=r'$V_{\rm LS}$ [km s$^{-1}$]',
+                   div=20, n_sl=40, logcb=False, cmap=cm.get_cmap('seismic'), Vector=Vec, seeds_angle=[0,2*np.pi])
 
     plplane.map(D.rho, 'rho', cblim=[1e-18, 1e-16], cbl=r'log Density [g/cm$^{3}$]',
-                   div=6, n_sl=40, logcb=True, cmap=cm.get_cmap('seismic'), Vector=Vec)
+                   div=6, n_sl=40, logcb=True, cmap=cm.get_cmap('seismic'), Vector=Vec, seeds_angle=[0,2*np.pi])
 
     rho0, uR0, uph0, rho_tot0 = slice_at_midplane(
         th_mg, D.rho, D.uR, D.uph, D.rho_tot)
 
-    pl = mp.Plotter(dn_home+"/fig", x=D.r_ax/cst.au, leg=True, xlim=[0, 500])
+    pl = mp.Plotter(dn_home+"/fig", x=D.r_ax/cst.au, leg=True, xlim=[0, 500], xl="Radius [au]")
 
     # Density as a function of distance from the center
     pl.plot([['nH2_env', rho0/cst.mn], ['nH2_disk', (rho_tot0-rho0)/cst.mn], ['nH2_tot', rho_tot0/cst.mn]],
@@ -349,10 +350,10 @@ def Plots(D, r_lim=500):
 
     # Make a 'balistic' orbit similar procedure to Oya+2014
     pl.plot([['-uR', -uR0/cst.kms], ['uph', uph0/cst.kms]],
-            'v_%s' % stamp, ylim=[-1, 3], xlim=[0, 500],
+            'v_%s' % stamp, ylim=[-1, 3], xlim=[0, 500], yl=r"Velocities [km s$^{-1}$]",
             lw=[2, 2, 4, 4], ls=['-', '-', '--', '--'])
     pl.plot([['-uR', -uR0/max(np.abs(uph0))], ['uph', uph0/max(np.abs(uph0))]],
-            'vnorm_%s' % stamp, ylim=[0, 1.5], x=D.r_ax/D.r_CB, xlim=[0, 3],
+            'vnorm_%s' % stamp, ylim=[0, 1.5], x=D.r_ax/D.r_CB, xlim=[0, 3],  yl=r"Velocities [$u_{\phi,\rm CR}$]",
             lw=[2, 2, 4, 4], ls=['-', '-', '--', '--'])
 
     if inp.model.submodel is not None:

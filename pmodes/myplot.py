@@ -37,30 +37,30 @@ class Struct:
         self.__dict__.update(entries)
 
 
-class Default_params:
-    def __init__(self):
-        # For saving figures
-        self.hd = ""
-        self.ext = ".pdf"
-        # os.path.abspath( dn_this_file + "/../fig" )
-        self.fig_dn = os.path.abspath(dn_this_file)
-        if pyver >= 3.2:
-            os.makedirs(self.fig_dn, exist_ok=True)
-        else:
-            if not os.path.exists(self.fig_dn):
-                os.makedirs(self.fig_dn)
-
-        # Default values
-        self.x = None
-        self.xlim = None
-        self.xl = None
-        self.c = None
-        self.ls = None
-        self.lw = None
-        self.alp = None
-        self.pm = False
-        self.args_leg = {"loc": 'best'}
-        self.args_fig = {}
+#class Default_params:
+#    def __init__(self):
+#        # For saving figures
+#        self.hd = ""
+#        self.ext = ".pdf"
+#        # os.path.abspath( dn_this_file + "/../fig" )
+#        self.fig_dn = os.path.abspath(dn_this_file)
+#        if pyver >= 3.2:
+#            os.makedirs(self.fig_dn, exist_ok=True)
+#        else:
+#            if not os.path.exists(self.fig_dn):
+#                os.makedirs(self.fig_dn)
+#
+#        # Default values
+#        self.x = None
+#        self.xlim = None
+#        self.xl = None
+#        self.c = None
+#        self.ls = None
+#        self.lw = None
+#        self.alp = None
+#        self.pm = False
+#        self.args_leg = {"loc": 'best'}
+#        self.args_fig = {}
 
 #defs = Default_params()
 
@@ -125,46 +125,23 @@ class Default_params:
 class Plotter:
     #   def_logx = False
     #   def_logy = False
-    def __init__(self, fig_dir_path, x=None, y=None, xlim=None, ylim=None, cblim=None, xl=None, yl=None,
+    def __init__(self, fig_dir_path, 
+                figext="pdf",
+                 x=None, y=None, xlim=None, ylim=None, cblim=None, xl=None, yl=None,
                  c=[], ls=[], lw=[], alp=[], pm=False,
-                 logx=False, logy=False, logcb=False, logxy=False, leg=False, fn_wrapper=lambda s:s, decorator=lambda y:y,
+                 logx=False, logy=False, logxy=False, logcb=False, leg=False, 
+                 fn_wrapper=lambda s:s, 
+                 decorator=lambda y:y,
                  args_leg={"loc": 'best'}, args_fig={}):
 
+        for k, v in locals().items():
+            if k is not "self":
+                setattr(self, k, v)
+
         # For saving figures
-        self.hd = ""
-        self.ext = ".pdf"
-        # os.path.abspath( dn_this_file + "/../fig" )
         self.fig_dn = os.path.abspath(fig_dir_path)
         self._mkdir(self.fig_dn)
-
-        # Default values
-        self.x = x
-        self.y = y
-        self.xlim = xlim
-        self.ylim = ylim
-        self.cblim = cblim
-        self.xl = xl
-        self.yl = yl
-        self.c = c
-        self.ls = ls
-        self.lw = lw
-        self.alp = alp
-        self.pm = pm
-        self.leg = leg
-        self.args_leg = args_leg
-        self.args_fig = args_fig
         self.fig = None
-        self.logx = logx
-        self.logy = logy
-        self.logxy = logxy
-        self.logcb = logcb
-        self.fn_wrapper = fn_wrapper 
-        self.decorator = decorator
-#       set_default(logx=logx)
-
-#   def set_default(**args):
-#       for k,v in args.items():
-#           setattr(self, k, v)
 
     @staticmethod
     def _mkdir(dpath):
@@ -271,7 +248,7 @@ class Plotter:
     #
     def plot(self, y_list, out=None, x=None, c=[None],
              ls=[], lw=[], alp=[], leg=True, frg_leg=0, title='',
-             xl='', yl='', xlim=None, ylim=None,
+             xl=None, yl=None, xlim=None, ylim=None,
              logx=False, logy=False, logxy=False, pm=False,
              hl=[], vl=[], fills=None, arrow=[], lbs=None,
              datatype="", save=True, result="fig",
@@ -371,14 +348,14 @@ class Plotter:
     def map(self, z=None, out=None, x=None, y=None, mode='contourf',
             c=[None], ls=[None], lw=[None], alp=[None],
             cmap=plt.get_cmap('inferno'),
-            xl='', yl='', cbl='',
+            xl=None, yl=None, cbl=None,
             xlim=None, ylim=None, cblim=None,
             logx=None, logy=None, logcb=None, logxy=False,
             pm=False, leg=False, hl=[], vl=[], title='',
             fills=None, data="", Vector=None,
             div=10.0, n_sline=18, hist=False,
             square=True, seeds_angle=[0, np.pi/2],
-            save=True,result="fig",
+            save=True, result="fig",
             **args):
 
         for k, v in locals().items():
@@ -456,7 +433,8 @@ class Plotter:
                 ax.contourf(xx, yy, fill[1], cmap=cmap, alpha=0.5)
 
         if Vector is not None:
-            uu, vv = Vector
+            uu, vv = Vector# self.notNone(Vector,self.Vector)
+            #seeds_angle = #self.notNone(seeds_angle, self.seeds_angle)
             th_seed = np.linspace(seeds_angle[0], seeds_angle[1], n_sline)
             rad = ax.get_xlim()[1]
             seed_points = np.array(
@@ -498,7 +476,7 @@ class Plotter:
             return Struct(self) 
 
     def save(self, out):
-        savefile = "%s/%s%s" % (self.fig_dn, self.fn_wrapper(out), self.ext)
+        savefile = "%s/%s.%s" % (self.fig_dn, self.fn_wrapper(out), self.figext)
         self.fig.savefig(savefile, bbox_inches='tight')
         msg("   Saved %s to %s" % (out, savefile))
         plt.close()

@@ -13,7 +13,7 @@ import cst
 from input_params import inp, dn_home, dn_radmc
 
 def main():
-    SetRadmc(dn_radmc, **vars(inp.radmc)).do_all()
+    SetRadmc(dn_radmc, **vars(inp.radmc))
     # or you can input parmeters directly.
 
 class SetRadmc:
@@ -25,7 +25,7 @@ class SetRadmc:
                  fdg=0.01, mol_abun=1e-7, mol_name='c18o',
                  tgas='tdust', line=True, turb=True, lowreso=False, subgrid=True, 
                  autoset=True, fn_model_pkl=None, fn_radmcset_pkl=None, 
-                 Mstar=cst.Msun, Rstar=cst.Rsun, Lstar=cst.Lstar, **args):
+                 Mstar=cst.Msun, Rstar=cst.Rsun, Lstar=cst.Lsun, **args):
 
         for k, v in locals().items():
             setattr(self, k, v)
@@ -105,15 +105,15 @@ class SetRadmc:
 
     def set_physical_values(self):
         self.rhog = _interpolator2d(
-            D.den_tot[:, :, 0], D.r_ax, D.th_ax, self.rr, self.tt, logx=True, logz=True)
+            self.D.rho_tot[:, :, 0], self.D.r_ax, self.D.th_ax, self.rr, self.tt, logx=True, logz=True)
         self.rhod = self.rhog * self.fdg
 
         self.vr = _interpolator2d(
-            D.ur[:, :, 0], D.r_ax, D.th_ax, self.rr, self.tt, logx=True, logz=True)
+            self.D.ur[:, :, 0], self.D.r_ax, self.D.th_ax, self.rr, self.tt, logx=True, logz=True)
         self.vth = _interpolator2d(
-            D.uth[:, :, 0], D.r_ax, D.th_ax, self.rr, self.tt, logx=True, logz=True, pm=True)
+            self.D.uth[:, :, 0], self.D.r_ax, self.D.th_ax, self.rr, self.tt, logx=True, logz=True, pm=True)
         self.vph = _interpolator2d(
-            D.uph[:, :, 0], D.r_ax, D.th_ax, self.rr, self.tt, logx=True, logz=True)
+            self.D.uph[:, :, 0], self.D.r_ax, self.D.th_ax, self.rr, self.tt, logx=True, logz=True)
         self.vturb = np.zeros_like(self.vr)
 
         self.n_mol = self.rhog * self.mol_abun / (2.34*cst.amu)
@@ -246,6 +246,7 @@ class SetRadmc:
             f.write('tgas_eq_tdust = %d' % (0 if self.tgas == 'tdust' else 1))
 
     def save_pickle(self):
+        del self.D
         savefile = self.dpath_radmc+self.fn_radmcset_pkl
         pd.to_pickle(self, savefile, protocol=2)
         print('Saved : %s\n' % savefile)
