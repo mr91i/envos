@@ -169,8 +169,6 @@ class Plotter:
         # Preprocesing
         data = self.reform_ylist(x, y_list)
 
-#       set_options( len(y_list) , [c,ls,lw,alp] ,  [defs.c,defs.ls,defs.lw,defs.alp]  )
-
         # Main plot
         for i, (k, x, y) in enumerate(data):
             # Preprocessing for each plot
@@ -227,10 +225,10 @@ class Plotter:
         if (logy or self.logy) or (logxy or self.logxy):
             plt.yscale('log', nonposy='clip')
 
-        plt.xlim(self.notNone(xlim, self.xlim))
-        plt.ylim(self.notNone(ylim, self.ylim))
-        plt.xlabel(self.notNone(xl, self.xl))
-        plt.ylabel(self.notNone(yl, self.yl))
+        plt.xlim(self.notNone(xlim, self.xlim, [min(x), max(x)]))
+        plt.ylim(self.notNone(ylim, self.ylim, [min(y), max(y)]))
+        plt.xlabel(self.notNone(xl, self.xl, ''))
+        plt.ylabel(self.notNone(yl, self.yl, ''))
 
         self.fig = fig
 
@@ -281,12 +279,12 @@ class Plotter:
 
         z = self.decorator(z)
     
-        plt.xlim(self.notNone(xlim, self.xlim))
-        plt.ylim(self.notNone(ylim, self.ylim))
-        plt.xlabel(self.notNone(xl, self.xl))
-        plt.ylabel(self.notNone(yl, self.yl))
+        plt.xlim(self.notNone(xlim, self.xlim, [min(x), max(x)]))
+        plt.ylim(self.notNone(ylim, self.ylim, [min(y), max(y)]))
+        plt.xlabel(self.notNone(xl, self.xl, ""))
+        plt.ylabel(self.notNone(yl, self.yl, ""))
 
-        cblim = self.notNone(cblim, self.cblim)
+        cblim = self.notNone(cblim, self.cblim, [np.min(z), np.max(z)] )
         if self.notNone(logcb, self.logcb):  # (logcb or self.logcb):
             cblim = np.log10(cblim)
             #print(z, np.max(z), np.min(z) )            
@@ -295,9 +293,9 @@ class Plotter:
         if cblim is not None:
             delta = (cblim[1] - cblim[0])/float(div)
 
-        if (cblim[1]+delta - cblim[0])/delta > 100:
-            print("Wrong!")
-            exit()
+            if (cblim[1]+delta - cblim[0])/delta > 100:
+                raise Exception("Wrong cblim, probably...", cblim)
+                
         interval = np.arange(cblim[0], cblim[1]+delta, delta)
 
     #levels = np.linspace(cblim[0], cblim[1], n_lv+1)
