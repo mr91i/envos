@@ -154,7 +154,7 @@ class Plotter:
              xl=None, yl=None, xlim=None, ylim=None,
              logx=False, logy=False, logxy=False, pm=False,
              hl=[], vl=[], fills=None, arrow=[], lbs=None,
-             datatype="", save=True, result="fig",
+             datatype="", square=False, save=True, result="fig",
              *args, **kwargs):
 
         input_settings = locals()  
@@ -231,6 +231,9 @@ class Plotter:
         plt.ylim(self.notNone(ylim, self.ylim))
         plt.xlabel(self.notNone(xl, self.xl))
         plt.ylabel(self.notNone(yl, self.yl))
+
+        if square:
+            plt.gca().set_aspect('equal', adjustable='box')
 
         self.fig = fig
 
