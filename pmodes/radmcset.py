@@ -1,20 +1,39 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 from __future__ import print_function,  absolute_import, division
-import sys
-import pickle
-import argparse
+import os
 import itertools
 import numpy as np
 import pandas as pd
 from collections import namedtuple
 from scipy.interpolate import interp2d, interp1d, griddata
 import cst
-from input_params import inp, dn_home, dn_radmc
+from header import inp, dn_home, dn_radmc, dn_fig
+import mytools 
+import radmc3dPy.analyze as rmca
+import myplot as mp
+
+
+msg = mytools.Message(__file__)
+#######################
 
 def main():
     SetRadmc(dn_radmc, **vars(inp.radmc))
     # or you can input parmeters directly.
+    if inp.radmc.temp_mode=="mctherm":
+        exe_radmc_therm()
+    else:
+        del_mctherm_files()
+    
+    #rdata = RadmcData(dn_radmc=dn_radmc, dn_fig=dn_fig, ispec=inp.radmc.mol_name, mol_abun=inp.radmc.mol_abun)
+
+def exe_radmc_therm():
+    mytools.exe('cd %s ; radmc3d mctherm setthreads 16' % dn_radmc )
+
+def del_mctherm_files():
+    if os.path.exists(dn_radmc+"/radmc3d.out"):
+        mytools.exe('rm {}/radmc3d.out'.format(dn_radmc), skiperror=True )
+
 
 class SetRadmc:
     def __init__(self, dpath_radmc,
@@ -23,18 +42,23 @@ class SetRadmc:
                  theta_in=0, theta_out=0.5*np.pi, ntheta=64,
                  phi_in=0, phi_out=0, nphi=1,
                  fdg=0.01, mol_abun=1e-7, mol_name='c18o',
-                 tgas='tdust', line=True, turb=True, lowreso=False, subgrid=True, 
+                 m_mol=28*cst.amu, v_fwhm=0.5*cst.kms, 
+                 temp_mode='mctherm', line=True, turb=True, lowreso=False, subgrid=True, 
                  autoset=True, fn_model_pkl=None, fn_radmcset_pkl=None, 
                  Mstar=cst.Msun, Rstar=cst.Rsun, Lstar=cst.Lsun, **args):
 
+        msg("radmc directry is %s"%dpath_radmc)
+        msg("Set radmc parameters")
         for k, v in locals().items():
-            setattr(self, k, v)
+            if k != 'self':
+                setattr(self, k, v)
+                msg(k.ljust(20)+"is {:20}".format(v))
 
         self.nlam = None
         self.lam = None
+
         self.rhog = None
         self.rhod = None
-        self.tgas = None
         self.vr = None
         self.vth = None
         self.vph = None
@@ -42,6 +66,8 @@ class SetRadmc:
         self.Tstar = None
         if args != {}:
             raise Exception("There is unused args :", args)
+
+        #exit()
 
         if autoset:
             self.set_all()
@@ -54,8 +80,9 @@ class SetRadmc:
         self.set_stars()
         if self.line:
             self.set_mol_lines()
+            self.set_mol_ndens()
             self.set_gas_velocity()
-        if self.tgas == 'const':
+        if self.temp_mode == 'const':
             self.set_gas_temperature()
             self.set_dust_temperature()
         self.set_dust_density()
@@ -88,7 +115,7 @@ class SetRadmc:
         self.rr, self.tt, self.pp = np.meshgrid(
             rc, thetac, phic, indexing='ij')
         self.ntot = self.rr.size
-        with open(self.dpath_radmc+'amr_grid.inp', 'w+') as f:
+        with open(self.dpath_radmc+'/amr_grid.inp', 'w+') as f:
             f.write('1\n') # iformat: AMR grid style  (0=regular grid, no AMR)
             f.write('0\n')
             f.write('100\n') # Coordinate system: spherical
@@ -104,6 +131,7 @@ class SetRadmc:
 
 
     def set_physical_values(self):
+        msg("Interpolating...")
         self.rhog = _interpolator2d(
             self.D.rho_tot[:, :, 0], self.D.r_ax, self.D.th_ax, self.rr, self.tt, logx=True, logz=True)
         self.rhod = self.rhog * self.fdg
@@ -116,17 +144,13 @@ class SetRadmc:
             self.D.uph[:, :, 0], self.D.r_ax, self.D.th_ax, self.rr, self.tt, logx=True, logz=True)
         self.vturb = np.zeros_like(self.vr)
 
-        self.n_mol = self.rhog * self.mol_abun / (2.34*cst.amu)
-        if self.tgas == 'const':
-            tgas = 76*np.ones_like(self.rhog)
+        self.n_mol = self.rhog / (2.34*cst.amu) * self.mol_abun 
+        if self.temp_mode == 'const':
+            T = self.m_mol * self.v_fwhm**2 /(16 * np.log( 2) * cst.kB )
+            msg("Constant temperature is ", T)
+            self.tgas = T * np.ones_like(self.rhog)
 
         self.Tstar = (self.Lstar/cst.Lsun)**0.25 * cst.Tsun
-
-        #self.Mstar = self.Mstar  # cst.ms
-        #self.Rstar = self.Rstar
-        #self.Tstar = self.Tstar  # 1.2877 * cst.Tsun ## gives 2.75 Ls
-
-#   @classmethod
 
     def set_photon_wavelength(self):
         lam1 = 0.1
@@ -143,70 +167,76 @@ class SetRadmc:
         lam34 = np.logspace(np.log10(lam3), np.log10(lam4), n34, endpoint=True)
         self.lam = np.concatenate([lam12, lam23, lam34])
         self.nlam = self.lam.size
-        with open(self.dpath_radmc+'wavelength_micron.inp', 'w+') as f:
+        with open(self.dpath_radmc+'/wavelength_micron.inp', 'w+') as f:
             f.write('%d\n' % (self.nlam))
             for value in self.lam:
                 f.write('%13.6e\n' % (value))
+            msg("Saved: ",f.name)
 
     def set_stars(self):
         pstar = np.array([0., 0., 0.])
-        with open(self.dpath_radmc+'stars.inp', 'w+') as f:
+        with open(self.dpath_radmc+'/stars.inp', 'w+') as f:
             f.write('2\n')
             f.write('1 %d\n\n' % (self.nlam))
-            f.write('%13.6e %13.6e %13.6e %13.6e %13.6e\n\n' % (self.Rstar, self.Mstar,
-                                                                pstar[0], pstar[1], pstar[2]))
+            f.write('%13.6e %13.6e %13.6e %13.6e %13.6e\n\n' % \
+                    (self.Rstar, self.Mstar, pstar[0], pstar[1], pstar[2]))
             for value in self.lam:
                 f.write('%13.6e\n' % (value))
             f.write('\n%13.6e\n' % (-self.Tstar))
+            msg("Saved: ",f.name)
 
     def set_mol_ndens(self):
-        with open(self.dpath_radmc+'numberdens_%s.inp' % (self.mol_name), 'w+') as f:
+        with open(self.dpath_radmc+'/numberdens_%s.inp' % (self.mol_name), 'w+') as f:
             f.write('1\n')                       # Format number
             f.write('%d\n' % self.ntot)            # Nr of cells
             # Create a 1-D view, fortran-style indexing
             data = self.n_mol.ravel(order='F')
             data.tofile(f, sep='\n', format='%13.6e')
             f.write('\n')
+            msg("Saved: ",f.name)
 
     # Write the lines.inp control file
     def set_mol_lines(self):
-        with open(self.dpath_radmc+'lines.inp', 'w') as f:
+        with open(self.dpath_radmc+'/lines.inp', 'w') as f:
             f.write('2\n')
             f.write('1\n')  # number of molecules
             # molname1 inpstyle1 iduma1 idumb1 ncol1
             f.write('%s  leiden 0 0 0\n' % (self.mol_name))
+            msg("Saved: ",f.name)
 
     # Write the gas velocity field
     def set_gas_velocity(self):
-        with open(self.dpath_radmc+'gas_velocity.inp', 'w+') as f:
+        with open(self.dpath_radmc+'/gas_velocity.inp', 'w+') as f:
             f.write('1\n')                       # Format number
             f.write('%d\n' % self.ntot)            # Nr of cells
             for ip, it, ir in itertools.product(range(self.nphi), range(self.ntheta), range(self.nr)):
                 f.write('%13.6e %13.6e %13.6e\n' % (self.vr[ir, it, ip],
                                                     self.vth[ir, it, ip],
                                                     self.vph[ir, it, ip]))
+            msg("Saved: ",f.name)
 
     def set_gas_turbulence(self):
-        with open(self.dpath_radmc+'microturbulence.inp', 'w+') as f:
+        with open(self.dpath_radmc+'/microturbulence.inp', 'w+') as f:
             f.write('1\n')                       # Format number
             f.write('%d\n' % self.ntot)    # Nr of cells
             # Create a 1-D view, fortran-style indexing
             data = self.vturb.ravel(order='F')
             data.tofile(f, sep='\n', format='%13.6e')
-            f.write('\n')
+            #f.write('\n')
+            msg("Saved: ",f.name)
 
     def set_gas_temperature(self):
-        with open(self.dpath_radmc+'gas_temperature.inp', 'w+') as f:
+        with open(self.dpath_radmc+'/gas_temperature.inp', 'w+') as f:
             f.write('1\n')                       # Format number
             f.write('%d\n' % self.ntot)            # Nr of cells
             # Create a 1-D view, fortran-style indexing
             data = self.tgas.ravel(order='F')
             data.tofile(f, sep='\n', format='%13.6e')
-            f.write('\n')
+            #f.write('\n')
+            msg("Saved: ",f.name)
 
     def set_dust_temperature(self):
-        if self.tgas == 'const':
-            with open(self.dpath_radmc+'dust_temperature.dat', 'w+') as f:
+            with open(self.dpath_radmc+'/dust_temperature.inp', 'w+') as f:
                 f.write('1\n')                       # Format number
                 f.write('%d\n' % self.ntot)
                 f.write('1\n')                       # Format number
@@ -214,9 +244,10 @@ class SetRadmc:
                 data = self.tgas.ravel(order='F')
                 data.tofile(f, sep='\n', format='%13.6e')
                 f.write('\n')
+                msg("Saved: ",f.name)
 
     def set_dust_density(self):
-        with open(self.dpath_radmc+'dust_density.inp', 'w+') as f:
+        with open(self.dpath_radmc+'/dust_density.inp', 'w+') as f:
             f.write('1\n')                       # Format number
             f.write('%d\n' % self.ntot)    # Nr of cells
             f.write('1\n')                       # Nr of dust species
@@ -224,9 +255,10 @@ class SetRadmc:
             data = self.rhod.ravel(order='F')
             data.tofile(f, sep='\n', format='%13.6e')
             f.write('\n')
+            msg("Saved: ",f.name)
 
     def set_dust_opacity(self):
-        with open(self.dpath_radmc+'dustopac.inp', 'w+') as f:
+        with open(self.dpath_radmc+'/dustopac.inp', 'w+') as f:
             opacs = ['silicate']
             f.write('2      Format number of this file\n')
             f.write('{}     Nr of dust species\n'.format(len(opacs)))
@@ -236,20 +268,24 @@ class SetRadmc:
                 f.write('0      0=Thermal grain\n')
                 f.write('{}     Extension of name of dustkappa_***.inp file\n'.format(op))
                 f.write('--------------------------------------------------------\n')
+            msg("Saved: ",f.name)
 
     def set_input(self):
-        with open(self.dpath_radmc+'radmc3d.inp', 'w+') as f:
-            f.write('nphot = %d\n' % (self.nphot))
+        with open(self.dpath_radmc+'/radmc3d.inp', 'w+') as f:
+            f.write('nphot = %d\n' % self.nphot)
             f.write('scattering_mode_max = 0\n')  # 1: with scattering
             f.write('iranfreqmode = 1\n')
             f.write('mc_scat_maxtauabs = 5.d0\n')
-            f.write('tgas_eq_tdust = %d' % (0 if self.tgas == 'tdust' else 1))
+            f.write('tgas_eq_tdust = 1') # %d')# % int(self.temp_mode == '') )
+            msg("Saved: ",f.name)
+
 
     def save_pickle(self):
         del self.D
-        savefile = self.dpath_radmc+self.fn_radmcset_pkl
+        savefile = self.dpath_radmc+'/'+self.fn_radmcset_pkl
         pd.to_pickle(self, savefile, protocol=2)
-        print('Saved : %s\n' % savefile)
+        msg('Saved:  %s\n' % savefile)
+
 
 
 def _interpolator2d(value, x_ori, y_ori, x_new, y_new, logx=False, logy=False, logz=False, pm=False):
@@ -334,5 +370,136 @@ def _interpolator3d(value, xyz_ori, xyz_new, logx=False, logy=False, logz=False,
         return ret
 
 
+
+##################################################################################################################
+def readRadmcData(dn_radmc=None, use_ddens=True, use_dtemp=True,
+                use_gdens=True, use_gtemp=True, use_gvel=True, ispec=None): # modified version of radmc3dPy.analyze.readData 
+
+    res = rmca.radmc3dData()
+    res.grid = rmca.radmc3dGrid()
+    res.grid.readSpatialGrid(fname=dn_radmc+"/amr_grid.inp")
+    
+    if use_ddens: 
+        res.readDustDens(binary=False, fname=dn_radmc+"/dust_density.inp")
+
+    if use_dtemp: 
+        res.readDustTemp(binary=False, fname=dn_radmc+"/dust_temperature.inp")
+
+    if use_gvel: 
+        res.readGasVel(binary=False, fname=dn_radmc+"/gas_velocity.inp")
+
+    if use_gtemp: 
+        res.readGasTemp(binary=False, fname=dn_radmc+"/gas_temperature.inp")
+
+    if use_gdens:
+        if not ispec:
+            print('ERROR\nNo gas species is specified!')
+            return 0
+        else:
+            res.ndens_mol = res._scalarfieldReader(fname=dn_radmc+"/numberdens_"+ispec+".inp", binary=False)
+    msg("RadmcData is created. Variables are : ", ", ".join([ k for k, v in res.__dict__.items() if not isinstance(v, int)]) ) 
+
+    return res 
+
+class RadmcData:
+    def __init__(self, dn_radmc=None, dn_fig=None, use_ddens=True, use_gdens=True, use_gtemp=True, 
+                 use_dtemp=True, use_gvel=True, ispec=None, mol_abun=0, autoplot=True):
+        for k, v in locals().items():
+            if k is not 'self':
+                setattr(self, k, v)
+
+        data = self.readRadmcData()
+        
+        self.xauc = data.grid.x/cst.au
+        self.rrc, self.ttc = np.meshgrid(self.xauc, data.grid.y, indexing='xy')
+        self.RR = self.rrc * np.sin(self.ttc)
+        self.zz = self.rrc * np.cos(self.ttc)
+
+        if use_gtemp:
+            self.gtemp = data.gastemp[:,:,0,0].T
+
+        if use_gdens and ispec:
+            self.ndens_mol = data.ndens_mol[:,:,0,0].T
+
+        if use_gvel:
+            self.vr = data.gasvel[:,:,0,0].T
+            self.vt = data.gasvel[:,:,0,1].T
+            self.vp = data.gasvel[:,:,0,2].T
+
+        if use_gdens and use_gtemp:
+            # Chemical lifetime
+            self.t_dest = self.cch_lifetime( self.ndens_mol, self.mol_abun, self.gtemp)
+            self.t_dyn = 5.023e6 * np.sqrt( self.rrc**3 /0.18 ) ## sqrt(au^3/GMsun) = 5.023e6
+
+        if autoplot:
+            self.plotall()
+
+    def readRadmcData(self): # modified version of radmc3dPy.analyze.readData 
+
+        res = rmca.radmc3dData()
+        res.grid = rmca.radmc3dGrid()
+        res.grid.readSpatialGrid(fname=self.dn_radmc+"/amr_grid.inp")
+        
+        if self.use_ddens: 
+            res.readDustDens(binary=False, fname=self.dn_radmc+"/dust_density.inp")
+    
+        if self.use_dtemp: 
+            res.readDustTemp(binary=False, fname=self.dn_radmc+"/dust_temperature.inp")
+    
+        if self.use_gvel: 
+            res.readGasVel(binary=False, fname=self.dn_radmc+"/gas_velocity.inp")
+    
+        if self.use_gtemp: 
+            res.readGasTemp(binary=False, fname=self.dn_radmc+"/gas_temperature.inp")
+    
+        if self.use_gdens:
+            if not self.ispec:
+                print('ERROR\nNo gas species is specified!')
+                return 0
+            else:
+                res.ndens_mol = res._scalarfieldReader(fname=self.dn_radmc+"/numberdens_"+self.ispec+".inp", binary=False)
+
+        msg("RadmcData is created. Variables are : ", ", ".join([ k for k, v in res.__dict__.items() if not isinstance(v, int)]) ) 
+    
+        return res 
+
+    @staticmethod 
+    def cch_lifetime(nmol, nabun, T):
+        k = 1.2e-11*np.exp(-998/T)
+        return 1/( (nmol/nabun+1e-100)* k)
+
+    def plotall(self):
+
+        pl1d = mp.Plotter(self.dn_fig, x=self.xauc,
+                       logx=True, leg=False,
+                       xl='Radius [au]', xlim=[10, 10000],
+                       fn_wrapper=lambda s:'rmc_%s_1d'%s)
+
+        pl2d = mp.Plotter(self.dn_fig, x=self.RR, y=self.zz,
+                       logx=False, logy=False, logcb=True, leg=False,
+                       xl='Radius [au]', yl='Height [au]', xlim=[0, 500], ylim=[0, 500],
+                       fn_wrapper=lambda s:'rmc_%s_2d'%s)
+
+        def plot_plofs(d, fname, lim=None, log=True, lb=None):
+            pl1d.plot(d[-1,:], fname, ylim=lim, logy=log, yl=lb)
+            pl2d.map(d, fname, cblim=lim, logcb=log, cbl=lb)
+
+        if self.use_gdens:
+            plot_plofs(self.ndens_mol, "nden", lim=[1e-3,1e3], lb=r"Number density [cm$^{-3}$]")
+
+        if self.use_gtemp:
+            plot_plofs(self.gtemp, "temp", lim=[1,1000], lb='Temperature [K]')
+
+        if self.use_gvel:
+            lb_v = r"Velocity [km s$^{-1}$]"
+            plot_plofs(self.vr/1e5, "gvelr", lim=[0,5], log=False, lb=lb_v)
+            plot_plofs(self.vt/1e5, "gvelt", lim=[0,5], log=False, lb=lb_v)
+            plot_plofs(np.abs(self.vp)/1e5, "gvelp", lim=[0,5], log=False, lb=lb_v)
+
+        if self.use_gdens and self.use_gtemp:      
+            plot_plofs( self.t_dest/self.t_dyn, "tche", lim=[1e-3,1e3], lb="CCH Lifetime/Dynamical Timescale")
+
+
 if __name__ == '__main__':
     main()
+

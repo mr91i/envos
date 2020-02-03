@@ -1,21 +1,25 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 from __future__ import print_function, absolute_import, division
-import cst
-import CubicSolver
-import myplot as mp
 import numpy as np
 import pandas as pd
 import matplotlib.cm as cm
 from scipy import optimize
-from input_params import inp, dn_home, dn_radmc
+#
+from header import inp, dn_home, dn_radmc, dn_fig
+import myplot as mp
+import cst
+import mytools
+import cubicsolver
 
+msg = mytools.Message(__file__)
 #######################
 
 
 def main():
     data = EnvelopeDiskModel(**vars(inp.model))
-    Plots(data)
+    
+    #Plots(data, dn_fig=dn_fig)
 
 class EnvelopeDiskModel:
     '''
@@ -75,12 +79,13 @@ class EnvelopeDiskModel:
 
     def print_params(self):
         def print_format(name, val, unit):
-            print(name.ljust(10)+'is {:10.2g} '.format(val)+unit.ljust(10))
+            msg(name.ljust(10)+'is {:10.2g} '.format(val)+unit.ljust(10))
 
         def print_str(name, s):
-            print(name.ljust(10)+'is '+s.rjust(10))
+            msg(name.ljust(10)+'is '+s.rjust(10))
 
-        print('Parameters:')
+        print("")
+        msg('Model Parameters:')
         print_str('Model', self.model)
         print_format('T', self.Tenv, 'K')
         print_format('cs', self.cs/cst.kms, 'km/s')
@@ -180,7 +185,7 @@ class EnvelopeDiskModel:
 
     @staticmethod
     def sol2(m,zeta):
-        sols = [ round(sol, 10) for sol in CubicSolver.solve(zeta, 0, 1-zeta, -m).real if 0 <= round(sol, 10) <= 1 ]
+        sols = [ round(sol, 10) for sol in cubicsolver.solve(zeta, 0, 1-zeta, -m).real if 0 <= round(sol, 10) <= 1 ]
         return sols[0]
 
     def get_mu0(self, zeta, method='roots'):
@@ -215,9 +220,9 @@ class EnvelopeDiskModel:
                 np.sqrt(cst.G * self.Mfin/self.r_CR)/self.cs
             a3 = 0.2757347731  # (2^10/3^11)^(0.25)
             ue = np.sqrt(3*P)*(1-56/51*a3/P**0.25)
-            y = np.where(u < 1, 2*np.sqrt(1-u) + 4/3/np.sqrt(u) *
-                         (1-(1+0.5*u)*np.sqrt(1-u)), 4/3/np.sqrt(u))
-            y = np.where(u <= ue, y - 4/3/np.sqrt(ue), 0)
+            y = np.where(u < 1, 2*np.sqrt(1-u.clip(max=1)) + 4/3/np.sqrt(u) *
+                         (1-(1+0.5*u)*np.sqrt(1-u.clip(max=1))), 4/3/np.sqrt(u))
+            y = np.where(u <= ue, y - 4/3/np.sqrt( ue.clip(1e-30) ), 0)
             Sigma = 0.5/P * y * self.Mstar/(np.pi*self.r_CR**2)
 #           print(P, P_rd2)
         elif mode == 'S+94':
@@ -241,7 +246,7 @@ class EnvelopeDiskModel:
     def Save_pickle(self):
         savefile = dn_radmc + '/' + self.fn_model_pkl
         pd.to_pickle(self.__dict__, savefile, protocol=2)
-        print('Saved : %s\n' % savefile)
+        msg('Saved : %s\n' % savefile)
 
     def set_params(self, T=None, CR=None, M=None, t=None, Omega=None, j0=None):  # choose 3
         #       eq1(cs,T),  eq2(dMdt,cs) ==> eq3(CR,M,j0), eq4(M,t), eq5(j0,Omega) : 5 vars 3 eqs
@@ -284,7 +289,7 @@ class EnvelopeDiskModel:
 #
 
 
-def Plots(D, r_lim=500):
+def Plots(D, r_lim=500, dn_fig=None):
 
     def slice_at_midplane(tt, *vals_rtp):
         iphi = 0
@@ -300,7 +305,7 @@ def Plots(D, r_lim=500):
     R_mg, z_mg = r_mg * [np.sin(th_mg),  np.cos(th_mg)]
     x_mg, y_mg = R_mg * [np.cos(ph_mg), np.sin(ph_mg)]
 
-    plmap = mp.Plotter(dn_home+"/fig", x=R_mg.take(0, 2)/cst.au, y=z_mg.take(0, 2)/cst.au, 
+    plmap = mp.Plotter(dn_fig, x=R_mg.take(0, 2)/cst.au, y=z_mg.take(0, 2)/cst.au, 
                        logx=False, logy=False, logcb=True, leg=False, 
                        xl='Radius [au]', yl='Height [au]', xlim=[0, r_lim], ylim=[0, r_lim], 
                        fn_wrapper=lambda s:'map_%s_%s'%(s, stamp),
@@ -321,7 +326,7 @@ def Plots(D, r_lim=500):
     uy = D.ur * np.sin(ph_mg) + D.uph*np.cos(ph_mg)
     Vec = np.array([ux.take(-1, 1), uy.take(-1, 1)])
 
-    plplane = mp.Plotter(dn_home+"/fig", x=x_mg.take(-1, 1)/cst.au, y=y_mg.take(-1, 1)/cst.au,
+    plplane = mp.Plotter(dn_fig, x=x_mg.take(-1, 1)/cst.au, y=y_mg.take(-1, 1)/cst.au,
                        logx=False, logy=False, leg=False,
                        xl='x [au]', yl='y [au] (-:our direction)', xlim=[-1000, 1000], ylim=[-1000, 1000],
                        fn_wrapper=lambda s:'plmap_%s_%s'%(s, stamp),
@@ -340,7 +345,7 @@ def Plots(D, r_lim=500):
     rho0, uR0, uph0, rho_tot0 = slice_at_midplane(
         th_mg, D.rho, D.uR, D.uph, D.rho_tot)
 
-    pl = mp.Plotter(dn_home+"/fig", x=D.r_ax/cst.au, leg=True, xlim=[0, 500], xl="Radius [au]")
+    pl = mp.Plotter(dn_fig, x=D.r_ax/cst.au, leg=True, xlim=[0, 500], xl="Radius [au]")
 
     # Density as a function of distance from the center
     pl.plot([['nH2_env', rho0/cst.mn], ['nH2_disk', (rho_tot0-rho0)/cst.mn], ['nH2_tot', rho_tot0/cst.mn]],

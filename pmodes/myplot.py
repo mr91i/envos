@@ -1,31 +1,20 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 from __future__ import print_function
-from scipy.interpolate import interp2d, griddata
 import os
 import sys
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+from scipy.interpolate import interp2d, griddata
 plt.switch_backend('agg')
 pyver = sys.version_info[0] + 0.1*sys.version_info[1]
 #print("Message from %s"% os.path.dirname(os.path.abspath(__file__)))
-
 debug_mode = 0
+import mytools
 
-
-def msg(*s, **args):
-    if ("debug" in args) and args["debug"]:
-        if debug_mode:
-            print("[debug] ", end='')
-        else:
-            return
-    else:
-        print("[plotter.py] ", end='')
-    print(*s)
-    if ("exit" in args) and args["exit"]:
-        exit()
-
+msg = mytools.Message(__file__)
+#######################
 
 msg("%s is used." % os.path.abspath(__file__))
 msg("This is python %s" % pyver)
@@ -35,92 +24,6 @@ dn_this_file = os.path.dirname(os.path.abspath(__file__))
 class Struct:
     def __init__(self, entries):
         self.__dict__.update(entries)
-
-
-#class Default_params:
-#    def __init__(self):
-#        # For saving figures
-#        self.hd = ""
-#        self.ext = ".pdf"
-#        # os.path.abspath( dn_this_file + "/../fig" )
-#        self.fig_dn = os.path.abspath(dn_this_file)
-#        if pyver >= 3.2:
-#            os.makedirs(self.fig_dn, exist_ok=True)
-#        else:
-#            if not os.path.exists(self.fig_dn):
-#                os.makedirs(self.fig_dn)
-#
-#        # Default values
-#        self.x = None
-#        self.xlim = None
-#        self.xl = None
-#        self.c = None
-#        self.ls = None
-#        self.lw = None
-#        self.alp = None
-#        self.pm = False
-#        self.args_leg = {"loc": 'best'}
-#        self.args_fig = {}
-
-#defs = Default_params()
-
-# def set( **kws ):
-#   global defs
-#   defs.__dict__.update( kws )
-
-# def Update( **kws ):
-#   inp = {}
-#   for kw in kws.keys():
-#       inp["g_"+kw]=kws.pop(kw)
-#   globals().update( inp )
-
-# def tex_fmt( x, pos):
-#   a, b = '{:.0e}'.format(x).split('e')
-#   b = int(b)
-# return r'${} \times 10^{{{}}}$'.format(a, b)
-
-#
-# For Preprocessing
-#
-# def give_def_vals( vals ,  defvals ):
-#   for i, v in enumerate(vals):
-#       if ( not isinstance(v,(list,np.ndarray)) ) and (v == None or v== '' ) :
-#           vals[i] = defvals[i]
-#   return vals
-
-# def set_options( n , opts , defopts ):
-#   for i , opt in enumerate(opts):
-#       if isinstance( opt , list ):
-#           opts[i] = expand_list( n , opt )
-#           opts[i] = set_default_to_None( opt , defopts[i] )
-#       elif isinstance( opt , (float,str) ):
-#           opts[i] = [ deopts[i] ]*n
-
-# def expand_list( n , l ):
-#   if len( l ) < n :
-#       l += [None] * (n - len( l ))
-#   return l
-
-# def set_default_to_None( opt , defopt ):
-#   if isinstance( opt , list ):
-#       return [ ( defopt if a == None else a ) for a in opt ]
-
-
-# def reproduce_map( v , x1_ax , x2_ax , X1_ax , X2_ax  ):
-# Example : den = reproduce_map( re['den'] , re['r_ax'] , re['th_ax'] , rr , tt  )
-#   f = interp2d( x1_ax  ,  x2_ax  ,  v ,  )
-#   fv = np.vectorize( f )
-#   v_new = 10**fv(  X1_ax ,  X2_ax  )
-#   return v_new
-
-
-# def reproduce_map2( v , x1_mg , x2_mg , X1_ax , X2_ax  ):
-# Example : den = reproduce_map( re['den'] , re['r_ax'] , re['th_ax'] , rr , tt  )
-#   f = interp2d( x1_mg  ,  x2_mg ,  v , fill_value = np.nan )
-##  f = interp2d( x1_mg.flatten()  ,  x2_mg.flatten()  ,  v.flatten() , fill_value = np.nan )
-#   fv = np.vectorize( f )
-#   v_new = 10**fv(  X1_ax ,  X2_ax  )
-#   return v_new
 
 class Plotter:
     #   def_logx = False
@@ -480,51 +383,6 @@ class Plotter:
         self.fig.savefig(savefile, bbox_inches='tight')
         msg("   Saved %s to %s" % (out, savefile))
         plt.close()
-
-
-#   def _contour_plot(xx, yy, z, n_lv=20, cbmin=None, cblim[1]=None,
-#                     mode="default", cmap=plt.get_cmap('viridis'),
-#                     smooth=False):
-#
-#       dx = xx[0, 1] - xx[0, 0]
-#       if len(yy) > 1:
-#           dy = yy[1, 0] - yy[0, 0]
-#       else:
-#           dy = dx*10
-#
-#       if cbmin == None:
-#           cbmin = z.min()
-#
-#       if cblim[1] == None:
-#           cblim[1] = z.max()
-#
-#       levels = np.linspace(cbmin, cblim[1], n_lv+1)
-#       norm = BoundaryNorm(levels, ncolors=cmap.N)
-#   #   print("levels is ", levels, ' norm is', vars(norm) )
-#
-#       if mode == "grid":
-#           #       n_lv = 6
-#           #       std = np.std(z)
-#           #       tick_min = 3*std
-#           #       tick_max = 15*std
-#           # Make interface coordinate
-#           xxi = np.hstack((xx-dx/2., (xx[:, -1]+dx/2.).reshape(-1, 1)))
-#           xxi = np.vstack((xxi, xxi[-1]))
-#           yyi = np.vstack((yy-dy/2., (yy[-1, :]+dy/2.).reshape(1, -1)))
-#           yyi = np.hstack((yyi, yyi[:, -1].reshape(-1, 1)))
-#           return plt.pcolormesh(xxi, yyi, z, cmap=cmap, norm=norm, rasterized=True)
-#
-#       if mode == "contourf":
-#           return plt.contourf(xx, yy, z, n_lv, cmap=cmap)
-#
-#       if mode == "contour":
-#           jM, iM = np.unravel_index(np.argmax(z), z.shape)
-#           plt.scatter(xx[jM, iM], yy[jM, iM], c='y', s=6, zorder=12)
-#           return plt.contour(xx, yy, z, cmap=cmap, levels=levels)
-#
-#   #       return plt.contour( xx , yy , z , n_lv , cmap=cmap, vmin=cbmin, vmax=cblim[1] ,levels=levels)
-#       if mode == "scatter":
-#           return plt.scatter(xx, yy, vmin=cblim[0], vmax=cblim[1], c=z, s=1, cmap=cmap)
 
 
 

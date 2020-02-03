@@ -1,0 +1,82 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+import numpy as np
+import cst
+#import os
+#dn_here = os.path.dirname(os.path.abspath(os.path.realpath(__file__)))
+#dn_home = os.path.abspath(dn_here + '/../')
+#dn_radmc = dn_home + '/radmc/'
+
+class Parameters:
+    pass
+
+# General
+debug = 1
+object_name = "L1527"
+
+# Physical Model
+model = Parameters()
+model.ire_model = 1  # "CM"  # 1:'CM', 2:'Simple', 3:'TSC'
+model.submodel = None  # 0:None, 0:'CM', 1:'Simple', 2:'TSC'
+#model.norot = 1
+model.disk = 1
+
+model.r_in = 1 * cst.au
+model.r_out = 1e4 * cst.au
+model.nr = 601
+model.theta_in = 1e-6
+model.theta_out = np.pi/2
+model.ntheta = 181  # 91
+model.phi_in = -np.pi
+model.phi_out = +np.pi
+model.nphi = 1
+
+model.Tenv = 10  # Kelvin
+model.r_CR = 200 * cst.au
+model.Mstar = 0.18 * cst.Msun
+model.t = None
+model.Omega = None
+model.j0 = None
+
+model.Tdisk = 70
+model.disk_star_fraction = 0.1
+
+model.cavity_angle = 0 # 80 # degree from z-axis, disk_angle = 2 * (90 - cavity_angle)
+model.simple_density = False  # True
+model.fn_model_pkl = "model_L1527.pkl"
+#model.dn_model_pkl = "radmc"
+#model.use_solution_0th = 0
+
+
+
+# radmc parameters
+radmc = Parameters()
+radmc.nphot = 1000000
+
+radmc.r_in = 1 * cst.au
+radmc.r_out = 1e4 * cst.au
+radmc.nr = 601
+radmc.theta_in = 1e-6
+radmc.theta_out = np.pi/2
+radmc.ntheta = 181  # 91
+radmc.phi_in = 0
+radmc.phi_out = 0
+radmc.nphi = 1
+
+radmc.Lstar = 2.75 * cst.Lsun
+radmc.Rstar = 1 * cst.Rsun
+radmc.fdg = 0.01
+radmc.mol_abun = 1e-7
+radmc.mol_name = "cch"#'c18o' # c18o or cch
+radmc.m_mol = 25 * cst.amu
+radmc.v_fwhm = 0.5 * cst.kms
+# 1: tdust = tgas , tgas = const
+# 2: tdust = mctherm , tgas = tdust
+radmc.temp_mode = "const" # 1 "const", 2 "mctherm"
+radmc.line = True
+radmc.turb = True
+radmc.lowreso = False
+radmc.subgrid = True
+radmc.autoset = True
+radmc.fn_model_pkl = model.fn_model_pkl
+radmc.fn_radmcset_pkl = 'set_radmc.pkl'
