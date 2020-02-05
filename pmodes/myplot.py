@@ -33,6 +33,7 @@ class Plotter:
                  x=None, y=None, xlim=None, ylim=None, cblim=None, xl=None, yl=None,
                  c=[], ls=[], lw=[], alp=[], pm=False,
                  logx=False, logy=False, logxy=False, logcb=False, leg=False, 
+                 square=False,
                  fn_wrapper=lambda s:s, 
                  decorator=lambda y:y,
                  args_leg={"loc": 'best'}, args_fig={}):
@@ -230,7 +231,7 @@ class Plotter:
         plt.xlabel(self.notNone(xl, self.xl, ''))
         plt.ylabel(self.notNone(yl, self.yl, ''))
 
-        if square:
+        if self.notNone(square, self.square):
             plt.gca().set_aspect('equal', adjustable='box')
 
         self.fig = fig
