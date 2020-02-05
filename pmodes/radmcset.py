@@ -96,13 +96,13 @@ class SetRadmc:
 
     def set_grid(self):
         if self.subgrid:
-            nr, ntheta, nphi = [128, 64, 1] if self.lowreso else [512, 256, 1]
-            ri = np.logspace(np.log10(self.r_in), np.log10(self.r_out), nr+1)
-            thetai = np.linspace(self.theta_in, self.theta_out, ntheta+1)
-            phii = np.linspace(self.phi_in, self.phi_out, nphi+1)
-            rc = 0.5 * (ri[0:nr] + ri[1:nr+1])
-            thetac = 0.5 * (thetai[0:ntheta] + thetai[1:ntheta+1])
-            phic = 0.5 * (phii[0:nphi] + phii[1:nphi+1])
+            #nr, ntheta, nphi = [128, 64, 1] if self.lowreso else [512, 256, 1]
+            ri = np.logspace(np.log10(self.r_in), np.log10(self.r_out), self.nr+1)
+            thetai = np.linspace(self.theta_in, self.theta_out, self.ntheta+1)
+            phii = np.linspace(self.phi_in, self.phi_out, self.nphi+1)
+            rc = 0.5 * (ri[0:self.nr] + ri[1:self.nr+1])
+            thetac = 0.5 * (thetai[0:self.ntheta] + thetai[1:self.ntheta+1])
+            phic = 0.5 * (phii[0:self.nphi] + phii[1:self.nphi+1])
         else:
             rc = self.D.r_ax
             thetac = self.D.th_ax
@@ -236,7 +236,7 @@ class SetRadmc:
             msg("Saved: ",f.name)
 
     def set_dust_temperature(self):
-            with open(self.dpath_radmc+'/dust_temperature.inp', 'w+') as f:
+            with open(self.dpath_radmc+'/dust_temperature.dat', 'w+') as f:
                 f.write('1\n')                       # Format number
                 f.write('%d\n' % self.ntot)
                 f.write('1\n')                       # Format number
@@ -383,7 +383,7 @@ def readRadmcData(dn_radmc=None, use_ddens=True, use_dtemp=True,
         res.readDustDens(binary=False, fname=dn_radmc+"/dust_density.inp")
 
     if use_dtemp: 
-        res.readDustTemp(binary=False, fname=dn_radmc+"/dust_temperature.inp")
+        res.readDustTemp(binary=False, fname=dn_radmc+"/dust_temperature.dat")
 
     if use_gvel: 
         res.readGasVel(binary=False, fname=dn_radmc+"/gas_velocity.inp")
@@ -444,7 +444,7 @@ class RadmcData:
             res.readDustDens(binary=False, fname=self.dn_radmc+"/dust_density.inp")
     
         if self.use_dtemp: 
-            res.readDustTemp(binary=False, fname=self.dn_radmc+"/dust_temperature.inp")
+            res.readDustTemp(binary=False, fname=self.dn_radmc+"/dust_temperature.dat")
     
         if self.use_gvel: 
             res.readGasVel(binary=False, fname=self.dn_radmc+"/gas_velocity.inp")

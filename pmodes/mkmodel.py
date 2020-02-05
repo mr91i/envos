@@ -34,7 +34,7 @@ class EnvelopeDiskModel:
         phi_in=0, phi_out=0, nphi=1,
         Tenv=10, r_CR=100*cst.au, Mstar=cst.Msun, t=None, Omega=None, j0=None,
         cavity_angle=0, Tdisk=70, disk_star_fraction=0.01, 
-        simple_density = False, disk=True, 
+        simple_density = False, disk=True, counterclockwise_rotation=False,
         fn_model_pkl=None, submodel=False, 
         **args):
 
@@ -159,6 +159,8 @@ class EnvelopeDiskModel:
         rho, ur, uth, uph, zeta, mu0 = solver(r)
         if self.simple_density:
             rho = self.get_Kinematics_SimpleBalistic(r)[0]
+        if self.counterclockwise_rotation:
+            uph *= -1
         uR = ur * self.sin + uth * self.mu
         uz = ur * self.mu - uth * self.sin
         return rho, ur, uth, uph, zeta, mu0, uR, uz

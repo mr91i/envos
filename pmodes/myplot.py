@@ -12,6 +12,8 @@ pyver = sys.version_info[0] + 0.1*sys.version_info[1]
 #print("Message from %s"% os.path.dirname(os.path.abspath(__file__)))
 debug_mode = 0
 import mytools
+from matplotlib.colors import BoundaryNorm, Normalize
+
 
 msg = mytools.Message(__file__)
 #######################
@@ -30,10 +32,10 @@ class Plotter:
     #   def_logy = False
     def __init__(self, fig_dir_path, 
                 figext="pdf",
-                 x=None, y=None, xlim=None, ylim=None, cblim=None, xl=None, yl=None,
+                 x=None, y=None, xlim=None, ylim=None, cblim=None, xl=None, yl=None, cbl=None,
                  c=[], ls=[], lw=[], alp=[], pm=False,
                  logx=False, logy=False, logxy=False, logcb=False, leg=False, 
-                 square=False,
+                 figsize=None, square=True,
                  fn_wrapper=lambda s:s, 
                  decorator=lambda y:y,
                  args_leg={"loc": 'best'}, args_fig={}):
@@ -41,6 +43,9 @@ class Plotter:
         for k, v in locals().items():
             if k is not "self":
                 setattr(self, k, v)
+
+        if self.figsize is not None:
+            self.args_fig["figsize"] = sel.figsize
 
         # For saving figures
         self.fig_dn = os.path.abspath(fig_dir_path)
@@ -256,10 +261,10 @@ class Plotter:
             xl=None, yl=None, cbl=None,
             xlim=None, ylim=None, cblim=None,
             logx=None, logy=None, logcb=None, logxy=False,
-            pm=False, leg=False, hl=[], vl=[], title='',
+            pm=False, leg=False, hl=[], vl=[], title=None,
             fills=None, data="", Vector=None,
             div=10.0, n_sline=18, hist=False,
-            square=True, seeds_angle=[0, np.pi/2],
+            square=False, seeds_angle=[0, np.pi/2],
             save=True, result="fig",
             **args):
 
@@ -282,9 +287,9 @@ class Plotter:
             yy = y
 
         z = self.decorator(z)
-    
-        plt.xlim(self.notNone(xlim, self.xlim, [min(x), max(x)]))
-        plt.ylim(self.notNone(ylim, self.ylim, [min(y), max(y)]))
+   
+        plt.xlim(self.notNone(xlim, self.xlim, [x[0], x[-1]]))
+        plt.ylim(self.notNone(ylim, self.ylim, [y[0], y[-1]]))
         plt.xlabel(self.notNone(xl, self.xl, ""))
         plt.ylabel(self.notNone(yl, self.yl, ""))
 
@@ -302,21 +307,31 @@ class Plotter:
                 
         interval = np.arange(cblim[0], cblim[1]+delta, delta)
 
-    #levels = np.linspace(cblim[0], cblim[1], n_lv+1)
-    #norm = BoundaryNorm(levels, ncolors=cmap.N)
+        levels = np.linspace(cblim[0], cblim[1], int(div)+1)
+        norm = BoundaryNorm(levels, ncolors=cmap.N)
         if mode == "grid":
+            # Note: 
+            # this guess of xi, yi relyies on the assumption where
+            # grid space is equidistant.
+            
+            dx = x[1] - x[0] if len(x) != 1 else y[1] - y[0]
+            dy = y[1] - y[0] if len(y) != 1 else x[1] - x[0]
             xxi = np.hstack((xx-dx/2., (xx[:, -1]+dx/2.).reshape(-1, 1)))
             xxi = np.vstack((xxi, xxi[-1]))
             yyi = np.vstack((yy-dy/2., (yy[-1, :]+dy/2.).reshape(1, -1)))
             yyi = np.hstack((yyi, yyi[:, -1].reshape(-1, 1)))
+
+            print(xxi, yyi, z)
             img = plt.pcolormesh(xxi, yyi, z, norm=norm,
                                  rasterized=True, cmap=cmap)
-    #plt.pcolormesh(xxi, yyi, z , cmap=cmap, norm=norm, rasterized=True)
 
         if mode == "contourf":
+            # Note:
+            # if len(x) or len(y) is 1, contourf returns an eroor.
+            # Instead of this, use "grid" method.
             img = ax.contourf(xx, yy, z, interval, vmin=cblim[0],
                               vmax=cblim[1], extend='both', cmap=cmap)
-    #plt.contourf( xx , yy , z , n_lv , cmap=cmap)
+            #plt.contourf( xx , yy , z , n_lv , cmap=cmap)
 
         if mode == "contour":
             jM, iM = np.unravel_index(np.argmax(z), z.shape)
@@ -329,7 +344,7 @@ class Plotter:
 
         ticks = np.arange(cblim[0], cblim[1]+delta, delta)  # not +1 to cb_max
         fig.colorbar(img, ax=ax, ticks=ticks,
-                     extend='both', label=cbl, pad=0.02)
+                     extend='both', label=self.notNone(cbl, self.cbl), pad=0.02)
 
         if fills is not None:
             for fill in fills:
@@ -358,7 +373,7 @@ class Plotter:
         if title:
             plt.title(title)
 
-        if square:
+        if self.notNone(square, self.square):
             plt.gca().set_aspect('equal', adjustable='box')
 
         if (logx or self.logx) or (logxy or self.logxy):
@@ -385,7 +400,7 @@ class Plotter:
         self.fig.savefig(savefile, bbox_inches='tight')
         msg("   Saved %s to %s" % (out, savefile))
         plt.close()
-
+        plt.clf()
 
 
 

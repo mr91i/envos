@@ -4,13 +4,16 @@ from __future__ import print_function,  absolute_import, division
 import os
 import sys
 import subprocess
-from radmc3dPy.analyze import *
-from radmc3dPy.image import *
+import radmc3dPy.analyze as rmca
+import radmc3dPy.image as rmci
+#from radmc3dPy.image import *
 import numpy as np
 import pandas as pd
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from multiprocessing import Pool
+#from pathos.multiprocessing import ProcessingPool as Pool
+
 
 import astropy.io.fits as iofits
 from scipy import integrate, optimize, interpolate
@@ -37,127 +40,210 @@ msg = mytools.Message(__file__)
 
 
 def main():
-#    make_fits_data(widthkms=5.12, dvkms=0.04, sizeau=2000 , dxasec=0.08)
-    sotel = SobsTelescope(**vars(inp.sobs))
-    sotel.observe()
-    exit()
-    fa = FitsAnalyzer(fits_file_path=dn_radmc+"/obs3.fits", 
+#    osim = ObsSimulator(dn_radmc, dn_fits=dn_radmc, **vars(inp.sobs))
+#    osim.observe()    
+#   sotel.read_instance()
+#    exit()
+
+    fa = FitsAnalyzer(fits_file_path=dn_radmc+"/"+inp.sobs.filename+".fits", 
                       fig_dir_path=dn_fig)
     fa.pvdiagram()
     fa.mom0map()
-#   fa.chmap()
+#    fa.chmap()
 
 
-class SobsTelescope():  # This class returns observation data
-    def __init__(self, fn_fits, dpc=None, iline=None,
+class ObsSimulator():  # This class returns observation data
+    def __init__(self, dn_radmc, dn_fits=None, filename="obs", dpc=None, iline=None,
                  sizex_au=None, sizey_au=None,
-                 # sizex_asec=None, sizey_asec=None,
-                 # pixsize_asec=None,
                  pixsize_au=None,
                  vwidth_kms=None, dv_kms=None,
                  incl=None, phi=None, posang=None,
-                 npixy=1, rect_camera=True, omp=True, n_thread=1, **kwargs):
+                 rect_camera=True, omp=True, n_thread=1, 
+                 **kwargs):
 
         for k, v in locals().items():
             if k != 'self':
                 setattr(self, k, v)
                 msg(k.ljust(20)+"is {:20}".format(v))
 
-        self.linenlam = 2*widthkms//dvkms
-#    def command_generator():
+        self.linenlam = 2*int(round(self.vwidth_kms/self.dv_kms))
+        self.set_camera_info()
+        print("Total cell number is {} x {} x {} = {}".format(
+              self.npixx, self.npixy,self.linenlam, 
+              self.npixx*self.npixy*self.linenlam))
+
 
         if kwargs != {}:
             raise Exception("There is unused args :", kwargs)
 
+    def set_camera_info(self):
+        if self.rect_camera and (self.sizex_au != self.sizey_au):
+            #########################################
+            # Note: Before using rectangle imaging, #
+            # you need to fix a bug in radmc3dpy.   #
+            # Also, dx needs to be equal dy.        #
+            #########################################
+            if self.sizey_au == 0:
+                self.zoomau_x = [-self.sizex_au/2, self.sizex_au/2]
+                self.zoomau_y = [-self.pixsize_au/2, self.pixsize_au/2]
+                self.npixx = int(round(self.sizex_au/self.pixsize_au)) # // or int do not work to convert into int.
+                self.npixy = 1
+            else:
+                self.zoomau_x = [-self.sizex_au/2, self.sizex_au/2] 
+                self.zoomau_y = [-self.sizey_au/2, self.sizey_au/2]
+                self.npixx = int(round(self.sizex_au/self.pixsize_au))
+                self.npixy = int(round(self.sizey_au/self.pixsize_au))
+
+        else:
+            self.zoomau_x = [-self.sizex_au/2, self.sizex_au/2]
+            self.zoomau_y = [-self.sizex_au/2, self.sizex_au/2]
+            self.npixx = int(round(self.sizex_au/self.pixsize_au))
+            self.npixy = self.npixx
+
+        dx = (self.zoomau_x[1] - self.zoomau_x[0])/self.npixx
+        dy = (self.zoomau_y[1] - self.zoomau_y[0])/self.npixy
+        if dx != dy:
+            raise Exception("dx is not equal to dy") 
 
     def observe(self):
-        common = "incl %d phi %d posang %d " % (
+        common = "incl %d phi %d posang %d" % (
             self.incl, self.phi, self.posang)
-        option = "noscat nostar "
+        option = "noscat nostar"
+        camera = "npixx {} npixy {} ".format(self.npixx, self.npixy) 
+        camera += "truepix zoomau {:f} {:f} {:f} {:f} truepix".format(*(self.zoomau_x+self.zoomau_y))
+        line = "iline {:d}".format(self.iline)
 
-        if self.rect_camera and:
-            ##
-            # Note: Before using rectangle imaging,
-            # you need to fix a bug in radmc3dpy.
-            # Also, dx needs to be equal dy.
-            ##
-            if sizey_au == 0:
-                zoomau_xy = [-self.sizex_au/2, self.sizex_au / \
-                    2, -self.pixsize_au/2, self.pixsize_au/2]
-                npixx = self.sizex_au//pixsize_au
-                npixy = 1
-            else:
-                zoomau_xy = [-self.sizex_au/2, self.sizex_au / \
-                    2, -self.sizey_au/2, self.sizey_au/2]
-                npixx = self.sizex_au//self.pixsize_au
-                npixy = self.sizey_au//self.pixsize_au
-
-        else:
-            zoomau_xy = [-self.sizex_au/2, self.sizex_au / \
-                2, -self.sizex_au/2, self.sizex_au/2]
-            npixx = self.sizex_au//self.pixsize_au
-            npixy = npixx
-
-        camera = "npixx {:d} npixy {:d} ".format(npixx, npixy)
-                 + "zoomau {:f} {:f} {:f} {:f} truepix ".format(*zoomau_xy)
-
-        if self.omp:
-            n_thread_div = max(
-                [i for i in range(self.n_thread, 0, -1) if self.linenlam % i == 0])
-            v_bdy = np.linspace(-self.vwidth_kms,
-                                self.vwidth_kms, n_thread_div+1)
-            v_center = 0.5*(v_ranges[1::]+v_ranges[:-1:])
-            v_width = 0.5*(v_ranges[1::]-v_ranges[:-1:])
-            linenlam_div = linenlam//n_thread_div
+        if self.omp and (self.n_thread > 1):
+            n_thread_div = max([i for i in range(self.n_thread, 0, -1) 
+                                if self.linenlam % i == 0])
+            v_seps = np.linspace(-self.vwidth_kms,
+                                 self.vwidth_kms, n_thread_div+1)
+            v_center = 0.5*(v_seps[1::]+v_seps[:-1:])
+            v_width = 0.5*(v_seps[1::]-v_seps[:-1:])
+            linenlam_div = self.linenlam//n_thread_div
 
             def cmd(p):
-                line = "iline {:d} vkms {} widthkms {} linenlam {:d} ".format(
-                self.iline, v_center[p], v_width[p], linenlam_div)
-                return "radmc3d image " + line + camera + common + option
+                freq = "vkms {} widthkms {} linenlam {} ".format(
+                        v_center[p], v_width[p], linenlam_div)
+                return " ".join(["radmc3d image", line, freq, camera, common, option])
 
-            args = [('proc'+str(p), cmd(p)) for p in range(n_thread_div)]
-            rets = Pool(n_thread).map(self._subcalc, args)
-            self.data = rets[0]
+#            args = [(self, 'subcalc', (p, 'proc'+str(p), cmd(p)) ) for p in range(n_thread_div)]
+#            rets = Pool(n_thread_div).map(self.subcalc, args)
+
+            args = [ (self, (p, 'proc'+str(p), cmd(p)) ) for p in range(n_thread_div)]
+#            rets = Pool(n_thread_div).map(print, args)
+            rets = Pool(n_thread_div).map(call_subcalc, args)
+
+#            pool = Pool(n_thread_div)
+#            args_list = [ (p, 'proc'+str(p), cmd(p))  for p in range(n_thread_div)]
+#            print( args_list )
+#            rets = [ pool.apply_async(call_it, args=(self, 'subcalc', (ars,))) for ars in args_list]
+
+
+        #    print(rets[0])
+        #    exit()
+
+            for i, r in enumerate(rets):
+                print("\nThe",i,"th return")
+                for k, v in r.__dict__.items():
+                    if isinstance(v, (np.ndarray)):
+                        print("{}: shape is {}, range is [{}, {}]".format(k, v.shape, np.min(v), np.max(v) ) )
+                    else:
+                        print("{}: {}".format(k, v ) )
+
+            data = rets[0]
             for ret in rets[1:]:
-                self.data.image = np.append(
-                    data.image[:, :, :-2], ret.image, axis=2)
-                self.data.imageJyppix = np.append(
-                    data.imageJyppix[:, :, -2], ret.imageJyppix, axis=2)
-                self.data.freq = np.append(data.freq[:-2], ret.freq, axis=-1)
-                self.data.wav = np.append(data.wav[:-2], ret.wav, axis=-1)
-                self.data.nfreq += ret.nfreq - 1
-                self.data.nwav += ret.nwav - 1
+                #data.image = np.append(data.image[:, :, :-2], ret.image, axis=2)
+                data.image = np.append(data.image[:, :, :-1], ret.image, axis=2)
+                #data.imageJyppix = np.append(data.imageJyppix[:, :, :-2], ret.imageJyppix, axis=2)
+                data.imageJyppix = np.append(data.imageJyppix[:, :, :-1], ret.imageJyppix, axis=2)
+                #data.freq = np.append(data.freq[:-2], ret.freq, axis=-1)
+                data.freq = np.append(data.freq[:-1], ret.freq, axis=-1)
+                #data.wav = np.append(data.wav[:-2], ret.wav, axis=-1)
+                data.wav = np.append(data.wav[:-1], ret.wav, axis=-1)
+                data.nfreq += ret.nfreq - 1
+                data.nwav += ret.nwav - 1
+            self.data = data
         else:
-            line = "iline {:d} widthkms {} linenlam {:d} ".format(
-                self.iline, self.vwidth_kms, self.linenlam)
-            cmd = "radmc3d image " + line + camera + common + option
+            freq = "widthkms {} linenlam {:d} ".format(
+                    self.vwidth_kms, self.linenlam)
+            cmd = " ".join(["radmc3d image", line, freq, camera, common, option])
+            os.chdir(self.dn_radmc)
+            subprocess.call("pwd", shell=True)
             subprocess.call(cmd, shell=True)
-            self.data = readImage()
+            self.data = rmci.readImage()
+
+        self.save_instance()
+        self.save_fits()
 
         return self.data
 
-    def _subcalc(self, args):
-        dn, cmd=args
+
+#    @staticmethod
+    def subcalc(self, args):
+        p, dn, cmd = args
         print(cmd)
-        dpath=self.dn_radmc + dn
-        if not os.path.exists(dpath):
-            os.makedirs(dpath)
+        dpath_sub = self.dn_radmc + '/' + dn
+        if not os.path.exists(dpath_sub):
+            os.makedirs(dpath_sub)
     #   os.system("rm %s/*"%dn)
-        os.system("cp %s/{*.inp,*.dat} %s/" % (self.dn_radmc, self.dpath))
-        os.chdir(self.dpath)
+        #print( "cp %s/{*.inp,*.dat} %s/" % (self.dn_radmc, dpath_sub) )
+        os.system("cp %s/{*.inp,*.dat} %s/" % (self.dn_radmc, dpath_sub))
+        #print(dpath_sub)
+        os.chdir(dpath_sub)
         if p == 1:
             subprocess.call(cmd, shell=True)
         else:
             subprocess.call(cmd, shell=True,
                             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        return readImage()
+        return rmci.readImage()
 
     def save_fits(self):
-        self.data.writeFits(fname=self.dn_fits+'/'+self.fn_fits, dpc=self.dpc)
+        self.data.writeFits(fname=self.dn_fits+'/'+self.filename+'.fits', dpc=self.dpc)
 
-    def save_pikle(self):
-        pd.to_pickle(self.data, self.dn_fits+'/'+self.fn_pickle)
+    def save_instance(self):
+        pd.to_pickle(self, self.dn_fits+'/'+self.filename+'.pkl')
 
+    def read_instance(self):
+        instance = pd.read_pickle(self.dn_fits+'/'+self.filename+'.pkl')
+        for k,v in instance.__dict__.items():
+            setattr(self, k, v)
+
+
+#def call_it(instance, name, args=(), kwargs=None):
+#    "indirect caller for instance methods and multiprocessing"
+#    if kwargs is None:
+#        kwargs = {}
+#    return getattr(instance, name)(*args, **kwargs)
+
+def call_subcalc(args_list):
+    "This fucntion is implemented for fucking Python2."
+    instance, args = args_list
+    return getattr(instance, "subcalc")(args)
+
+
+def omp_subcalc(self, args):
+    dn_radmc, dpath, cmd = args
+    print(cmd)
+    if not os.path.exists(dpath):
+        os.makedirs(dpath)
+#   os.system("rm %s/*"%dn)
+    os.system("cp %s/{*.inp,*.dat} %s/" % (dn_radmc, dpath))
+    os.chdir(dpath)
+    subprocess.call("pwd", shell=True)
+
+    if p == 1:
+        subprocess.call(cmd, shell=True)
+    else:
+        subprocess.call(cmd, shell=True,
+                        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    return rmci.readImage()
+
+
+
+def unwrap_self_subcalc(arg, **kwarg):
+    # メソッドfをクラスメソッドとして呼び出す関数
+    return SobsTelescope._subcalc(*arg, **kwarg)
 
 # class ObsData: ## Position-Position-Velocity Data
 #    def __init__(self, ):
@@ -228,34 +314,30 @@ class FitsAnalyzer:
         print("pixel size[au]: {} {}".format(self.dx, self.dy))
         print("L[au]: {} {}".format(Lx, Ly))
 
-
-    def chmap(self, n_lv=20):
-        xx, yy=np.meshgrid(self.xau, self.yau)
-        cbmax=self.Ippv.max()
-        for i in range(self.Nz):
-            im = _contour_plot(
-                xx, yy, self.Ippv[i], n_lv=n_lv, cbmin=0, cbmax=cbmax, mode='grid')
-            plt.colorbar(label=r'Intensity [Jy pixel$^{-1}$ ]')
-            plt.xlabel("Position [au]")
-            plt.ylabel("Position [au]")
-            plt.title("v = {:.3f} km/s".format(self.vkms[i]))
-            plt.gca().set_aspect('equal', adjustable='box')
-            self._save_fig("chmap_{:0=4d}.pdf".format(i))
-            plt.clf()
+    def chmap(self, n_lv=20):                                                
+#        xx, yy = np.meshgrid(self.xau, self.yau)                            
+        cbmax = self.Ippv.max()                                              
+        pltr = mp.Plotter(self.figd, x=self.xau, y=self.yau,               
+                          xl="Position [au]", yl="Position [au]",            
+                          cbl=r'Intensity [Jy pixel$^{-1}$ ]', square=True)  
+        for i in range(self.Nz):                                             
+            pltr.map(self.Ippv[i], out="chmap_{:0=4d}".format(i),        
+                     n_lv=n_lv, cbmin=0, cbmax=cbmax, mode='grid',           
+                     title="v = {:.3f} km/s".format(self.vkms[i]) )          
 
 #   @profile
     def mom0map(self, n_lv=40):
-        self._convolution(beam_a_au=0.4*self.dpc, beam_b_au=0.9 * \
-                          self.dpc, v_width_kms=0.5, theta_deg=-41)
+        #self._convolution(beam_a_au=0.4*self.dpc, beam_b_au=0.9 * \
+        #                  self.dpc, v_width_kms=0.5, theta_deg=-41)
         xx, yy=np.meshgrid(self.xau, self.yau)
 #       print(self.Ippv.shape)
-        Ipp=integrate.simps(self.Ippv, axis=0)
+        Ipp = integrate.simps(self.Ippv, axis=0)
 #       print(Ipp.shape)
-        Plt=mp.Plotter(self.figd)
-        Plt.map(self.xau, self.yau, Ipp, "mom0map",
+        Plt = mp.Plotter(self.figd, x=self.xau, y=self.yau,)
+        #print(Ipp.shape)
+        Plt.map(Ipp, out="mom0map",
               xl="Position [au]", yl="Position [au]", cbl=r'Intensity [Jy pixel$^{-1}$ ]',
-              div=n_lv,
-              square=True)
+              div=n_lv, square=True, mode='grid',cbmin=0, cbmax=Ipp.max())
 
         Plt.save("mom0map")
 
@@ -271,10 +353,9 @@ class FitsAnalyzer:
         self._perpix_to_perbeamkms(
             beam_a_au=0.4*self.dpc, beam_b_au=0.9*self.dpc, v_width_kms=0.5)
 
+#        xx, vv=np.meshgrid(self.xau, self.vkms)
 
-
-
-        xx, vv=np.meshgrid(self.xau, self.vkms)
+        print(self.Ippv.shape)
 
         if len(self.yau) > 1:
             points = np.stack(np.meshgrid(self.xau, self.yau,
@@ -297,7 +378,7 @@ class FitsAnalyzer:
 
             print(f(p_new.reshape(-1, 3)))
 
-            exit()
+            #exit()
 #           print(interpolate.interp2d(self.xau, self.yau, self.Ippv[0] )( p_new.reshape(-1,2)[0]  ) )
 #           Ipv = np.array([ interp_func(p_new[0], p_new[1]) for Ipp in self.Ippv])
             # interp = np.vectorize( interpolate.interp2d  )
@@ -319,31 +400,30 @@ class FitsAnalyzer:
 #       im = _contour_plot(xx, vv, Ixv , n_lv=n_lv, mode="contour", cbmin=0.0)
 
 
-        pltr = mp.Plotter(self.figd)
+        pltr = mp.Plotter(self.figd, x=self.xau, y=self.vkms, xlim=[-500,500], ylim=[-3,3])
 
-        print(Ipv, Ipv.shape)
-        exit()
-        pltr.map(self.xau, self.vkms, Ipv, "pvd",
+        print(self.xau.shape, self.vkms.shape, Ipv.shape)
+        #exit()
+        pltr.map(z=Ipv, out="pvd",
               xl="Position [au]", yl=r"Velocity [km s$^{-1}$]", cbl=r'Intensity [Jy pixel$^{-1}$ ]',
-              div=n_lv,
-              square=True)
+              div=n_lv, save=False)
 
         if op_Kepler:
             plt.plot(-self.x, np.sqrt(cst.G*M*cst.Msun / \
                      self.xau/cst.au)/cst.kms, c="cyan", ls=":")
 
         if op_LocalPeak_V:
-            for Iv, v_ in zip(Ixv.transpose(0, 1), self.vkms):
+            for Iv, v_ in zip(Ipv.transpose(0, 1), self.vkms):
                 for xM in _get_peaks(self.xau, Iv):
                     plt.plot(xM, v_, c="red", markersize=1, marker='o')
 
         if op_LocalPeak_P:
-            for Ix, x_ in zip(Ixv.transpose(1, 0), self.x):
-                for vM in _get_peaks(self.vkms, Ix):
+            for Ip, x_ in zip(Ipv.transpose(1, 0), self.x):
+                for vM in _get_peaks(self.vkms, Ip):
                     plt.plot(x_, vM, c="blue", markersize=1, marker='o')
 
         if op_LocalPeak_2D:
-            for jM, iM in peak_local_max(Ixv, min_distance=5):
+            for jM, iM in peak_local_max(Ipv, min_distance=5):
                 plt.scatter(self.xau[iM], self.vkms[jM],
                             c="k", s=20, zorder=10)
                 print("Local Max:   {:.1f}  au  , {:.1f}    km/s  ({}, {})".format(
@@ -361,9 +441,9 @@ class FitsAnalyzer:
 #       self._save_fig("pvd")
 #       plt.clf()
 
-    def _save_fig(self, name):
-        plt.savefig(self.figd+"/"+name+".pdf", bbox_inches="tight", dpi=300)
-        print("Saved : "+self.figd+"/"+name+".pdf")
+#    def _save_fig(self, name):
+#        plt.savefig(self.figd+"/"+name+".pdf", bbox_inches="tight", dpi=300)
+#        print("Saved : "+self.figd+"/"+name+".pdf")
 
     def _convolution(self, beam_a_au, beam_b_au, v_width_kms, theta_deg=0):
         sigma_over_FWHM = 2 * np.sqrt(2 * np.log(2))
