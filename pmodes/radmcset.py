@@ -121,6 +121,7 @@ class SetRadmc:
             f.write('100\n') # Coordinate system: spherical
             f.write('0\n') # gridinfo
             f.write('1 1 0\n') # Include r,theta coordinates
+            #f.write('1 1 1\n') # Include r,theta coordinates
             f.write('%d %d %d\n' % (self.nr, self.ntheta, self.nphi)) # Size of grid
             for value in ri:
                 f.write('%13.6e\n' % (value)) # X coordinates (cell walls)
@@ -271,12 +272,29 @@ class SetRadmc:
             msg("Saved: ",f.name)
 
     def set_input(self):
+        params=[["nphot", 10000 ], #self.nphot],
+                ["scattering_mode_max", 0], 
+                ["iranfreqmode", 1], 
+                ["mc_scat_maxtauabs", 5.0], 
+                ["tgas_eq_tdust",1], 
+                ["camera_maxdphi", 0.], 
+                ["nphot_spec", 1], 
+                ["iseed", -5415]]
         with open(self.dpath_radmc+'/radmc3d.inp', 'w+') as f:
-            f.write('nphot = %d\n' % self.nphot)
-            f.write('scattering_mode_max = 0\n')  # 1: with scattering
-            f.write('iranfreqmode = 1\n')
-            f.write('mc_scat_maxtauabs = 5.d0\n')
-            f.write('tgas_eq_tdust = 1') # %d')# % int(self.temp_mode == '') )
+            for k,v in params:
+                 f.write('{} = {}\n'.format(k, v))
+
+#            f.write('nphot = %d\n' % self.nphot)
+#            f.write('scattering_mode_max = 0\n')  # 1: with scattering
+#            f.write('iranfreqmode = 1\n')
+#            f.write('mc_scat_maxtauabs = 5.d0\n')
+#            f.write('tgas_eq_tdust = 1\n') # %d')# % int(self.temp_mode == '') )
+#            f.write('camera_maxdphi = 0.05\n')
+#            f.write('iseed = -5415\n')
+
+
+            #f.write('nphot_spec = 200000\n')
+
             msg("Saved: ",f.name)
 
 
