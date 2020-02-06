@@ -35,7 +35,7 @@ class Plotter:
                  x=None, y=None, xlim=None, ylim=None, cblim=None, xl=None, yl=None, cbl=None,
                  c=[], ls=[], lw=[], alp=[], pm=False,
                  logx=False, logy=False, logxy=False, logcb=False, leg=False, 
-                 figsize=None, square=True,
+                 figsize=None, square=False,
                  fn_wrapper=lambda s:s, 
                  decorator=lambda y:y,
                  args_leg={"loc": 'best'}, args_fig={}):
@@ -160,7 +160,7 @@ class Plotter:
              xl=None, yl=None, xlim=None, ylim=None,
              logx=False, logy=False, logxy=False, pm=False,
              hl=[], vl=[], fills=None, arrow=[], lbs=None,
-             datatype="", square=False, save=True, result="fig",
+             datatype="", square=None, save=True, result="fig",
              *args, **kwargs):
 
         input_settings = locals()  
@@ -264,7 +264,7 @@ class Plotter:
             pm=False, leg=False, hl=[], vl=[], title=None,
             fills=None, data="", Vector=None,
             div=10.0, n_sline=18, hist=False,
-            square=False, seeds_angle=[0, np.pi/2],
+            square=None, seeds_angle=[0, np.pi/2],
             save=True, result="fig",
             **args):
 
@@ -321,7 +321,6 @@ class Plotter:
             yyi = np.vstack((yy-dy/2., (yy[-1, :]+dy/2.).reshape(1, -1)))
             yyi = np.hstack((yyi, yyi[:, -1].reshape(-1, 1)))
 
-            print(xxi, yyi, z)
             img = plt.pcolormesh(xxi, yyi, z, norm=norm,
                                  rasterized=True, cmap=cmap)
 
@@ -373,6 +372,8 @@ class Plotter:
         if title:
             plt.title(title)
 
+
+        print(square, self.square, self.notNone(square, self.square)) 
         if self.notNone(square, self.square):
             plt.gca().set_aspect('equal', adjustable='box')
 
