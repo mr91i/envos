@@ -5,6 +5,9 @@ import os
 
 #def msg_maker(filename):
 #    return m 
+def freq_to_vkms(freq0, dfreq):
+    import cst
+    return cst.c/1e5* dfreq/freq0
 
 
 class Message:
