@@ -40,8 +40,8 @@ msg = mytools.Message(__file__)
 
 
 def main():
-#    osim = ObsSimulator(dn_radmc, dn_fits=dn_radmc, **vars(inp.sobs))
-#    osim.observe()    
+    osim = ObsSimulator(dn_radmc, dn_fits=dn_radmc, **vars(inp.sobs))
+    osim.observe()    
 #   sotel.read_instance()
 #    exit()
 
@@ -66,7 +66,7 @@ class ObsSimulator():  # This class returns observation data
                 setattr(self, k, v)
                 msg(k.ljust(20)+"is {:20}".format(v))
 
-        self.linenlam = 2*int(round(self.vwidth_kms/self.dv_kms))
+        self.linenlam = 2*int(round(self.vwidth_kms/self.dv_kms)) + 1 
         self.set_camera_info()
         print("Total cell number is {} x {} x {} = {}".format(
               self.npixx, self.npixy,self.linenlam, 
@@ -105,43 +105,59 @@ class ObsSimulator():  # This class returns observation data
         if dx != dy:
             raise Exception("dx is not equal to dy") 
 
+    @staticmethod 
+    def find_proper_nthread( n_thread, n_divided):
+        return max([i for i in range(n_thread, 0, -1)
+                                if n_divided % i == 0])
+
+    @staticmethod
+    def divide_threads(n_thread, n_divided):
+        ans = [n_divided//n_thread]*n_thread 
+        rem = n_divided % n_thread
+        nlist = [ (n_thread-i//2 if i%2 else i//2) for i in range(n_thread)] #[ ( i if i%2==0 else n_thread -(i-1) ) for i in range(n_thread) ]
+        for i in range(rem):
+            ii = (n_thread-1 - i//2) if i%2 else i//2
+            ans[ii] += 1
+        return ans
+
+    @staticmethod        
+    def calc_thread_seps(calc_points, thread_divs):
+        ans = []
+        sum_points = 0
+        for npoints in thread_divs:
+            ans.append( [calc_points[sum_points] , calc_points[sum_points+npoints-1]] )
+            sum_points += npoints   
+        return np.array(ans) 
+
+
     def observe(self):
         common = "incl %d phi %d posang %d" % (
             self.incl, self.phi, self.posang)
-        option = "noscat nostar"
+        option = "noscat nostar " # doppcatch"
         camera = "npixx {} npixy {} ".format(self.npixx, self.npixy) 
-        camera += "truepix zoomau {:f} {:f} {:f} {:f} truepix".format(*(self.zoomau_x+self.zoomau_y))
+        camera += "zoomau {:f} {:f} {:f} {:f} ".format(*(self.zoomau_x+self.zoomau_y))
         line = "iline {:d}".format(self.iline)
+        v_calc_points = np.linspace( -self.vwidth_kms, self.vwidth_kms, self.linenlam )
+        vseps = np.linspace( -self.vwidth_kms-self.dv_kms/2, self.vwidth_kms+self.dv_kms/2, self.linenlam+1   )
 
         if self.omp and (self.n_thread > 1):
-            n_thread_div = max([i for i in range(self.n_thread, 0, -1) 
-                                if self.linenlam % i == 0])
-            v_seps = np.linspace(-self.vwidth_kms,
-                                 self.vwidth_kms, n_thread_div+1)
-            v_center = 0.5*(v_seps[1::]+v_seps[:-1:])
-            v_width = 0.5*(v_seps[1::]-v_seps[:-1:])
-            linenlam_div = self.linenlam//n_thread_div
-
+            n_points = self.divide_threads(self.n_thread, self.linenlam )
+            v_thread_seps = self.calc_thread_seps(v_calc_points, n_points)
+            v_center = [ 0.5*(v_range[1] + v_range[0] ) for v_range in v_thread_seps ]
+            v_width = [ 0.5*(v_range[1] - v_range[0] ) for v_range in v_thread_seps ]
+            print("All calc points:\n", v_calc_points, '\n')
+            print("Thread loading:\n", n_points, '\n')
+            print("Calc points in each threads:")
+            for i, (vc, vw, ncp) in enumerate(zip(v_center, v_width, n_points)):
+                print( "%dth thread:"%i ,np.linspace(vc-vw, vc+vw, ncp)  )
+                
             def cmd(p):
-                freq = "vkms {} widthkms {} linenlam {} ".format(
-                        v_center[p], v_width[p], linenlam_div)
+                freq = "vkms {:f} widthkms {} linenlam {} ".format(
+                        v_center[p], v_width[p], n_points[p])
                 return " ".join(["radmc3d image", line, freq, camera, common, option])
 
-#            args = [(self, 'subcalc', (p, 'proc'+str(p), cmd(p)) ) for p in range(n_thread_div)]
-#            rets = Pool(n_thread_div).map(self.subcalc, args)
-
-            args = [ (self, (p, 'proc'+str(p), cmd(p)) ) for p in range(n_thread_div)]
-#            rets = Pool(n_thread_div).map(print, args)
-            rets = Pool(n_thread_div).map(call_subcalc, args)
-
-#            pool = Pool(n_thread_div)
-#            args_list = [ (p, 'proc'+str(p), cmd(p))  for p in range(n_thread_div)]
-#            print( args_list )
-#            rets = [ pool.apply_async(call_it, args=(self, 'subcalc', (ars,))) for ars in args_list]
-
-
-        #    print(rets[0])
-        #    exit()
+            args = [ (self, (p, 'proc'+str(p), cmd(p)) ) for p in range(self.n_thread)]
+            rets = Pool(self.n_thread).map(call_subcalc, args)
 
             for i, r in enumerate(rets):
                 print("\nThe",i,"th return")
@@ -153,25 +169,28 @@ class ObsSimulator():  # This class returns observation data
 
             data = rets[0]
             for ret in rets[1:]:
-                #data.image = np.append(data.image[:, :, :-2], ret.image, axis=2)
-                data.image = np.append(data.image[:, :, :-1], ret.image, axis=2)
-                #data.imageJyppix = np.append(data.imageJyppix[:, :, :-2], ret.imageJyppix, axis=2)
-                data.imageJyppix = np.append(data.imageJyppix[:, :, :-1], ret.imageJyppix, axis=2)
-                #data.freq = np.append(data.freq[:-2], ret.freq, axis=-1)
-                data.freq = np.append(data.freq[:-1], ret.freq, axis=-1)
-                #data.wav = np.append(data.wav[:-2], ret.wav, axis=-1)
-                data.wav = np.append(data.wav[:-1], ret.wav, axis=-1)
-                data.nfreq += ret.nfreq - 1
-                data.nwav += ret.nwav - 1
+                data.image = np.append(data.image, ret.image, axis=2)
+                data.imageJyppix = np.append(data.imageJyppix, ret.imageJyppix, axis=2)
+                data.freq = np.append(data.freq, ret.freq, axis=-1)
+                data.wav = np.append(data.wav, ret.wav, axis=-1)
+                data.nfreq += ret.nfreq 
+                data.nwav += ret.nwav 
             self.data = data
         else:
             freq = "widthkms {} linenlam {:d} ".format(
                     self.vwidth_kms, self.linenlam)
             cmd = " ".join(["radmc3d image", line, freq, camera, common, option])
+            print(cmd)
             os.chdir(self.dn_radmc)
-            subprocess.call("pwd", shell=True)
             subprocess.call(cmd, shell=True)
             self.data = rmci.readImage()
+            
+        freq0 = (self.data.freq[0] + self.data.freq[-1])*0.5 
+        dfreq = self.data.freq[1] - self.data.freq[0]
+        vkms = np.round(mytools.freq_to_vkms(freq0, self.data.freq-freq0), 8)
+        #print(vars(self.data))
+        print("x_au is:\n", np.round(self.data.x,8)/cst.au,"\n")
+        print("v_kms is:\n", vkms,"\n")
 
         self.save_instance()
         self.save_fits()
@@ -199,7 +218,10 @@ class ObsSimulator():  # This class returns observation data
         return rmci.readImage()
 
     def save_fits(self):
-        self.data.writeFits(fname=self.dn_fits+'/'+self.filename+'.fits', dpc=self.dpc)
+        fp_fitsdata = self.dn_fits+'/'+self.filename+'.fits'
+        if os.path.exists(fp_fitsdata):
+            os.remove(fp_fitsdata)
+        self.data.writeFits(fname=fp_fitsdata, dpc=self.dpc)
 
     def save_instance(self):
         pd.to_pickle(self, self.dn_fits+'/'+self.filename+'.pkl')
@@ -283,31 +305,37 @@ class FitsAnalyzer:
         self.dy = header["CDELT2"]*np.pi/180.0*self.dpc*cst.pc/cst.au
         Lx = self.Nx*self.dx
         Ly = self.Ny*self.dy
-        self.xau = 0.5*Lx - (np.arange(self.Nx)+0.5)*self.dx
-        self.yau = 0.5*Ly - (np.arange(self.Ny)+0.5)*self.dy
+        self.xau = - 0.5*Lx + (np.arange(self.Nx)+0.5)*self.dx
+        self.yau = - 0.5*Ly + (np.arange(self.Ny)+0.5)*self.dy
 
         if header["CRVAL3"] > 1e8:
             nu_max = header["CRVAL3"]
             dnu = header["CDELT3"]
             nu0 = nu_max + 0.5*dnu*(self.Nz-1)
             self.vkms = cst.c / 1e5 * dnu/nu0 * \
-                (0.5*(self.Nz-1)-np.arange(self.Nz))
+                (-0.5*(self.Nz-1)+np.arange(self.Nz))
             self.dv = self.vkms[1] - self.vkms[0]
         else:
             self.dv = header["CDELT3"]/1e3
-            self.vkms = self.dv * (0.5 * (self.Nz-1) - np.arange(self.Nz))
+            self.vkms = self.dv*(-0.5*(self.Nz-1) + np.arange(self.Nz))
         print(self.dy, self.yau, Lx, Ly, self.dx)
         # exit()
 
 
         if self.dx < 0:
+            print("Reverese in the x-direction")
             self.dx *= -1
+            self.xau = np.flip(self.xau)
             self.Ippv = np.flip(self.Ippv, axis=2)
         if self.dy < 0:
+            print("Reverese in the y-direction")
             self.dy *= -1
+            self.yau = np.flip(self.yau)
             self.Ippv = np.flip(self.Ippv, axis=1)
         if self.dv < 0:
+            print("Reverese in the v-direction")
             self.dv *= -1
+            self.vkms = np.flip(self.vkms)
             self.Ippv = np.flip(self.Ippv, axis=0)
 
         print("fits file path: {}".format(fits_file_path))
@@ -319,7 +347,7 @@ class FitsAnalyzer:
         cbmax = self.Ippv.max()                                              
         pltr = mp.Plotter(self.figd, x=self.xau, y=self.yau,               
                           xl="Position [au]", yl="Position [au]",            
-                          cbl=r'Intensity [Jy pixel$^{-1}$ ]', square=True)  
+                          cbl=r'Intensity [Jy pixel$^{-1}$ ]')  
         for i in range(self.Nz):                                             
             pltr.map(self.Ippv[i], out="chmap_{:0=4d}".format(i),        
                      n_lv=n_lv, cbmin=0, cbmax=cbmax, mode='grid',           
@@ -333,13 +361,13 @@ class FitsAnalyzer:
 #       print(self.Ippv.shape)
         Ipp = integrate.simps(self.Ippv, axis=0)
 #       print(Ipp.shape)
-        Plt = mp.Plotter(self.figd, x=self.xau, y=self.yau,)
-        #print(Ipp.shape)
+        Plt = mp.Plotter(self.figd, x=self.xau, y=self.yau)
+        print(Ipp)
         Plt.map(Ipp, out="mom0map",
               xl="Position [au]", yl="Position [au]", cbl=r'Intensity [Jy pixel$^{-1}$ ]',
-              div=n_lv, square=True, mode='grid',cbmin=0, cbmax=Ipp.max())
+              div=n_lv, mode='grid', cbmin=0, cbmax=Ipp.max())
 
-        Plt.save("mom0map")
+        #Plt.save("mom0map") 
 
 #       im = _contour_plot(xx, yy, Ipp, n_lv=n_lv, cbmin=0,
 #                          cbmax=Ipp.max(), mode='grid')
@@ -347,50 +375,16 @@ class FitsAnalyzer:
 #       plt.clf()
 
     def pvdiagram(self, n_lv=5, op_LocalPeak_V=0, op_LocalPeak_P=0,
-                  op_LocalPeak_2D=1, op_Kepler=0, op_Maximums_2D=1, M=0.18, posang=5):
+                  op_LocalPeak_2D=1, op_Kepler=0, op_Maximums_2D=1, M=0.18, posang=90):
 
         # self._convolution(beam_a_au=0.4*self.dpc, beam_b_au=0.9*self.dpc, v_width_kms=0.5, theta_deg=-41)
-        self._perpix_to_perbeamkms(
-            beam_a_au=0.4*self.dpc, beam_b_au=0.9*self.dpc, v_width_kms=0.5)
-
-#        xx, vv=np.meshgrid(self.xau, self.vkms)
-
-        print(self.Ippv.shape)
+        # self._perpix_to_perbeamkms(
+        #    beam_a_au=0.4*self.dpc, beam_b_au=0.9*self.dpc, v_width_kms=0.5)
 
         if len(self.yau) > 1:
-            points = np.stack(np.meshgrid(self.xau, self.yau,
-                              self.vkms), axis=3).reshape(-1, 3)
-            p_new = np.array([self.vkms, self.xau * np.cos(posang / \
-                             180.*np.pi), self.xau * np.sin(posang/180.*np.pi)])
-
-
-#           print(p_new, p_new.reshape(-1,2)  )
-#           interp_func = np.vectorize( interpolate.interp2d(self.xau, self.yau, self.Ippv[0] )    )
-#           print(interp_func(p_new[0], p_new[1]).shape )
-#           exit()
-            # print(self.yau)
-#           f = interpolate.RectBivariateSpline(self.xau, self.yau, self.Ippv[0])
-            print(self.vkms,  self.xau, self.yau)
-            print(points.shape, self.Ippv.shape, p_new.reshape(-1, 3).shape)
-#           print( interpolate.griddata( points, self.Ippv.flatten() , p_new.reshape(-1,3) ) )
-            f = interpolate.RegularGridInterpolator(
-                (self.vkms,  self.xau, self.yau), self.Ippv)
-
-            print(f(p_new.reshape(-1, 3)))
-
-            #exit()
-#           print(interpolate.interp2d(self.xau, self.yau, self.Ippv[0] )( p_new.reshape(-1,2)[0]  ) )
-#           Ipv = np.array([ interp_func(p_new[0], p_new[1]) for Ipp in self.Ippv])
-            # interp = np.vectorize( interpolate.interp2d  )
-            # Ipv = [ interp(p_new[0], p_new[1])(    ) for x_new , y_new in p_new ]
-
-        #   Ipv = interpolate.griddata( points, self.Ippv.flatten() , )
-
-
-            # interp_func = interpolate.interp1d(self.yau, self.Ippv, axis=1, kind='cubic')
-            # int_ax = np.linspace(-self.beam_size*0.5, self.beam_size*0.5, 11)
-            # Ixv = integrate.simps(interp_func(int_ax), x=int_ax, axisi=1)
-    #       I_pv = integrate.simps( data[:,-1:,:], x=y[  ] , axis=1 )
+            points = [[(v, r*np.cos(posang/180.*np.pi), r*np.sin(posang/180.*np.pi))
+                       for r in self.xau ] for v in self.vkms]
+            Ipv = interpolate.interpn((self.vkms,  self.xau, self.yau), self.Ippv, points)
         else:
             Ipv = self.Ippv[:, 0, :]
 
@@ -399,12 +393,9 @@ class FitsAnalyzer:
 #       ax.yaxis.set_minor_locator(AutoMinorLocator())
 #       im = _contour_plot(xx, vv, Ixv , n_lv=n_lv, mode="contour", cbmin=0.0)
 
-
+        print( self.Ippv.max() )
         pltr = mp.Plotter(self.figd, x=self.xau, y=self.vkms, xlim=[-500,500], ylim=[-3,3])
-
-        print(self.xau.shape, self.vkms.shape, Ipv.shape)
-        #exit()
-        pltr.map(z=Ipv, out="pvd",
+        pltr.map(z=Ipv, out="pvd", mode='grid',
               xl="Position [au]", yl=r"Velocity [km s$^{-1}$]", cbl=r'Intensity [Jy pixel$^{-1}$ ]',
               div=n_lv, save=False)
 
