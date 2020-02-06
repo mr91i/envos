@@ -307,6 +307,7 @@ class Plotter:
                 
         interval = np.arange(cblim[0], cblim[1]+delta, delta)
 
+
         levels = np.linspace(cblim[0], cblim[1], int(div)+1)
         norm = BoundaryNorm(levels, ncolors=cmap.N)
         if mode == "grid":
