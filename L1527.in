@@ -70,7 +70,7 @@ radmc.mol_abun = 1e-15
 radmc.mol_name = 'c18o' # c18o or cch
 radmc.m_mol = 28 * cst.amu
 iline = 1
-radmc.v_fwhm = 0.04 * cst.kms
+radmc.v_fwhm = 0.04 * cst.kms # or give Tenv
 # 1: tdust = tgas , tgas = const
 # 2: tdust = mctherm , tgas = tdust
 radmc.temp_mode = "const" # 1 "const", 2 "mctherm"
@@ -83,6 +83,7 @@ radmc.fn_model_pkl = model.fn_model_pkl
 radmc.fn_radmcset_pkl = 'set_radmc.pkl'
 
 sobs = Parameters()
+sobs.ovserve =  True
 sobs.filename = "sobs"
 sobs.dpc = 137
 sobs.iline = iline #1 # see table 
@@ -91,9 +92,28 @@ sobs.sizey_au = 16 * sobs.dpc
 sobs.pixsize_au = 0.08 * sobs.dpc
 sobs.vwidth_kms = 3 # 5.12
 sobs.dv_kms = 0.04
-sobs.incl = 85
-sobs.phi = 0
-sobs.posang = 0
+sobs.incl = 85 # angle between direction to us , 0: face-on
+sobs.phi = 0 
+sobs.posang = 95 # angle between y-axis, ccw is positive
 sobs.rect_camera = True
 sobs.omp = True
 sobs.n_thread = 16
+
+
+fitsa = Parameters()
+fitsa.filename = sobs.filename
+fitsa.dpc=137
+fitsa.convolution_pvdiagram = False #True
+fitsa.posang_PV = sobs.posang
+fitsa.posang_beam = -41 
+fitsa.oplot_KeplerRotation = 0
+fitsa.oplot_LocalPeak_Vax = 0
+fitsa.oplot_LocalPeak_Pax = 0
+fitsa.oplot_LocalPeak_2D = 1
+fitsa.oplot_Maximums_2D = 1
+fitsa.Mstar = 0.18
+fitsa.beama_au = 0.4 * fitsa.dpc
+fitsa.beamb_au = 0.9 * fitsa.dpc
+fitsa.vwidth_kms = 0.5
+
+
