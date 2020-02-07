@@ -7,6 +7,16 @@ dn_here = os.path.dirname(os.path.abspath(os.path.realpath(__file__)))
 dn_home = os.path.abspath(dn_here + '/../')
 dn_radmc = dn_home + "/radmc"
 dn_fig = dn_home + "/fig"
+import sys
+py_version = sys.version_info
+if py_version[0] == 2:
+    print('''\n
+This module does not work with Python2. 
+At 1 Jan 2020, most packages stopped to support Python2 (see https://python3statement.org). 
+Please use and update your Python3 to the newest version.
+At this writing, Python 3.8.1 is the newest.''')
+    exit()
+
 
 class read_inp:
     def __init__(self, path):
