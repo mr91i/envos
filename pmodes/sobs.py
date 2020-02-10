@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 from __future__ import print_function,  absolute_import, division
 import os
@@ -20,7 +20,7 @@ from scipy import integrate, optimize, interpolate
 from skimage.feature import peak_local_max
 from matplotlib.colors import BoundaryNorm, Normalize
 from matplotlib.ticker import MaxNLocator, AutoMinorLocator
-from astropy.convolution import convolve, Gaussian1DKernel, Gaussian2DKernel, Box1DKernel
+from astropy.convolution import convolve, convolve_fft, Gaussian1DKernel, Gaussian2DKernel, Box1DKernel
 from header import inp, dn_home, dn_radmc, dn_fig
 
 import myplot as mp
@@ -40,13 +40,16 @@ msg = mytools.Message(__file__)
 
 
 def main():
-    osim = ObsSimulator(dn_radmc, dn_fits=dn_radmc, **vars(inp.sobs))
-    osim.observe()    
+    if inp.sobs.ovserve:
+        osim = ObsSimulator(dn_radmc, dn_fits=dn_radmc, **vars(inp.sobs))
+        osim.observe()    
 #   sotel.read_instance()
 #    exit()
 
-    fa = FitsAnalyzer(fits_file_path=dn_radmc+"/"+inp.sobs.filename+".fits", 
-                      fig_dir_path=dn_fig)
+    
+    fa = FitsAnalyzer(dn_radmc=dn_radmc, dn_fig=dn_fig, **vars(inp.fitsa)) 
+#fits_file_path=dn_radmc+"/"+inp.sobs.filename+".fits", 
+#                      fig_dir_path=dn_fig)
     fa.pvdiagram()
     fa.mom0map()
 #    fa.chmap()
@@ -58,9 +61,9 @@ class ObsSimulator():  # This class returns observation data
                  pixsize_au=None,
                  vwidth_kms=None, dv_kms=None,
                  incl=None, phi=None, posang=None,
-                 rect_camera=True, omp=True, n_thread=1, 
-                 **kwargs):
+                 rect_camera=True, omp=True, n_thread=1,**kwargs):
 
+        del kwargs    
         for k, v in locals().items():
             if k != 'self':
                 setattr(self, k, v)
@@ -73,8 +76,8 @@ class ObsSimulator():  # This class returns observation data
               self.npixx*self.npixy*self.linenlam))
 
 
-        if kwargs != {}:
-            raise Exception("There is unused args :", kwargs)
+        #if kwargs != {}:
+        #    raise Exception("There is unused args :", kwargs)
 
     def set_camera_info(self):
         if self.rect_camera and (self.sizex_au != self.sizey_au):
@@ -152,7 +155,7 @@ class ObsSimulator():  # This class returns observation data
                 print( "%dth thread:"%i ,np.linspace(vc-vw, vc+vw, ncp)  )
                 
             def cmd(p):
-                freq = "vkms {:f} widthkms {} linenlam {} ".format(
+                freq = "vkms {:f} widthkms {:f} linenlam {:d} ".format(
                         v_center[p], v_width[p], n_points[p])
                 return " ".join(["radmc3d image", line, freq, camera, common, option])
 
@@ -289,38 +292,57 @@ class Fits:
 
 
 class FitsAnalyzer:
-    def __init__(self, fits_file_path, fig_dir_path):
-#       self.fd = fits_data
-        self.figd = fig_dir_path
-        self.dpc = 137
+    def __init__(self, dn_radmc=None, dn_fig=None, filename=None, dpc=0, convolution_pvdiagram=False,
+                 posang_PV = 0,
+                 posang_beam = -41,
+                 oplot_KeplerRotation = 0,
+                 oplot_LocalPeak_Vax = 0,
+                 oplot_LocalPeak_Pax = 0,
+                 oplot_LocalPeak_2D = 1,
+                 oplot_Maximums_2D = 1,
+                 Mstar = 0.18,
+                 beama_au = 10,
+                 beamb_au = 10,
+                 vwidth_kms = 0.5,
+                 ):
 
-        pic = iofits.open(fits_file_path)[0]
+        for k, v in locals().items():
+            if k != 'self':
+                setattr(self, k, v)
+                msg(k.ljust(20)+"is {:20}".format(v))
+
+#       self.fd = fits_data
+        self.fits_file_path = dn_radmc + '/' + filename + '.fits'
+        pic = iofits.open(self.fits_file_path)[0]
         self.Ippv = pic.data
         header = pic.header
-        print(vars(header))
+        for k, v in header.__dict__.items():
+            print(k, " = ", v)
+
         self.Nx = header["NAXIS1"]
         self.Ny = header["NAXIS2"]
         self.Nz = header["NAXIS3"]
-        self.dx = header["CDELT1"]*np.pi/180.0*self.dpc*cst.pc/cst.au
-        self.dy = header["CDELT2"]*np.pi/180.0*self.dpc*cst.pc/cst.au
+        self.dx = - header["CDELT1"]*np.pi/180.0*self.dpc*cst.pc/cst.au
+        self.dy = + header["CDELT2"]*np.pi/180.0*self.dpc*cst.pc/cst.au
         Lx = self.Nx*self.dx
         Ly = self.Ny*self.dy
-        self.xau = - 0.5*Lx + (np.arange(self.Nx)+0.5)*self.dx
+#        self.xau = - 0.5*Lx + (np.arange(self.Nx)+0.5)*self.dx
+        self.xau = -0.5*Lx + (np.arange(self.Nx)+0.5)*self.dx
         self.yau = - 0.5*Ly + (np.arange(self.Ny)+0.5)*self.dy
 
         if header["CRVAL3"] > 1e8:
-            nu_max = header["CRVAL3"]
-            dnu = header["CDELT3"]
+            nu_max = header["CRVAL3"] # freq: max --> min
+            dnu = header["CDELT3"] 
             nu0 = nu_max + 0.5*dnu*(self.Nz-1)
-            self.vkms = cst.c / 1e5 * dnu/nu0 * \
-                (-0.5*(self.Nz-1)+np.arange(self.Nz))
-            self.dv = self.vkms[1] - self.vkms[0]
+            self.dv = - cst.c / 1e5 * dnu / nu0
+            self.vkms = (-0.5*(self.Nz-1)+np.arange(self.Nz)) * self.dv
+            #self.dv = self.vkms[1] - self.vkms[0]
         else:
             self.dv = header["CDELT3"]/1e3
             self.vkms = self.dv*(-0.5*(self.Nz-1) + np.arange(self.Nz))
-        print(self.dy, self.yau, Lx, Ly, self.dx)
-        # exit()
 
+        #print(self.Ippv.shape)
+        #exit()
 
         if self.dx < 0:
             print("Reverese in the x-direction")
@@ -338,14 +360,14 @@ class FitsAnalyzer:
             self.vkms = np.flip(self.vkms)
             self.Ippv = np.flip(self.Ippv, axis=0)
 
-        print("fits file path: {}".format(fits_file_path))
+        print("fits file path: {}".format(self.fits_file_path))
         print("pixel size[au]: {} {}".format(self.dx, self.dy))
         print("L[au]: {} {}".format(Lx, Ly))
 
     def chmap(self, n_lv=20):                                                
 #        xx, yy = np.meshgrid(self.xau, self.yau)                            
         cbmax = self.Ippv.max()                                              
-        pltr = mp.Plotter(self.figd, x=self.xau, y=self.yau,               
+        pltr = mp.Plotter(self.dn_fig, x=self.xau, y=self.yau,               
                           xl="Position [au]", yl="Position [au]",            
                           cbl=r'Intensity [Jy pixel$^{-1}$ ]')  
         for i in range(self.Nz):                                             
@@ -361,7 +383,7 @@ class FitsAnalyzer:
 #       print(self.Ippv.shape)
         Ipp = integrate.simps(self.Ippv, axis=0)
 #       print(Ipp.shape)
-        Plt = mp.Plotter(self.figd, x=self.xau, y=self.yau)
+        Plt = mp.Plotter(self.dn_fig, x=self.xau, y=self.yau)
         print(Ipp)
         Plt.map(Ipp, out="mom0map",
               xl="Position [au]", yl="Position [au]", cbl=r'Intensity [Jy pixel$^{-1}$ ]',
@@ -374,46 +396,42 @@ class FitsAnalyzer:
 #       self._save_fig("mom0map")
 #       plt.clf()
 
-    def pvdiagram(self, n_lv=5, op_LocalPeak_V=0, op_LocalPeak_P=0,
-                  op_LocalPeak_2D=1, op_Kepler=0, op_Maximums_2D=1, M=0.18, posang=90):
+    def pvdiagram(self, n_lv=5 ):
 
-        # self._convolution(beam_a_au=0.4*self.dpc, beam_b_au=0.9*self.dpc, v_width_kms=0.5, theta_deg=-41)
-        # self._perpix_to_perbeamkms(
-        #    beam_a_au=0.4*self.dpc, beam_b_au=0.9*self.dpc, v_width_kms=0.5)
+        if self.convolution_pvdiagram:
+            self._convolution(beam_a_au=self.beama_au, beam_b_au=self.beamb_au, v_width_kms=self.vwidth_kms, theta_deg=self.posang_beam)
+            self._perpix_to_perbeamkms(beam_a_au=self.beama_au, beam_b_au=self.beamb_au, v_width_kms=self.vwidth_kms)
 
         if len(self.yau) > 1:
-            points = [[(v, r*np.cos(posang/180.*np.pi), r*np.sin(posang/180.*np.pi))
+            points = [[(v, r*np.sin(self.posang_PV/180.*np.pi), r*np.cos(self.posang_PV/180.*np.pi))
                        for r in self.xau ] for v in self.vkms]
-            Ipv = interpolate.interpn((self.vkms,  self.xau, self.yau), self.Ippv, points)
+            print(  [(r*np.sin(self.posang_PV/180.*np.pi), r*np.cos(self.posang_PV/180.*np.pi))
+                       for r in self.xau ]       )
+            Ipv = interpolate.interpn((self.vkms,  self.yau, self.xau), self.Ippv, points)
         else:
             Ipv = self.Ippv[:, 0, :]
 
-#       fig, ax = plt.subplots(figsize=(9,3))
-#       ax.xaxis.set_minor_locator(AutoMinorLocator())
-#       ax.yaxis.set_minor_locator(AutoMinorLocator())
-#       im = _contour_plot(xx, vv, Ixv , n_lv=n_lv, mode="contour", cbmin=0.0)
-
-        print( self.Ippv.max() )
-        pltr = mp.Plotter(self.figd, x=self.xau, y=self.vkms, xlim=[-500,500], ylim=[-3,3])
+        pltr = mp.Plotter(self.dn_fig, x=self.xau, y=self.vkms, xlim=[-500,500], ylim=[-3,3])
         pltr.map(z=Ipv, out="pvd", mode='grid',
-              xl="Position [au]", yl=r"Velocity [km s$^{-1}$]", cbl=r'Intensity [Jy pixel$^{-1}$ ]',
-              div=n_lv, save=False)
+                 xl="Position [au]", yl=r"Velocity [km s$^{-1}$]", 
+                 cbl=r'Intensity [Jy pixel$^{-1}$ ]',
+                 div=n_lv, save=False)
 
-        if op_Kepler:
+        if self.oplot_KeplerRotation:
             plt.plot(-self.x, np.sqrt(cst.G*M*cst.Msun / \
                      self.xau/cst.au)/cst.kms, c="cyan", ls=":")
 
-        if op_LocalPeak_V:
+        if self.oplot_LocalPeak_Vax:
             for Iv, v_ in zip(Ipv.transpose(0, 1), self.vkms):
                 for xM in _get_peaks(self.xau, Iv):
                     plt.plot(xM, v_, c="red", markersize=1, marker='o')
 
-        if op_LocalPeak_P:
+        if self.oplot_LocalPeak_Pax:
             for Ip, x_ in zip(Ipv.transpose(1, 0), self.x):
                 for vM in _get_peaks(self.vkms, Ip):
                     plt.plot(x_, vM, c="blue", markersize=1, marker='o')
 
-        if op_LocalPeak_2D:
+        if self.oplot_LocalPeak_2D:
             for jM, iM in peak_local_max(Ipv, min_distance=5):
                 plt.scatter(self.xau[iM], self.vkms[jM],
                             c="k", s=20, zorder=10)
@@ -422,35 +440,26 @@ class FitsAnalyzer:
 
         pltr.save("pvd")
 
-#       plt.xlabel("Position [au]")
-#       plt.ylabel(r"Velocity [km s$^{-1}$]")
-#       plt.xlim( -500, 500 )
-#       plt.ylim( -2.5, 2.5 )
-#       im.set_clim(0, Ixv.max())
-#       cbar=fig.colorbar(im)
-#       cbar.set_label(r'Intensity [Jy beam$^{-1}$ (km/s)$^{-1}$]')
-#       self._save_fig("pvd")
-#       plt.clf()
 
-#    def _save_fig(self, name):
-#        plt.savefig(self.figd+"/"+name+".pdf", bbox_inches="tight", dpi=300)
-#        print("Saved : "+self.figd+"/"+name+".pdf")
-
+    # theta : cclw is positive
     def _convolution(self, beam_a_au, beam_b_au, v_width_kms, theta_deg=0):
         sigma_over_FWHM = 2 * np.sqrt(2 * np.log(2))
+        print(abs(beam_a_au/self.dx)/sigma_over_FWHM, abs(beam_b_au/self.dy)/sigma_over_FWHM)
+        #Kernel_xy = Gaussian2DKernel(abs(beam_a_au/self.dx)/sigma_over_FWHM)
+                                     #abs(beam_b_au/self.dy)/sigma_over_FWHM)
+                                     #theta=theta_deg/180*np.pi)
         Kernel_xy = Gaussian2DKernel(x_stddev=abs(beam_a_au/self.dx)/sigma_over_FWHM,
-                                     y_stddev=abs(
-                                         beam_b_au/self.dy)/sigma_over_FWHM,
-                                     theta=theta_deg/180*np.pi)
-        Kernel_v = Gaussian1DKernel(v_width_kms/self.dv/sigma_over_FWHM)
+                                     y_stddev=abs(beam_b_au/self.dy)/sigma_over_FWHM,
+                                     theta=theta_deg/180*np.pi, x_size=101, y_size=101)
+        Kernel_v = Gaussian1DKernel(v_width_kms/self.dv/sigma_over_FWHM, x_size=101)
 
 
         for i in range(self.Nz):
-            self.Ippv[i] = convolve(self.Ippv[i], Kernel_xy)
+            self.Ippv[i] = convolve_fft(self.Ippv[i], Kernel_xy)
 
         for j in range(self.Ny):
             for k in range(self.Nx):
-                self.Ippv[:, j, k] = convolve(self.Ippv[:, j, k], Kernel_v)
+                self.Ippv[:, j, k] = convolve_fft(self.Ippv[:, j, k], Kernel_v)
 
 
     def _perpix_to_perbeamkms(self, beam_a_au, beam_b_au, v_width_kms):
