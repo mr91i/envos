@@ -229,6 +229,7 @@ class FitsAnalyzer:
                  plotmode_PV='grid',
                  convolve_PV_p = True,
                  convolve_PV_v = True,
+                 pointsource_test=False,
                  ):
 
         for k, v in locals().items():
@@ -296,6 +297,9 @@ class FitsAnalyzer:
 
     def pvdiagram(self, n_lv=5):
         Ippv = copy.copy(self.Ippv_raw)
+        if self.pointsource_test:
+            self.self._pointsource(Ippv)
+
         if self.convolution_pvdiagram:
             Ippv = self._convolution(Ippv, beam_a_au=self.beama_au, beam_b_au=self.beamb_au,
                                      v_width_kms=self.vwidth_kms, theta_deg=self.posang_beam)
@@ -343,6 +347,7 @@ class FitsAnalyzer:
     def _convolution(self, Ippv, beam_a_au, beam_b_au, v_width_kms, theta_deg=0):
         sigma_over_FWHM = 2 * np.sqrt(2 * np.log(2))
         Ippv_conv = copy.copy(Ippv)
+
         if self.convolve_PV_p:
             Kernel_xy = Gaussian2DKernel(x_stddev=abs(beam_a_au/self.dx)/sigma_over_FWHM,
                                          y_stddev=abs(beam_b_au/self.dy)/sigma_over_FWHM,
@@ -361,6 +366,10 @@ class FitsAnalyzer:
     def _perpix_to_perbeamkms(self, intensity, beam_a_au, beam_b_au, v_width_kms):
         beam_area = np.pi * beam_a_au / 2.0 * beam_b_au / 2.0
         return intensity*(beam_area*v_width_kms)/(self.dx*self.dy*self.dv)
+
+    def _pointsource(self, Ippv):
+        Ippv = np.zeros_like(Ippv)
+        Ippv[Ippv.shape[0]//2, Ippv.shape[1]//2, Ippv.shape[2]//2] = 1
 
 def _get_peaks(x, y):
     maxis = []
