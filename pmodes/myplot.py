@@ -325,7 +325,7 @@ class Plotter:
             img = plt.pcolormesh(xxi, yyi, z, norm=norm,
                                  rasterized=True, cmap=cmap)
 
-        if mode == "contourf":
+        elif mode == "contourf":
             # Note:
             # if len(x) or len(y) is 1, contourf returns an eroor.
             # Instead of this, use "grid" method.
@@ -333,14 +333,16 @@ class Plotter:
                               vmax=cblim[1], extend='both', cmap=cmap)
             #plt.contourf( xx , yy , z , n_lv , cmap=cmap)
 
-        if mode == "contour":
+        elif mode == "contour":
             jM, iM = np.unravel_index(np.argmax(z), z.shape)
             plt.scatter(xx[jM, iM], yy[jM, iM], c='y', s=6, zorder=12)
             img = plt.contour(xx, yy, z, cmap=cmap, levels=levels)
 
-        if mode == "scatter":
+        elif mode == "scatter":
             img = plt.scatter(xx, yy, vmin=cblim[0], vmax=cblim[1],
                               c=z, s=1, cmap=cmap)
+        else:
+            raise Exception("No such a mode for mapping: ", mode)
 
         ticks = np.arange(cblim[0], cblim[1]+delta, delta)  # not +1 to cb_max
         fig.colorbar(img, ax=ax, ticks=ticks,

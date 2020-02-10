@@ -45,10 +45,10 @@ class SetRadmc:
                  m_mol=28*cst.amu, v_fwhm=0.5*cst.kms, 
                  temp_mode='mctherm', line=True, turb=True, lowreso=False, subgrid=True, 
                  autoset=True, fn_model_pkl=None, fn_radmcset_pkl=None, 
-                 Mstar=cst.Msun, Rstar=cst.Rsun, Lstar=cst.Lsun, **args):
+                 Mstar=cst.Msun, Rstar=cst.Rsun, Lstar=cst.Lsun):
 
         msg("radmc directry is %s"%dpath_radmc)
-        msg("Set radmc parameters")
+        msg("Set radmc parameters") 
         for k, v in locals().items():
             if k != 'self':
                 setattr(self, k, v)
@@ -64,8 +64,8 @@ class SetRadmc:
         self.vph = None
         self.vturb = None
         self.Tstar = None
-        if args != {}:
-            raise Exception("There is unused args :", args)
+        #if args != {}:
+        #    raise Exception("There is unused args :", args)
 
         #exit()
 

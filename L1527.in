@@ -20,7 +20,6 @@ model.ire_model = 2  # "CM"  # 1:'CM', 2:'Simple', 3:'TSC'
 model.submodel = None  # 0:None, 0:'CM', 1:'Simple', 2:'TSC'
 #model.norot = 1
 model.disk = 1
-
 model.r_in = 1 * cst.au
 model.r_out = 1e4 * cst.au
 model.nr = 601
@@ -30,17 +29,14 @@ model.ntheta = 181  # 91
 model.phi_in = -np.pi
 model.phi_out = +np.pi
 model.nphi = 1
-
 model.Tenv = 10  # Kelvin
 model.r_CR = 200 * cst.au
 model.Mstar = 0.18 * cst.Msun
 model.t = None
 model.Omega = None
 model.j0 = None
-
 model.Tdisk = 70
 model.disk_star_fraction = 0.1
-
 model.cavity_angle = 80 # degree from z-axis, disk_angle = 2 * (90 - cavity_angle)
 model.simple_density = False  # True
 model.counterclockwise_rotation = False
@@ -52,7 +48,7 @@ model.fn_model_pkl = "model_L1527.pkl"
 radmc = Parameters()
 radmc.nphot = 1000000
 
-radmc.r_in = 1e2 * cst.au
+radmc.r_in = 90 * cst.au
 radmc.r_out = 1e3 * cst.au
 radmc.nr = 128
 # dr(100au) = 100au *(10**((log_rin-log_rout)/nr) - 1 )
@@ -97,13 +93,13 @@ sobs.phi = 0
 sobs.posang = 95 # angle between y-axis, ccw is positive
 sobs.rect_camera = True
 sobs.omp = True
-sobs.n_thread = 16
-
+sobs.n_thread = 1
 
 fitsa = Parameters()
 fitsa.filename = sobs.filename
 fitsa.dpc=137
-fitsa.convolution_pvdiagram = False #True
+fitsa.convolution_pvdiagram = True
+fitsa.convolution_mom0map = True
 fitsa.posang_PV = sobs.posang
 fitsa.posang_beam = -41 
 fitsa.oplot_KeplerRotation = 0
@@ -115,5 +111,6 @@ fitsa.Mstar = 0.18
 fitsa.beama_au = 0.4 * fitsa.dpc
 fitsa.beamb_au = 0.9 * fitsa.dpc
 fitsa.vwidth_kms = 0.5
-
-
+fitsa.plotmode_PV = "contour" #"grid" 
+fitsa.convolve_PV_p = True
+fitsa.convolve_PV_v = True #
