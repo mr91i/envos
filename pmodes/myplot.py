@@ -28,14 +28,16 @@ class Struct:
         self.__dict__.update(entries)
 
 class Plotter:
-    #   def_logx = False
-    #   def_logy = False
+    # input --> Plotter class --> default value 
+    #                                  v 
+    # input --> plot function -------------------> used parameter
+
     def __init__(self, fig_dir_path, 
-                figext="pdf",
+                 figext="pdf", 
                  x=None, y=None, xlim=None, ylim=None, cblim=None, xl=None, yl=None, cbl=None,
                  c=[], ls=[], lw=[], alp=[], pm=False,
                  logx=False, logy=False, logxy=False, logcb=False, leg=False, 
-                 figsize=None, square=False,
+                 figsize=None, square=False, 
                  fn_wrapper=lambda s:s, 
                  decorator=lambda y:y,
                  args_leg={"loc": 'best'}, args_fig={}):
@@ -155,12 +157,13 @@ class Plotter:
     # plot([leg1, y1], [leg2, y2], ..., [legN, yN] ], "test")
     # plot([leg1, x1, y1], [leg2, x2, y2], ..., [legN, xN, yN] ], "test")
     #
+
     def plot(self, y_list, out=None, x=None, c=[None],
              ls=[], lw=[], alp=[], leg=True, frg_leg=0, title='',
              xl=None, yl=None, xlim=None, ylim=None,
              logx=False, logy=False, logxy=False, pm=False,
              hl=[], vl=[], fills=None, arrow=[], lbs=None,
-             datatype="", square=None, save=True, result="fig",
+             datatype="", square=None, show=False, save=True, result="fig",
              *args, **kwargs):
 
         input_settings = locals()  
@@ -214,10 +217,42 @@ class Plotter:
 
         # Arrow
         for i, ar in enumerate(arrow):
-            ax.annotate('', xytext=(ar[0], ar[1]), xy=(ar[2], ar[3]), xycoords='data', annotation_clip=False,
-                        arrowprops=dict(shrink=0, width=3, headwidth=8, headlength=8,
-                                        connectionstyle='arc3', facecolor=c[i], edgecolor=c[i])
-                        )
+
+            if True:
+                c_i = c[i] if len(c) >= i+1 else None
+                print(ar)
+                ax.annotate('', xytext=(ar[0], ar[1]), xy=(ar[2], ar[3]), 
+                            xycoords='data', annotation_clip=False,size=30,
+                            arrowprops=dict(shrink=0, width=3, headwidth=8, headlength=8, lw=0,
+                                            connectionstyle='arc3', fc=c_i, ec=c_i)
+                            )
+            else:
+                ar_x = ar[0]
+                ar_y = ar[1]
+                ar_dx = ar[2] - ar[0]
+                ar_dy = ar[3] - ar[1]
+                ar_len = np.sqrt(ar_dx**2 + ar_dy**2)
+                linewidth = mpl.rcParams['lines.linewidth']
+                import matplotlib.patches as pat
+                curve = pat.ArrowStyle.Curve()
+                #curve.set_capstyle("batt")
+                curve.capstyle = "batt"
+                curve._capstyle = "batt"
+                c_i = c[i] if len(c) >= i+1 else None
+                ls_i = ls[i] if len(ls) >= i+1 else None
+                lw_i = lw[i] if len(lw) >= i+1 else linewidth
+                ax.annotate('', xytext=(ar[0], ar[1]), xy=(ar[2], ar[3]), 
+                            xycoords='data', annotation_clip=False,
+                            arrowprops=dict(arrowstyle=curve,lw=lw_i*0.5,
+                                            connectionstyle='arc3', facecolor=c_i, edgecolor=c_i, linestyle=ls_i)
+                            )
+    #            plt.plot((ar[0], ar[2]), (0.01*ar[0]+0.99*ar[1], 0.01*ar[2]+0.99*ar[3]), c=c_i, ls=ls_i, lw=lw_i)
+    #            plt.plot((ar[0], ar[2]), (0.01*ar[0]+0.99*ar[1], 0.01*ar[2]+0.99*ar[3]), c=c_i, ls=ls_i, lw=lw_i)
+                ax.annotate('', xytext=(0.01*ar[0]+0.99*ar[2], 0.01*ar[1]+0.99*ar[3]), xy=(ar[2], ar[3]), 
+                            xycoords='data', annotation_clip=False,
+                            arrowprops=dict(lw=0,headwidth=lw_i*3, headlength=lw_i*3,
+                                            connectionstyle='arc3', facecolor=c_i, edgecolor=c_i, linestyle=ls_i)
+                            )
 
         # Postprocessing
         plt.title(title)
@@ -240,6 +275,9 @@ class Plotter:
             plt.gca().set_aspect('equal', adjustable='box')
 
         self.fig = fig
+
+        if show:
+            self.save(show)
 
         # Saving
         if save:
@@ -265,7 +303,7 @@ class Plotter:
             fills=None, data="", Vector=None,
             div=10.0, n_sline=18, hist=False,
             square=None, seeds_angle=[0, np.pi/2],
-            save=True, result="fig",
+            save=True, show=False, result="fig",
             **args):
 
         for k, v in locals().items():
@@ -388,14 +426,21 @@ class Plotter:
             plt.legend(**self.args_leg)
 
         self.fig = fig
+
+        if show:
+            self.save(show)
+
         # Saving
         if save:
             self.save(out)
+
 
         if result=="fig":
             return fig
         elif result=="class":
             return Struct(self) 
+
+
 
     def save(self, out):
         savefile = "%s/%s.%s" % (self.fig_dn, self.fn_wrapper(out), self.figext)
@@ -404,10 +449,10 @@ class Plotter:
         plt.close()
         plt.clf()
 
+    def show(self, out):
+        plt.show()
 
-
-
-
+import itertools 
 from cycler import cycler
 from matplotlib.colors import LinearSegmentedColormap
 
@@ -422,14 +467,26 @@ def generate_cmap(colors):
 def generate_cmap_rgb(cmap):
     return [(int(c[1:3], 16)/255., int(c[3:5], 16)/255., int(c[5:7], 16)/255.) for c in cmap]
 
+class cycle_list:
+    def __init__(self, cylist):
+        self.cylist = cylist
+        self.len = len(cylist)
+    def __getitem__(self, i):
+        return self.cylist[i%self.len]
+
 c_def = ["#3498db", "#e74c3c", "#1abc9c", "#9b59b6", "#f1c40f", "#34495e",
          "#446cb3", "#d24d57", "#27ae60", "#663399", "#f7ca18", "#bdc3c7", "#2c3e50"]
+myls = cycle_list(["-","--",":","-."])
+myls_txt = cycle_list(["solid","dashed","dotted","dashdot"])
+myc = cycle_list(c_def)
+
+
 c_def_rgb = generate_cmap_rgb(c_def)
 c_cycle = cycler(color=c_def)
 mpl.rc('font', weight='bold', size=17)
-mpl.rc('lines', linewidth=4, color="#2c3e50", markeredgewidth=0.9,
+mpl.rc('lines', linewidth=4, color="#2c3e50", markeredgewidth=0.9, #solid_capstyle="projecting", dash_capstyle='butt',
        marker=None, markersize=4)
-mpl.rc('patch', linewidth=1, edgecolor='k')
+mpl.rc('patch', linewidth=2, edgecolor='k')
 mpl.rc('text', color='#2c3e50')
 mpl.rc('axes', linewidth=2, facecolor='none', titlesize=30, labelsize=20,
        labelweight='bold', prop_cycle=c_cycle, grid=False)
