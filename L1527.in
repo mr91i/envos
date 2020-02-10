@@ -2,13 +2,11 @@
 # -*- coding: utf-8 -*-
 import numpy as np
 import cst
-#import os
-#dn_here = os.path.dirname(os.path.abspath(os.path.realpath(__file__)))
-#dn_home = os.path.abspath(dn_here + '/../')
-#dn_radmc = dn_home + '/radmc/'
+
 
 class Parameters:
     pass
+
 
 # General
 debug = 1
@@ -18,7 +16,7 @@ object_name = "L1527"
 model = Parameters()
 model.ire_model = 2  # "CM"  # 1:'CM', 2:'Simple', 3:'TSC'
 model.submodel = None  # 0:None, 0:'CM', 1:'Simple', 2:'TSC'
-#model.norot = 1
+# model.norot = 1
 model.disk = 1
 model.r_in = 1 * cst.au
 model.r_out = 1e4 * cst.au
@@ -37,12 +35,12 @@ model.Omega = None
 model.j0 = None
 model.Tdisk = 70
 model.disk_star_fraction = 0.1
-model.cavity_angle = 80 # degree from z-axis, disk_angle = 2 * (90 - cavity_angle)
+model.cavity_angle = 80  # degree from z-axis, disk_angle = 2*(90-cavity_angle)
 model.simple_density = False  # True
 model.counterclockwise_rotation = False
 model.fn_model_pkl = "model_L1527.pkl"
-#model.dn_model_pkl = "radmc"
-#model.use_solution_0th = 0
+# model.dn_model_pkl = "radmc"
+# model.use_solution_0th = 0
 
 # radmc parameters
 radmc = Parameters()
@@ -61,15 +59,15 @@ radmc.nphi = 1
 
 radmc.Lstar = 2.75 * cst.Lsun
 radmc.Rstar = 1 * cst.Rsun
-radmc.fdg = 0.0 # 0.01
+radmc.fdg = 0.0  # 0.01
 radmc.mol_abun = 1e-15
-radmc.mol_name = 'c18o' # c18o or cch
+radmc.mol_name = 'c18o'  # c18o or cch
 radmc.m_mol = 28 * cst.amu
 iline = 1
-radmc.v_fwhm = 0.04 * cst.kms # or give Tenv
+radmc.v_fwhm = 0.04 * cst.kms  # or give Tenv
 # 1: tdust = tgas , tgas = const
 # 2: tdust = mctherm , tgas = tdust
-radmc.temp_mode = "const" # 1 "const", 2 "mctherm"
+radmc.temp_mode = "const"  # 1 "const", 2 "mctherm"
 radmc.line = True
 radmc.turb = True
 radmc.lowreso = False
@@ -79,29 +77,29 @@ radmc.fn_model_pkl = model.fn_model_pkl
 radmc.fn_radmcset_pkl = 'set_radmc.pkl'
 
 sobs = Parameters()
-sobs.ovserve =  True
+sobs.ovserve = 0
 sobs.filename = "sobs"
 sobs.dpc = 137
-sobs.iline = iline #1 # see table 
-sobs.sizex_au = 16 * sobs.dpc 
+sobs.iline = iline  # 1 # see table
+sobs.sizex_au = 16 * sobs.dpc
 sobs.sizey_au = 16 * sobs.dpc
 sobs.pixsize_au = 0.08 * sobs.dpc
-sobs.vwidth_kms = 3 # 5.12
+sobs.vwidth_kms = 3  # 5.12
 sobs.dv_kms = 0.04
-sobs.incl = 85 # angle between direction to us , 0: face-on
-sobs.phi = 0 
-sobs.posang = 95 # angle between y-axis, ccw is positive
+sobs.incl = 85  # angle between direction to us , 0: face-on
+sobs.phi = 0
+sobs.posang = 95  # angle between y-axis, ccw is positive
 sobs.rect_camera = True
 sobs.omp = True
 sobs.n_thread = 1
 
 fitsa = Parameters()
 fitsa.filename = sobs.filename
-fitsa.dpc=137
+fitsa.dpc = 137
 fitsa.convolution_pvdiagram = True
 fitsa.convolution_mom0map = True
 fitsa.posang_PV = sobs.posang
-fitsa.posang_beam = -41 
+fitsa.posang_beam = -41
 fitsa.oplot_KeplerRotation = 0
 fitsa.oplot_LocalPeak_Vax = 0
 fitsa.oplot_LocalPeak_Pax = 0
@@ -111,6 +109,6 @@ fitsa.Mstar = 0.18
 fitsa.beama_au = 0.4 * fitsa.dpc
 fitsa.beamb_au = 0.9 * fitsa.dpc
 fitsa.vwidth_kms = 0.5
-fitsa.plotmode_PV = "contour" #"grid" 
+fitsa.plotmode_PV = "contour"  # "grid"
 fitsa.convolve_PV_p = True
-fitsa.convolve_PV_v = True #
+fitsa.convolve_PV_v = True  #

@@ -27,10 +27,10 @@ msg = mytools.Message(__file__)
 def main():
     if inp.sobs.ovserve:
         osim = ObsSimulator(dn_radmc, dn_fits=dn_radmc, **vars(inp.sobs))
-        osim.observe()    
+        osim.observe()
 #   sotel.read_instance()
-    
-    fa = FitsAnalyzer(dn_radmc=dn_radmc, dn_fig=dn_fig, **vars(inp.fitsa)) 
+
+    fa = FitsAnalyzer(dn_radmc=dn_radmc, dn_fig=dn_fig, **vars(inp.fitsa))
     fa.pvdiagram()
     fa.mom0map()
 #    fa.chmap()
@@ -44,16 +44,16 @@ class ObsSimulator():  # This class returns observation data
                  incl=None, phi=None, posang=None,
                  rect_camera=True, omp=True, n_thread=1,**kwargs):
 
-        del kwargs    
+        del kwargs
         for k, v in locals().items():
             if k != 'self':
                 setattr(self, k, v)
                 msg(k.ljust(20)+"is {:20}".format(v))
 
-        self.linenlam = 2*int(round(self.vwidth_kms/self.dv_kms)) + 1 
+        self.linenlam = 2*int(round(self.vwidth_kms/self.dv_kms)) + 1
         self.set_camera_info()
         print("Total cell number is {} x {} x {} = {}".format(
-              self.npixx, self.npixy,self.linenlam, 
+              self.npixx, self.npixy,self.linenlam,
               self.npixx*self.npixy*self.linenlam))
 
         #if kwargs != {}:
@@ -72,7 +72,7 @@ class ObsSimulator():  # This class returns observation data
                 self.npixx = int(round(self.sizex_au/self.pixsize_au)) # // or int do not work to convert into int.
                 self.npixy = 1
             else:
-                self.zoomau_x = [-self.sizex_au/2, self.sizex_au/2] 
+                self.zoomau_x = [-self.sizex_au/2, self.sizex_au/2]
                 self.zoomau_y = [-self.sizey_au/2, self.sizey_au/2]
                 self.npixx = int(round(self.sizex_au/self.pixsize_au))
                 self.npixy = int(round(self.sizey_au/self.pixsize_au))
@@ -86,16 +86,16 @@ class ObsSimulator():  # This class returns observation data
         dx = (self.zoomau_x[1] - self.zoomau_x[0])/self.npixx
         dy = (self.zoomau_y[1] - self.zoomau_y[0])/self.npixy
         if dx != dy:
-            raise Exception("dx is not equal to dy") 
+            raise Exception("dx is not equal to dy")
 
-    @staticmethod 
+    @staticmethod
     def find_proper_nthread( n_thread, n_divided):
         return max([i for i in range(n_thread, 0, -1)
                                 if n_divided % i == 0])
 
     @staticmethod
     def divide_threads(n_thread, n_divided):
-        ans = [n_divided//n_thread]*n_thread 
+        ans = [n_divided//n_thread]*n_thread
         rem = n_divided % n_thread
         nlist = [ (n_thread-i//2 if i%2 else i//2) for i in range(n_thread)] #[ ( i if i%2==0 else n_thread -(i-1) ) for i in range(n_thread) ]
         for i in range(rem):
@@ -103,20 +103,20 @@ class ObsSimulator():  # This class returns observation data
             ans[ii] += 1
         return ans
 
-    @staticmethod        
+    @staticmethod
     def calc_thread_seps(calc_points, thread_divs):
         ans = []
         sum_points = 0
         for npoints in thread_divs:
             ans.append( [calc_points[sum_points] , calc_points[sum_points+npoints-1]] )
-            sum_points += npoints   
-        return np.array(ans) 
+            sum_points += npoints
+        return np.array(ans)
 
     def observe(self):
         common = "incl %d phi %d posang %d" % (
             self.incl, self.phi, self.posang)
         option = "noscat nostar " # doppcatch"
-        camera = "npixx {} npixy {} ".format(self.npixx, self.npixy) 
+        camera = "npixx {} npixy {} ".format(self.npixx, self.npixy)
         camera += "zoomau {:g} {:g} {:g} {:g} ".format(*(self.zoomau_x+self.zoomau_y))
         line = "iline {:d}".format(self.iline)
         v_calc_points = np.linspace( -self.vwidth_kms, self.vwidth_kms, self.linenlam )
@@ -132,7 +132,7 @@ class ObsSimulator():  # This class returns observation data
             print("Calc points in each threads:")
             for i, (vc, vw, ncp) in enumerate(zip(v_center, v_width, n_points)):
                 print( "%dth thread:"%i ,np.linspace(vc-vw, vc+vw, ncp)  )
-                
+
             def cmd(p):
                 freq = "vkms {:g} widthkms {:g} linenlam {:d} ".format(
                         v_center[p], v_width[p], n_points[p])
@@ -155,8 +155,8 @@ class ObsSimulator():  # This class returns observation data
                 data.imageJyppix = np.append(data.imageJyppix, ret.imageJyppix, axis=2)
                 data.freq = np.append(data.freq, ret.freq, axis=-1)
                 data.wav = np.append(data.wav, ret.wav, axis=-1)
-                data.nfreq += ret.nfreq 
-                data.nwav += ret.nwav 
+                data.nfreq += ret.nfreq
+                data.nwav += ret.nwav
             self.data = data
         else:
             freq = "widthkms {} linenlam {:d} ".format(
@@ -166,8 +166,8 @@ class ObsSimulator():  # This class returns observation data
             os.chdir(self.dn_radmc)
             subprocess.call(cmd, shell=True)
             self.data = rmci.readImage()
-            
-        freq0 = (self.data.freq[0] + self.data.freq[-1])*0.5 
+
+        freq0 = (self.data.freq[0] + self.data.freq[-1])*0.5
         dfreq = self.data.freq[1] - self.data.freq[0]
         vkms = np.round(mytools.freq_to_vkms(freq0, self.data.freq-freq0), 8)
         print("x_au is:\n", np.round(self.data.x,8)/cst.au,"\n")
@@ -255,7 +255,7 @@ class FitsAnalyzer:
 
         if header["CRVAL3"] > 1e8:
             nu_max = header["CRVAL3"] # freq: max --> min
-            dnu = header["CDELT3"] 
+            dnu = header["CDELT3"]
             nu0 = nu_max + 0.5*dnu*(self.Nz-1)
             self.dv = - cst.c / 1e5 * dnu / nu0
             self.vkms = (-0.5*(self.Nz-1)+np.arange(self.Nz)) * self.dv
@@ -272,21 +272,21 @@ class FitsAnalyzer:
         print("pixel size[au]: {} {}".format(self.dx, self.dy))
         print("L[au]: {} {}".format(Lx, Ly))
 
-    def chmap(self, n_lv=20):                                                
-#        xx, yy = np.meshgrid(self.xau, self.yau)                            
-        cbmax = self.Ippv.max()                                              
-        pltr = mp.Plotter(self.dn_fig, x=self.xau, y=self.yau,               
-                          xl="Position [au]", yl="Position [au]",            
-                          cbl=r'Intensity [Jy pixel$^{-1}$ ]')  
-        for i in range(self.Nz):                                             
-            pltr.map(self.Ippv[i], out="chmap_{:0=4d}".format(i),        
-                     n_lv=n_lv, cbmin=0, cbmax=cbmax, mode='grid',           
-                     title="v = {:.3f} km/s".format(self.vkms[i]) )          
+    def chmap(self, n_lv=20):
+#        xx, yy = np.meshgrid(self.xau, self.yau)
+        cbmax = self.Ippv.max()
+        pltr = mp.Plotter(self.dn_fig, x=self.xau, y=self.yau,
+                          xl="Position [au]", yl="Position [au]",
+                          cbl=r'Intensity [Jy pixel$^{-1}$ ]')
+        for i in range(self.Nz):
+            pltr.map(self.Ippv[i], out="chmap_{:0=4d}".format(i),
+                     n_lv=n_lv, cbmin=0, cbmax=cbmax, mode='grid',
+                     title="v = {:.3f} km/s".format(self.vkms[i]) )
 
     def mom0map(self, n_lv=20):
         Ippv = copy.copy(self.Ippv_raw)
         if self.convolution_mom0map:
-            Ippv = self._convolution(Ippv, beam_a_au=self.beama_au, beam_b_au=self.beamb_au, 
+            Ippv = self._convolution(Ippv, beam_a_au=self.beama_au, beam_b_au=self.beamb_au,
                                      v_width_kms=self.vwidth_kms, theta_deg=self.posang_beam)
         Ipp = integrate.simps(Ippv, axis=0)
         Plt = mp.Plotter(self.dn_fig, x=self.xau, y=self.yau)
@@ -295,9 +295,9 @@ class FitsAnalyzer:
                 div=n_lv, mode='grid', cbmin=0, cbmax=Ipp.max())
 
     def pvdiagram(self, n_lv=5):
-        Ippv = copy.copy(self.Ippv_raw) 
+        Ippv = copy.copy(self.Ippv_raw)
         if self.convolution_pvdiagram:
-            Ippv = self._convolution(Ippv, beam_a_au=self.beama_au, beam_b_au=self.beamb_au, 
+            Ippv = self._convolution(Ippv, beam_a_au=self.beama_au, beam_b_au=self.beamb_au,
                                      v_width_kms=self.vwidth_kms, theta_deg=self.posang_beam)
             Ippv = self._perpix_to_perbeamkms(Ippv, beam_a_au=self.beama_au, beam_b_au=self.beamb_au, v_width_kms=self.vwidth_kms)
 
@@ -311,7 +311,7 @@ class FitsAnalyzer:
 
         pltr = mp.Plotter(self.dn_fig, x=self.xau/self.dpc, y=self.vkms, xlim=[-5, 5], ylim=[-3, 3])
         pltr.map(z=Ipv, out="pvd", mode=self.plotmode_PV,
-                 xl="Angular Offset [arcsec]", yl=r"Velocity [km s$^{-1}$]", 
+                 xl="Angular Offset [arcsec]", yl=r"Velocity [km s$^{-1}$]",
                  cbl=r'Intensity [Jy pixel$^{-1}$ ]',
                  div=n_lv, save=False)
 
