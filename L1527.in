@@ -64,7 +64,7 @@ radmc.mol_abun = 1e-15
 radmc.mol_name = 'c18o'  # c18o or cch
 radmc.m_mol = 28 * cst.amu
 iline = 1
-radmc.v_fwhm = 0.04 * cst.kms  # or give Tenv
+radmc.v_fwhm = 0.5 * cst.kms  # or give Tenv
 # 1: tdust = tgas , tgas = const
 # 2: tdust = mctherm , tgas = tdust
 radmc.temp_mode = "const"  # 1 "const", 2 "mctherm"
@@ -77,7 +77,7 @@ radmc.fn_model_pkl = model.fn_model_pkl
 radmc.fn_radmcset_pkl = 'set_radmc.pkl'
 
 sobs = Parameters()
-sobs.ovserve = 0
+sobs.ovserve = True
 sobs.filename = "sobs"
 sobs.dpc = 137
 sobs.iline = iline  # 1 # see table
@@ -94,10 +94,10 @@ sobs.omp = True
 sobs.n_thread = 1
 
 fitsa = Parameters()
-fitsa.filename = {1:"sobs", 2:"YO_noconv"}[2] # sobs.filename
+fitsa.filename = {1:"sobs", 2:"YO_noconv"}[1] # sobs.filename
 fitsa.dpc = 137
-fitsa.convolution_pvdiagram = 0  #True
-fitsa.convolution_mom0map = 0  #True
+fitsa.convolution_pvdiagram = 1  #True
+fitsa.convolution_mom0map = 1  #True
 fitsa.posang_PV = sobs.posang
 fitsa.posang_beam = -41
 fitsa.oplot_KeplerRotation = 0
@@ -109,6 +109,7 @@ fitsa.Mstar = 0.18
 fitsa.beama_au = 0.4 * fitsa.dpc
 fitsa.beamb_au = 0.9 * fitsa.dpc
 fitsa.vwidth_kms = 0.5
-fitsa.plotmode_PV = {1:"grid", 2:"contour"}[1]
+fitsa.plotmode_PV = {1:"grid", 2:"contour", 3:"contourf"}[3]
 fitsa.convolve_PV_p = True
-fitsa.convolve_PV_v = True  #
+fitsa.convolve_PV_v = 0 # True  #
+fitsa.pointsource_test = False
