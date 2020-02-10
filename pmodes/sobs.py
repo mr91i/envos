@@ -313,6 +313,7 @@ class FitsAnalyzer:
         pltr.map(z=Ipv, out="pvd", mode=self.plotmode_PV,
                  xl="Angular Offset [arcsec]", yl=r"Velocity [km s$^{-1}$]",
                  cbl=r'Intensity [Jy pixel$^{-1}$ ]',
+                 lw=2,
                  div=n_lv, save=False)
 
         if self.oplot_KeplerRotation:

@@ -374,7 +374,7 @@ class Plotter:
         elif mode == "contour":
             jM, iM = np.unravel_index(np.argmax(z), z.shape)
             plt.scatter(xx[jM, iM], yy[jM, iM], c='y', s=6, zorder=12)
-            img = plt.contour(xx, yy, z, cmap=cmap, levels=levels)
+            img = plt.contour(xx, yy, z, cmap=cmap, levels=levels, linewidths=lw)
 
         elif mode == "scatter":
             img = plt.scatter(xx, yy, vmin=cblim[0], vmax=cblim[1],
