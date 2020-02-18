@@ -15,11 +15,11 @@ import cubicsolver
 msg = mytools.Message(__file__)
 #######################
 
-
 def main():
     data = EnvelopeDiskModel(**vars(inp.model))
     
-    #Plots(data, dn_fig=dn_fig)
+    if inp.model.plot:
+        Plots(data, dn_fig=dn_fig)
 
 class EnvelopeDiskModel:
     '''
