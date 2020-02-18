@@ -25,7 +25,8 @@ def main():
     else:
         del_mctherm_files()
     
-    #rdata = RadmcData(dn_radmc=dn_radmc, dn_fig=dn_fig, ispec=inp.radmc.mol_name, mol_abun=inp.radmc.mol_abun)
+    if inp.radmc.plot:
+        rdata = RadmcData(dn_radmc=dn_radmc, dn_fig=dn_fig, ispec=inp.radmc.mol_name, mol_abun=inp.radmc.mol_abun)
 
 def exe_radmc_therm():
     mytools.exe('cd %s ; radmc3d mctherm setthreads 16' % dn_radmc )
