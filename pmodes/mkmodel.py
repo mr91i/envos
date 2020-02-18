@@ -64,7 +64,8 @@ class EnvelopeDiskModel:
         self.mu_cav = np.cos(self.cavity_angle/180*np.pi)
 
         if args != {}:
-            raise Exception("There is unused args :", args)
+            msg("There is unused args :", args)
+#            raise Exception("There is unused args :", args)
 
         self.print_params()
         self.calc()
