@@ -43,17 +43,18 @@ class SetRadmc:
                  theta_in=0, theta_out=0.5*np.pi, ntheta=64,
                  phi_in=0, phi_out=0, nphi=1,
                  fdg=0.01, mol_abun=1e-7, mol_name='c18o',
-                 m_mol=28*cst.amu, v_fwhm=0.5*cst.kms, 
+                 m_mol=28*cst.amu, v_fwhm=0.5*cst.kms, Tenv=None,
                  temp_mode='mctherm', line=True, turb=True, lowreso=False, subgrid=True, 
                  autoset=True, fn_model_pkl=None, fn_radmcset_pkl=None, 
-                 Mstar=cst.Msun, Rstar=cst.Rsun, Lstar=cst.Lsun):
+                 Mstar=cst.Msun, Rstar=cst.Rsun, Lstar=cst.Lsun, **kwargs):
 
         msg("radmc directry is %s"%dpath_radmc)
         msg("Set radmc parameters") 
         for k, v in locals().items():
-            if k != 'self':
+            if (k != 'self') and (k!="kwargs"):
+                print(k,v)
                 setattr(self, k, v)
-                msg(k.ljust(20)+"is {:20}".format(v))
+                msg(k.ljust(20)+"is {:20}".format(v if v is not None else "None"))
 
         self.nlam = None
         self.lam = None
@@ -67,6 +68,8 @@ class SetRadmc:
         self.Tstar = None
         #if args != {}:
         #    raise Exception("There is unused args :", args)
+        if kwargs != {}:
+            msg("There is unused args :", kwargs)
 
         #exit()
 
@@ -148,8 +151,14 @@ class SetRadmc:
 
         self.n_mol = self.rhog / (2.34*cst.amu) * self.mol_abun 
         if self.temp_mode == 'const':
-            T = self.m_mol * self.v_fwhm**2 /(16 * np.log( 2) * cst.kB )
+            if self.Tenv is not None:
+                T = self.Tenv
+                v_fwhm = np.sqrt(T * (16 * np.log( 2) * cst.kB )/self.m_mol)
+            else:
+                v_fwhm = self.v_fwhm
+                T = self.m_mol * v_fwhm**2 /(16 * np.log( 2) * cst.kB )
             msg("Constant temperature is ", T)
+            msg("v_FWHM_kms is ", v_fwhm/cst.kms)
             self.tgas = T * np.ones_like(self.rhog)
 
         self.Tstar = (self.Lstar/cst.Lsun)**0.25 * cst.Tsun
@@ -278,9 +287,15 @@ class SetRadmc:
                 ["iranfreqmode", 1], 
                 ["mc_scat_maxtauabs", 5.0], 
                 ["tgas_eq_tdust",1], 
-                ["camera_maxdphi", 0.], 
+                #["camera_maxdphi", 0.0000001], 
+                #["camera_spher_cavity_relres", 0.005], # 0.05
+                #["camera_min_dangle", 0.005], # 0.05
+                #["camera_min_drr",0.0003], # 0.003
+                #["camera_refine_criterion",1.0],
                 ["nphot_spec", 1], 
-                ["iseed", -5415]]
+                ["iseed", -5415],
+                ]
+
         with open(self.dpath_radmc+'/radmc3d.inp', 'w+') as f:
             for k,v in params:
                  f.write('{} = {}\n'.format(k, v))
