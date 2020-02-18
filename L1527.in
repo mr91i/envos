@@ -7,14 +7,15 @@ import cst
 class Parameters:
     pass
 
-
 # General
 debug = 1
 object_name = "L1527"
+dpc = 137
 
 # Physical Model
 model = Parameters()
-model.ire_model = 2  # "CM"  # 1:'CM', 2:'Simple', 3:'TSC'
+model.plot = 0
+model.ire_model = 1  # "CM"  # 1:'CM', 2:'Simple', 3:'TSC'
 model.submodel = None  # 0:None, 0:'CM', 1:'Simple', 2:'TSC'
 # model.norot = 1
 model.disk = 1
@@ -23,7 +24,7 @@ model.r_out = 1e4 * cst.au
 model.nr = 601
 model.theta_in = 1e-6
 model.theta_out = np.pi/2
-model.ntheta = 181  # 91
+model.ntheta = int(0.5*np.pi/(np.log10(model.r_out)-np.log10(model.r_in))*model.nr) #181  # 91
 model.phi_in = -np.pi
 model.phi_out = +np.pi
 model.nphi = 1
@@ -44,15 +45,15 @@ model.fn_model_pkl = "model_L1527.pkl"
 
 # radmc parameters
 radmc = Parameters()
+radmc.plot = 0
 radmc.nphot = 1000000
-
-radmc.r_in = 90 * cst.au
+radmc.r_in = 100 * cst.au
 radmc.r_out = 1e3 * cst.au
-radmc.nr = 128
+radmc.nr = 256 #256 #128 # 128 #1024 #128
 # dr(100au) = 100au *(10**((log_rin-log_rout)/nr) - 1 )
 radmc.theta_in = 0
 radmc.theta_out = np.pi/2
-radmc.ntheta = 128  # 91
+radmc.ntheta = int(0.5*np.pi/(np.log10(radmc.r_out)-np.log10(radmc.r_in))*radmc.nr) #128  # 91  # Nth = 90/dlogr * Nr 
 radmc.phi_in = -np.pi
 radmc.phi_out = np.pi
 radmc.nphi = 1
@@ -60,16 +61,17 @@ radmc.nphi = 1
 radmc.Lstar = 2.75 * cst.Lsun
 radmc.Rstar = 1 * cst.Rsun
 radmc.fdg = 0.0  # 0.01
-radmc.mol_abun = 1e-15
-radmc.mol_name = 'c18o'  # c18o or cch
+radmc.mol_abun = 1e-20
+radmc.mol_name = {1:"c18o", 2:"cch", 3:"c18omod"}[1]  # c18o or cch
 radmc.m_mol = 28 * cst.amu
 iline = 1
-radmc.v_fwhm = 0.5 * cst.kms  # or give Tenv
+radmc.v_fwhm = 0.04 * cst.kms  # or give Tenv
+#radmc.Tenv = 10
 # 1: tdust = tgas , tgas = const
 # 2: tdust = mctherm , tgas = tdust
 radmc.temp_mode = "const"  # 1 "const", 2 "mctherm"
 radmc.line = True
-radmc.turb = True
+radmc.turb = False
 radmc.lowreso = False
 radmc.subgrid = True
 radmc.autoset = True
@@ -77,29 +79,29 @@ radmc.fn_model_pkl = model.fn_model_pkl
 radmc.fn_radmcset_pkl = 'set_radmc.pkl'
 
 sobs = Parameters()
-sobs.ovserve = True
+sobs.ovserve = 1 # True
 sobs.filename = "sobs"
-sobs.dpc = 137
+sobs.dpc = dpc
 sobs.iline = iline  # 1 # see table
 sobs.sizex_au = 16 * sobs.dpc
 sobs.sizey_au = 16 * sobs.dpc
 sobs.pixsize_au = 0.08 * sobs.dpc
 sobs.vwidth_kms = 3  # 5.12
-sobs.dv_kms = 0.04
+sobs.dv_kms = 0.04  # 0.04
 sobs.incl = 85  # angle between direction to us , 0: face-on
 sobs.phi = 0
 sobs.posang = 95  # angle between y-axis, ccw is positive
 sobs.rect_camera = True
 sobs.omp = True
-sobs.n_thread = 1
+sobs.n_thread = 16
 
 fitsa = Parameters()
 fitsa.filename = {1:"sobs", 2:"YO_noconv"}[1] # sobs.filename
-fitsa.dpc = 137
+fitsa.dpc = dpc
 fitsa.convolution_pvdiagram = 1  #True
-fitsa.convolution_mom0map = 1  #True
+fitsa.convolution_mom0map = 0  #True
+fitsa.convolver = "normal"
 fitsa.posang_PV = sobs.posang
-fitsa.posang_beam = -41
 fitsa.oplot_KeplerRotation = 0
 fitsa.oplot_LocalPeak_Vax = 0
 fitsa.oplot_LocalPeak_Pax = 0
@@ -108,8 +110,9 @@ fitsa.oplot_Maximums_2D = 1
 fitsa.Mstar = 0.18
 fitsa.beama_au = 0.4 * fitsa.dpc
 fitsa.beamb_au = 0.9 * fitsa.dpc
+fitsa.beam_posang = -41
 fitsa.vwidth_kms = 0.5
-fitsa.plotmode_PV = {1:"grid", 2:"contour", 3:"contourf"}[3]
+fitsa.plotmode_PV = {1:"grid", 2:"contour", 3:"contourf"}[2]
 fitsa.convolve_PV_p = True
-fitsa.convolve_PV_v = 0 # True  #
+fitsa.convolve_PV_v = 1 # True  #
 fitsa.pointsource_test = False
