@@ -15,11 +15,11 @@ import cubicsolver
 msg = mytools.Message(__file__)
 #######################
 
-
 def main():
     data = EnvelopeDiskModel(**vars(inp.model))
     
-    #Plots(data, dn_fig=dn_fig)
+    if inp.model.plot:
+        Plots(data, dn_fig=dn_fig)
 
 class EnvelopeDiskModel:
     '''
@@ -64,7 +64,8 @@ class EnvelopeDiskModel:
         self.mu_cav = np.cos(self.cavity_angle/180*np.pi)
 
         if args != {}:
-            raise Exception("There is unused args :", args)
+            msg("There is unused args :", args)
+#            raise Exception("There is unused args :", args)
 
         self.print_params()
         self.calc()
@@ -176,6 +177,7 @@ class EnvelopeDiskModel:
         uth = v0 * zeta*sin0**2*mu0/self.sin * np.sqrt(1 + mu_to_mu0)
         uph = v0 * sin0**2/self.sin * np.sqrt(zeta)
         rho = - self.dMdt / (4 * np.pi * r**2 * ur) / (1 + zeta*(3*mu0**2-1))
+        mask = 1.0
         if self.cavity_angle is not None:
             mask = np.where(mu0 < self.mu_cav, 1, 0)
         return rho*mask, ur*mask, uth*mask, uph*mask, zeta, mu0
@@ -197,11 +199,13 @@ class EnvelopeDiskModel:
     def get_Kinematics_SimpleBalistic(self, r, p=-1.5, r0=None, rho0=None, dMdt=None, h=0.1, fillv=0):
         vff = np.sqrt(2 * self.GM / r)
         x = r/self.r_CB
-        b_env = np.logical_and(r*self.sin >= self.r_CB, self.mu <= self.mu_cav)
-        rho = np.where(b_env, self.dMdt/(4*np.pi*r**2 * vff), fillv)
-        ur = - vff * np.sqrt(np.where(b_env, 1-1/x, fillv))
-        uth = np.where(b_env, 0, fillv)
-        uph = np.where(b_env, vff/np.sqrt(x), fillv)
+        def value_env(val):
+            b_env = np.logical_and(r*self.sin >= self.r_CB, self.mu <= self.mu_cav)
+            return np.where(b_env, val, fillv)
+        rho = value_env(self.dMdt/(4*np.pi*r**2 * vff))
+        ur = - vff * np.sqrt(value_env(1-1/x))
+        uth = value_env(0)
+        uph = value_env(vff/np.sqrt(x))
         zeta = 0
         mu0 = self.mu
         return rho, ur, uth, uph, zeta, mu0
