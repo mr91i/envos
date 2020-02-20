@@ -6,18 +6,12 @@ RADMC_DIR := $(BASE_DIR)"/radmc"
 SRC_DIR := $(SRC_DIR)"/pmodes"
 RM = rm -rfv
 
-echo:
-	echo $(BASE_DIR) , $(BASE_DIR2)
-
-#SHELL=/bin/bash
-#SHELL:=/bin/bash -O globstar
-#.SHELLFLAGS="-O extglob -c"
 
 default:
 	pmodes/mkmodel.py
 	pmodes/radmcset.py
 	pmodes/sobs.py
-	pmodes/analyxe.py
+	pmodes/analyze2.py
 
 
 ## Execut exec.py without necessary of connecting the server

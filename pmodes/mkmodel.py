@@ -158,8 +158,17 @@ class EnvelopeDiskModel:
         else:
             raise Exception("Unknown model: ", model)
         rho, ur, uth, uph, zeta, mu0 = solver(r)
+        for i, v in enumerate([rho, ur, uth, uph, zeta, mu0]):
+            if i==2:
+                print(v)
+            if np.isnan(v).any():
+        #if np.isnan([rho, ur, uth, uph, zeta, mu0]).any():
+                raise Exception("Bad values.")
+
         if self.simple_density:
+            print(np.max(rho))
             rho = self.get_Kinematics_SimpleBalistic(r)[0]
+            print("-->", np.max(rho))
         if self.counterclockwise_rotation:
             uph *= -1
         uR = ur * self.sin + uth * self.mu
@@ -180,7 +189,7 @@ class EnvelopeDiskModel:
         mask = 1.0
         if self.cavity_angle is not None:
             mask = np.where(mu0 < self.mu_cav, 1, 0)
-        return rho*mask, ur*mask, uth*mask, uph*mask, zeta, mu0
+        return rho*mask, ur, uth, uph, zeta, mu0
 
     @staticmethod
     def sol1(m,zeta):
@@ -295,7 +304,7 @@ class EnvelopeDiskModel:
 #
 
 
-def Plots(D, r_lim=500, dn_fig=None):
+def Plots(D, r_lim=2000, dn_fig=None):
 
     def slice_at_midplane(tt, *vals_rtp):
         iphi = 0
@@ -318,7 +327,7 @@ def Plots(D, r_lim=500, dn_fig=None):
                        decorator=lambda x: x.take(0,2))
     Vec = np.array([D.uR.take(0, 2), D.uz.take(0, 2)])
     # Density and velocity map
-    plmap.map(D.rho, 'rho', cblim=[1e-21, 1e-16], cbl=r'log Density [g/cm$^{3}$]', div=10, Vector=Vec, n_sl=40)
+    plmap.map(D.rho, 'rho', cblim=[1e-21, 1e-16], cbl=r'log Density [g/cm$^{3}$]', div=10, n_sl=40)
     # Ratio between mu0 and mu : where these gas come from
     plmap.map(np.arccos(D.mu0)*180/np.pi, 'theta0', cblim=[0, 90], cbl=r'$\theta_0$ [degree]', div=10, Vector=Vec, n_sl=40, logcb=False)
 

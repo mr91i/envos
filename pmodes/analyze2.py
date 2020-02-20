@@ -114,7 +114,7 @@ class FitsAnalyzer:
                 xl="Position [au]", yl="Position [au]", cbl=r'Intensity [Jy pixel$^{-1}$ ]',
                 div=n_lv, mode='grid', cbmin=0, cbmax=Ipp.max())
 
-    def pvdiagram(self, n_lv=50):
+    def pvdiagram(self, n_lv=10):
         Ippv = copy.copy(self.Ippv_raw)
         if self.pointsource_test:
             self.self._pointsource(Ippv)
@@ -184,12 +184,15 @@ class FitsAnalyzer:
         if self.convolve_PV_p:
             Kernel_xy = Gaussian2DKernel(x_stddev=abs(beam_a_au/self.dx)/sigma_over_FWHM,
                                          y_stddev=abs(beam_b_au/self.dy)/sigma_over_FWHM,
+                                         x_size=4*len(self.xau) + 1,#int(abs(beam_a_au/self.dx)/sigma_over_FWHM)*12+1,
+                                         y_size=4*len(self.yau) + 1,#int(abs(beam_b_au/self.dy)/sigma_over_FWHM)*12+1,
                                          theta=theta_deg/180*np.pi)
             for i in range(self.Nz):
                 Ippv_conv[i] = convolver(Ippv_conv[i], Kernel_xy)
 
         if self.convolve_PV_v:
-            Kernel_v = Gaussian1DKernel(v_width_kms/self.dv/sigma_over_FWHM)
+            Kernel_v = Gaussian1DKernel(v_width_kms/self.dv/sigma_over_FWHM,
+                                        x_size=4*len(self.vkms) + 1)#int(v_width_kms/self.dv/sigma_over_FWHM)*12+1)
             for j in range(self.Ny):
                 for k in range(self.Nx):
                     Ippv_conv[:, j, k] = convolver(Ippv_conv[:, j, k], Kernel_v)

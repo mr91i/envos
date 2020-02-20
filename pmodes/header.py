@@ -17,14 +17,20 @@ Please use and update your Python3 to the newest version.
 At this writing, Python 3.8.1 is the newest.''')
     exit()
 
-
 class read_inp:
     def __init__(self, path):
         with open(path) as f:
             exec(f.read(), {}, self.__dict__)
-#or 
-# import ../L1527.in as inp 
-
 inp = read_inp(dn_home+"/L1527.in")
+
+#or 
+#from .. import "L1527.in" as inp 
+
+#or
+#import importlib
+#inp = importlib.import_module("..","L1527.in")
+#inp = importlib.util.find_spec("L1527.in", path=dn_home)
+#print(inp)
+
 #print("Here is %s"%dn_here)
 #print("Home directory is %s"%dn_home)

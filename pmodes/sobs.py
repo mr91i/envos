@@ -107,7 +107,7 @@ class ObsSimulator():  # This class returns observation data
     def observe(self):
         common = "incl %d phi %d posang %d" % (
             self.incl, self.phi, self.posang)
-        option = "noscat nostar fluxcons" # doppcatch"
+        option = "noscat nostar " #fluxcons doppcatch"
         camera = "npixx {} npixy {} ".format(self.npixx, self.npixy)
         camera += "zoomau {:g} {:g} {:g} {:g} ".format(*(self.zoomau_x+self.zoomau_y))
         line = "iline {:d}".format(self.iline)
@@ -160,7 +160,7 @@ class ObsSimulator():  # This class returns observation data
             self.data = rmci.readImage()
 
         if np.max(self.data.image) == 0:
-            exit()
+            raise Exception("zero image...")
 
         freq0 = (self.data.freq[0] + self.data.freq[-1])*0.5
         dfreq = self.data.freq[1] - self.data.freq[0]
@@ -190,8 +190,10 @@ class ObsSimulator():  # This class returns observation data
     def save_fits(self):
         fp_fitsdata = self.dn_fits+'/'+self.filename+'.fits'
         if os.path.exists(fp_fitsdata):
+            msg("remove old fits file:",fp_fitsdata)
             os.remove(fp_fitsdata)
         self.data.writeFits(fname=fp_fitsdata, dpc=self.dpc)
+        msg("Saved fits file:",fp_fitsdata)
 
     def save_instance(self):
         pd.to_pickle(self, self.dn_fits+'/'+self.filename+'.pkl')

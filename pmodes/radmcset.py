@@ -140,6 +140,8 @@ class SetRadmc:
         self.rhog = _interpolator2d(
             self.D.rho_tot[:, :, 0], self.D.r_ax, self.D.th_ax, self.rr, self.tt, logx=True, logz=True)
         self.rhod = self.rhog * self.fdg
+        if np.max(self.rhog) == 0:
+            raise Exception("Zero density")
 
         self.vr = _interpolator2d(
             self.D.ur[:, :, 0], self.D.r_ax, self.D.th_ax, self.rr, self.tt, logx=True, logz=True)
@@ -148,6 +150,11 @@ class SetRadmc:
         self.vph = _interpolator2d(
             self.D.uph[:, :, 0], self.D.r_ax, self.D.th_ax, self.rr, self.tt, logx=True, logz=True)
         self.vturb = np.zeros_like(self.vr)
+
+
+        msg(self.D.uth[:, :, 0])
+        msg(self.vth, exit=1)
+        
 
         self.n_mol = self.rhog / (2.34*cst.amu) * self.mol_abun 
         if self.temp_mode == 'const':
@@ -247,15 +254,15 @@ class SetRadmc:
             msg("Saved: ",f.name)
 
     def set_dust_temperature(self):
-            with open(self.dpath_radmc+'/dust_temperature.dat', 'w+') as f:
-                f.write('1\n')                       # Format number
-                f.write('%d\n' % self.ntot)
-                f.write('1\n')                       # Format number
-                # Create a 1-D view, fortran-style indexing
-                data = self.tgas.ravel(order='F')
-                data.tofile(f, sep='\n', format='%13.6e')
-                f.write('\n')
-                msg("Saved: ",f.name)
+        with open(self.dpath_radmc+'/dust_temperature.dat', 'w+') as f:
+            f.write('1\n')                       # Format number
+            f.write('%d\n' % self.ntot)
+            f.write('1\n')                       # Format number
+            # Create a 1-D view, fortran-style indexing
+            data = self.tgas.ravel(order='F')
+            data.tofile(f, sep='\n', format='%13.6e')
+            f.write('\n')
+            msg("Saved: ",f.name)
 
     def set_dust_density(self):
         with open(self.dpath_radmc+'/dust_density.inp', 'w+') as f:
@@ -282,7 +289,7 @@ class SetRadmc:
             msg("Saved: ",f.name)
 
     def set_input(self):
-        params=[["nphot", 10000 ], #self.nphot],
+        params=[["nphot", 1000000 ], #self.nphot],
                 ["scattering_mode_max", 0], 
                 ["iranfreqmode", 1], 
                 ["mc_scat_maxtauabs", 5.0], 
@@ -292,8 +299,8 @@ class SetRadmc:
                 #["camera_min_dangle", 0.005], # 0.05
                 #["camera_min_drr",0.0003], # 0.003
                 #["camera_refine_criterion",1.0],
-                ["nphot_spec", 1], 
-                ["iseed", -5415],
+                #["nphot_spec", 100000], 
+                #["iseed", -5415],
                 ]
 
         with open(self.dpath_radmc+'/radmc3d.inp', 'w+') as f:
