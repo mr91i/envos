@@ -272,14 +272,16 @@ class SetRadmc:
             msg("Saved: ",f.name)
 
     def set_input(self):
-        params=[["nphot", 10000 ], #self.nphot],
+        params=[
+                ["nphot", 1000000], #self.nphot],
                 ["scattering_mode_max", 0], 
                 ["iranfreqmode", 1], 
                 ["mc_scat_maxtauabs", 5.0], 
                 ["tgas_eq_tdust",1], 
-                ["camera_maxdphi", 0.], 
-                ["nphot_spec", 1], 
-                ["iseed", -5415]]
+                #["camera_maxdphi", ], 
+                #["nphot_spec", 1], 
+                ["iseed", -5415],
+               ]
         with open(self.dpath_radmc+'/radmc3d.inp', 'w+') as f:
             for k,v in params:
                  f.write('{} = {}\n'.format(k, v))

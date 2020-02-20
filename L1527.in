@@ -64,7 +64,7 @@ radmc.mol_abun = 1e-15
 radmc.mol_name = 'c18o'  # c18o or cch
 radmc.m_mol = 28 * cst.amu
 iline = 1
-radmc.v_fwhm = 0.5 * cst.kms  # or give Tenv
+radmc.v_fwhm = 0.005 * cst.kms  # or give Tenv
 # 1: tdust = tgas , tgas = const
 # 2: tdust = mctherm , tgas = tdust
 radmc.temp_mode = "const"  # 1 "const", 2 "mctherm"
@@ -111,5 +111,5 @@ fitsa.beamb_au = 0.9 * fitsa.dpc
 fitsa.vwidth_kms = 0.5
 fitsa.plotmode_PV = {1:"grid", 2:"contour", 3:"contourf"}[3]
 fitsa.convolve_PV_p = True
-fitsa.convolve_PV_v = 0 # True  #
+fitsa.convolve_PV_v = 1 # True  #
 fitsa.pointsource_test = False
