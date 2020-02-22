@@ -9,9 +9,9 @@ RM = rm -rfv
 
 default:
 	pmodes/mkmodel.py
-	pmodes/radmcset.py
+	pmodes/setradmc.py
 	pmodes/sobs.py
-	pmodes/analyze2.py
+	pmodes/visualize.py
 
 
 ## Execut exec.py without necessary of connecting the server

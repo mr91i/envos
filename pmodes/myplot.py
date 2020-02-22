@@ -347,27 +347,58 @@ class Plotter:
 
 
         levels = np.linspace(cblim[0], cblim[1], int(div)+1)
-        norm = BoundaryNorm(levels, ncolors=cmap.N)
+        norm = BoundaryNorm(levels, ncolors=cmap.N, clip=True)
         if mode == "grid":
             # Note: 
             # this guess of xi, yi relyies on the assumption where
             # grid space is equidistant.
-            
-            dx = x[1] - x[0] if len(x) != 1 else y[1] - y[0]
-            dy = y[1] - y[0] if len(y) != 1 else x[1] - x[0]
-            xxi = np.hstack((xx-dx/2., (xx[:, -1]+dx/2.).reshape(-1, 1)))
-            xxi = np.vstack((xxi, xxi[-1]))
-            yyi = np.vstack((yy-dy/2., (yy[-1, :]+dy/2.).reshape(1, -1)))
-            yyi = np.hstack((yyi, yyi[:, -1].reshape(-1, 1)))
 
-            img = plt.pcolormesh(xxi, yyi, z, norm=norm,
-                                 rasterized=True, cmap=cmap)
+#            print( len(x[:,0]-0.5*(x[:,1]-x[:,0])), 
+#                              (0.5*(x[:,0:-1]+x[:,1:]) ).shape  )    
+#np.stack(( [x[:,0]-0.5*(x[:,1]-x[:,0])], 
+#                              0.5*(x[:,0:-1]+x[:,1:]), 
+#                             [x[:,-1]+0.5*(x[:,-1]-x[:,-2])] ), axis=-1)
+#            yi = np.hstack([[y[0]-0.5*(y[1]-y[0])], 0.5*( y[0:-1]+y[1:] ), [y[-1] + 0.5*(y[-1]-y[-2])]])
+#            xxi, yyi = np.meshgrid(xi, yi, indexing='xy')  
+
+#            dx = x[1] - x[0] if len(x) != 1 else y[1] - y[0]
+#            dy = y[1] - y[0] if len(y) != 1 else x[1] - x[0]
+#            xxi = np.hstack((xx-dx/2., (xx[:, -1]+dx/2.).reshape(-1, 1)))
+#            xxi = np.vstack((xxi, xxi[-1]))
+#            yyi = np.vstack((yy-dy/2., (yy[-1, :]+dy/2.).reshape(1, -1)))
+#            yyi = np.hstack((yyi, yyi[:, -1].reshape(-1, 1)))
+
+  #          print(x.shape, y.shape)
+            
+            xxi, yyi = mytools.make_meshgrid_interface(xx, yy)
+            #print(xx.shape,"\n", xxi.shape, '\n')
+            #print(yy,"\n", yyi, "\n") 
+            #print(vars(norm), z, xxi, yyi )
+ #           print(xxi.shape, yyi.shape, z.shape, x.shape, y.shape)
+            #print( (z-np.min(z))/(np.max(z)-np.min(z)) ) 
+            #img = plt.pcolormesh(xxi.T, yyi.T, (z.T-np.min(z))/(np.max(z)-np.min(z)), 
+            #                     cmap=cmap)
+            #img = plt.pcolormesh(xxi.T, yyi.T, z.T, norm=norm, vmin=cblim[0],  vmax=cblim[1],
+            #                     cmap=cmap,shading='flat')
+
+#            print(np.max(xx), np.max(xxi))
+
+#            exit()
+#            for x0, xx0, xxi0 in zip(x, xx, xxi):                
+#                print(x0, xxi0)
+
+            #print(xxi, yyi)
+            img = plt.pcolormesh(xxi.T, yyi.T, z.T, norm=norm, vmin=cblim[0],  vmax=cblim[1],
+                                 cmap=cmap, rasterized=True)
+
+            #img = plt.pcolormesh(x.T, y.T, z.T, norm=norm, vmin=cblim[0],  vmax=cblim[1],
+            #                     cmap=cmap, shading='gouraud', rasterized=True)
 
         elif mode == "contourf":
             # Note:
             # if len(x) or len(y) is 1, contourf returns an eroor.
             # Instead of this, use "grid" method.
-            img = ax.contourf(xx, yy, z, interval, vmin=cblim[0],
+            img = plt.contourf(xx, yy, z, interval, vmin=cblim[0],
                               vmax=cblim[1], extend='both', cmap=cmap)
             #plt.contourf( xx , yy , z , n_lv , cmap=cmap)
 
@@ -414,7 +445,6 @@ class Plotter:
             plt.title(title)
 
 
-        print(square, self.square, self.notNone(square, self.square)) 
         if self.notNone(square, self.square):
             plt.gca().set_aspect('equal', adjustable='box')
 

@@ -10,14 +10,7 @@ import pandas as pd
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from multiprocessing import Pool
-
-import copy
-import astropy.io.fits as iofits
-from scipy import integrate, optimize, interpolate
-from skimage.feature import peak_local_max
-from astropy.convolution import convolve, convolve_fft, Gaussian1DKernel, Gaussian2DKernel
 from header import inp, dn_home, dn_radmc, dn_fig
-import myplot as mp
 import cst
 import mytools
 

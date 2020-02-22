@@ -1,13 +1,48 @@
 from __future__ import print_function,  absolute_import, division
 import subprocess
 import os
-
+import numpy as np
 
 #def msg_maker(filename):
 #    return m 
 def freq_to_vkms(freq0, dfreq):
     import cst
     return cst.c/1e5* dfreq/freq0
+
+def make_array_center( xi ):
+    return 0.5 * ( xi[0:-1] + xi[1:] )
+
+def make_array_interface( xc ):
+#    print(np.max(xc))
+#    print(xc)
+#    print( 0.5*(xc[0:-1]+xc[1:]) )
+        return np.concatenate([ [xc[0]-0.5*(xc[1]-xc[0])],
+                             0.5*(xc[0:-1]+xc[1:]),
+                            [xc[-1]+0.5*(xc[-1]-xc[-2])] ], axis=0)
+
+def make_meshgrid_center(xxi, yyi, indexing="xy"):
+    if indexing=="xy":
+        xc = make_array_center(xxi[0,:])
+        yc = make_array_center(yyi[:,0])
+        return np.meshgrid(xc, yc)
+    elif indexing=="ij":
+        xc = make_array_center(xxi[:,0])
+        yc = make_array_center(yyi[0,:])
+        return np.meshgrid(xc, yc, indexing="ij")
+
+def make_meshgrid_interface( xxc, yyc , indexing="xy"):
+    print(np.max(xxc))
+    if indexing=="xy":
+
+        xi = make_array_interface(xxc[0,:])
+        yi = make_array_interface(yyc[:,0])
+        return np.meshgrid(xi, yi)
+    elif indexing=="ij":
+        print(xxc)
+        xi = make_array_interface(xxc[:,0])
+        print(np.max(xi))
+        yi = make_array_interface(yyc[0,:])
+        return np.meshgrid(xi, yi, indexing="ij")
 
 
 class Message:

@@ -34,7 +34,7 @@ class EnvelopeDiskModel:
         phi_in=0, phi_out=0, nphi=1,
         Tenv=10, r_CR=100*cst.au, Mstar=cst.Msun, t=None, Omega=None, j0=None,
         cavity_angle=0, Tdisk=70, disk_star_fraction=0.01, 
-        simple_density = False, disk=True, counterclockwise_rotation=False,
+        simple_density=False, disk=True, counterclockwise_rotation=False,
         fn_model_pkl=None, submodel=False, 
         **args):
 
@@ -42,11 +42,19 @@ class EnvelopeDiskModel:
             if k is not 'self':
                 setattr(self, k, v)
 
-        # Non Variable aramters Through Calculation
+        # Non Variable Paramters Through Calculation
         self.model = self.read_inp_ire_model(ire_model)
-        self.r_ax = np.logspace(np.log10(r_in), np.log10(r_out), nr)
-        self.th_ax = np.linspace(theta_in, theta_out, ntheta)
-        self.ph_ax = np.linspace(phi_in, phi_out, nphi)
+        if 0:
+            ri = np.logspace(np.log10(r_in), np.log10(r_out), nr+1)
+            thetai = np.linspace(theta_in, theta_out, ntheta+1)
+            phii = np.linspace(phi_in, phi_out, nphi+1)
+            self.r_ax = 0.5 * (ri[0:nr] + ri[1:nr+1])
+            self.th_ax = 0.5 * (thetai[0:ntheta] + thetai[1:ntheta+1])
+            self.ph_ax = 0.5 * (phii[0:nphi] + phii[1:nphi+1])
+        else:
+            self.r_ax = np.logspace(np.log10(r_in), np.log10(r_out), nr)
+            self.th_ax = np.linspace(theta_in, theta_out, ntheta)
+            self.ph_ax = np.linspace(phi_in, phi_out, nphi) if nphi > 1 else [0] 
 
         self.mu = np.round(np.cos(self.th_ax), 15)
         self.sin = np.where(self.mu == 1, 1e-100, np.sqrt(1 - self.mu**2))
@@ -159,8 +167,8 @@ class EnvelopeDiskModel:
             raise Exception("Unknown model: ", model)
         rho, ur, uth, uph, zeta, mu0 = solver(r)
         for i, v in enumerate([rho, ur, uth, uph, zeta, mu0]):
-            if i==2:
-                print(v)
+            #if i==2:
+            #    print(v)
             if np.isnan(v).any():
         #if np.isnan([rho, ur, uth, uph, zeta, mu0]).any():
                 raise Exception("Bad values.")
