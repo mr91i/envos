@@ -159,7 +159,7 @@ class Plotter:
     #
 
     def plot(self, y_list, out=None, x=None, c=[None],
-             ls=[], lw=[], alp=[], leg=True, frg_leg=0, title='',
+             ls=[], lw=[], alp=[], leg=None, frg_leg=0, title='',
              xl=None, yl=None, xlim=None, ylim=None,
              logx=False, logy=False, logxy=False, pm=False,
              hl=[], vl=[], fills=None, arrow=[], lbs=None,
@@ -257,7 +257,7 @@ class Plotter:
         # Postprocessing
         plt.title(title)
 
-        if leg and frg_leg == 1:
+        if (leg or self.leg) and frg_leg == 1:
             plt.legend(**self.args_leg)
 
         if (logx or self.logx) or (logxy or self.logxy):
