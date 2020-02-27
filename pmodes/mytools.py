@@ -80,26 +80,57 @@ def _msg(*s, **args):
         exit()
 
 
+class Exe:
+    def __init__(self, debug=False, dryrun=False, skiperror=False):
+        self.debug = debug
+        self.dryrun = dryrun
+        self.skiperror = skiperror
 
-def exe(cmd, debug=False, dryrun=False, skiperror=False):
-    try:
-        if dryrun:
-            print(cmd)
-            return 0
-        subprocess.check_call(r'echo `date "+%Y/%m/%d-%H:%M:%S"` "      " "{}" >> .executed_cmd.txt'.format(cmd), shell=True )
-#       subprocess.check_call('echo `date \"+\%Y/\%m/\%d-\%H:\%M:\%S\" ` \'%s\' >> .executed_cmd.txt'%cmd, shell=True )
-        print("Execute: {}".format(cmd))
-        if not debug:
-            retcode = subprocess.check_call( cmd, shell=True )
-        return 0
-        #retcode = subprocess.check_call( cmd.split() )
-    except subprocess.CalledProcessError as e:
-        if skiperror:
-            print("Skipper error:")
-            print("    %s"%e )
-        else:
-            print('Error generated:')
-            print(' - return code is %s'%e.returncode)
-            print(' - cmd is \'%s\''%e.cmd)
-            print(' - output is %s'%e.output)
-            raise Exception( e )
+    def __call__(self, cmd): 
+        try:
+            if self.dryrun:
+                print("[dryrun] ",cmd)
+                return 0
+            else:
+                subprocess.check_call(r'echo `date "+%Y/%m/%d-%H:%M:%S"` "      " "{}" >> .executed_cmd.txt'.format(cmd), shell=True)
+                print("Execute: {}".format(cmd))
+                if not self.debug:
+                    retcode = subprocess.check_call(cmd, shell=True)
+                return 0
+                #retcode = subprocess.check_call( cmd.split() )
+        except subprocess.CalledProcessError as e:
+            if self.skiperror:
+                print("Skipper error:")
+                print("    %s"%e )
+            else:
+                print('Error generated:')
+                print(' - return code is %s'%e.returncode)
+                print(' - cmd is \'%s\''%e.cmd)
+                print(' - output is %s'%e.output)
+                raise Exception( e )
+
+exe = Exe()
+
+
+#  def exe(cmd, debug=False, dryrun=False, skiperror=False):
+#      try:
+#          if dryrun:
+#              print(cmd)
+#              return 0
+#          subprocess.check_call(r'echo `date "+%Y/%m/%d-%H:%M:%S"` "      " "{}" >> .executed_cmd.txt'.format(cmd), shell=True )
+#  #       subprocess.check_call('echo `date \"+\%Y/\%m/\%d-\%H:\%M:\%S\" ` \'%s\' >> .executed_cmd.txt'%cmd, shell=True )
+#          print("Execute: {}".format(cmd))
+#          if not debug:
+#              retcode = subprocess.check_call( cmd, shell=True )
+#          return 0
+#          #retcode = subprocess.check_call( cmd.split() )
+#      except subprocess.CalledProcessError as e:
+#          if skiperror:
+#              print("Skipper error:")
+#              print("    %s"%e )
+#          else:
+#              print('Error generated:')
+#              print(' - return code is %s'%e.returncode)
+#              print(' - cmd is \'%s\''%e.cmd)
+#              print(' - output is %s'%e.output)
+#              raise Exception( e )
