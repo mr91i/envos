@@ -541,12 +541,12 @@ class RadmcData:
         pl1d = mp.Plotter(self.dn_fig, x=self.xauc,
                        logx=True, leg=False,
                        xl='Radius [au]', xlim=[10, 10000],
-                       fn_wrapper=lambda s:'rmc_%s_1d'%s)
+                       fn_wrapper=lambda s:'rmc_%s_1d'%s, square=True)
 
         pl2d = mp.Plotter(self.dn_fig, x=self.RR, y=self.zz,
                        logx=False, logy=False, logcb=True, leg=False,
                        xl='Radius [au]', yl='Height [au]', xlim=[0, 500], ylim=[0, 500],
-                       fn_wrapper=lambda s:'rmc_%s_2d'%s)
+                       fn_wrapper=lambda s:'rmc_%s_2d'%s, square=True)
 
         def plot_plofs(d, fname, lim=None, log=True, lb=None):
             pl1d.plot(d[-1,:], fname, ylim=lim, logy=log, yl=lb)
