@@ -54,7 +54,7 @@ class Message:
     def __call__(self, *s, **args ):
         if ("debug" in args) and args["debug"]:
             if self.debug:
-                print("[debug] ", end='')
+                print("[debug]", end='')
             else:
                 return
         else:
@@ -70,11 +70,11 @@ def _msg(*s, **args):
 #    print(os.path.basename() )
     if ("debug" in args) and args["debug"]:
         if inp.debug:
-            print("[debug] ", end='')
+            print("[debug]", end='')
         else:
             return
     else:
-        print("[plotter.py] ", end='')
+        print("[plotter.py]", end='')
     print(*s)
     if ("exit" in args) and args["exit"]:
         exit()
@@ -89,7 +89,7 @@ class Exe:
     def __call__(self, cmd): 
         try:
             if self.dryrun:
-                print("[dryrun] ",cmd)
+                print("[dryrun]",cmd)
                 return 0
             else:
                 subprocess.check_call(r'echo `date "+%Y/%m/%d-%H:%M:%S"` "      " "{}" >> .executed_cmd.txt'.format(cmd), shell=True)

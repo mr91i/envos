@@ -23,11 +23,15 @@ RADMCDIR = "./radmc"
 INPUT_FILE = "L1527.in"
 RMCMD = "rm -fv"
 
-mytools.exe.dryrun = True
+mytools.exe.dryrun = True if args.dryrun else False
 
 def main():
-    for target in args.targets:
-    
+    if args.nohup:
+        cmd = f"{__file__} "+ ("--dryrun " if args.dryrun else " ") + " ".join(args.targets)
+        mytools.exe(f"nohup {PYCMD} {cmd} >> nohup.out &")
+        exit()
+
+    for target in args.targets:    
         if target == "default":
             Execute("all")
     
@@ -41,12 +45,13 @@ def main():
             #params_list.append( make_params("fitsa.convolution_pvdiagram", "conv", [0,1]))
             params_list = make_params_list([["model.ire_model", "ire", ["Simple", "CM"]],
                                            ["radmc.nr", "nr", [64, 128, 256]],
-                                           ["beam_scale", "bsc", [0.1,0.3,1,3]], 
+#                                           ["beam_scale", "bsc", [0.1,0.3,1,3]],
                  #                          ["fitsa.convolution_pvdiagram", "conv", [0,1]]],
-                                          )
+                                           ])
     
-            parameter_survey("all", params_list, INPUT_FILE )
-    
+            subparam = make_params("beam_scale", "bsc", [0.1,0.3,3]) 
+            parameter_survey("all", params_list, INPUT_FILE, submode="visualize", subparams=subparam ) 
+ 
         elif target == "clean":
             for tar in ["cache","subproc","radmc","fits","pkl"]:
               clean(tar)
@@ -55,10 +60,10 @@ def main():
             clean(target.replace("clean_","")) 
     
         elif target == "kill_process":
-            pass
+            kill_process()
 
         else:
-            exit()
+            raise Exception("Unknown target name: ", target)
 
 
 
@@ -75,15 +80,31 @@ def make_params_list( param_info_list ):
     return [ make_params(name, shortname, values) for name, shortname, values in param_info_list]
 
 #### somethoiung worng 
-def parameter_survey( mode , params, ori_inpfn ):
+def parameter_survey( mode , params, ori_inpfn , submode=None, subparams=None):
  #       [ [param_a_1,..], [param_b_1,..], [param_c_1,..] ]
-    for param_set in itertools.product(*params):
+    def calc_one_paramset(mode, param_set, ori_inpfn):
         target_chars = [ par.name.replace(".","\.") + "\s*=\s*" for par in param_set ]
-        new_chars = [f"{par.name} = {par.value}  # original:" for par in param_set ]
-        tmp_fname = f"{ori_inpfn}.tmp_" + "_".join([ f"{par.short_name}={par.value}" for par in param_set ])
+        new_chars = [f"{par.name} = {repr(par.value)}  # original:" for par in param_set ]
+        label = "_".join([ f"{par.short_name}{par.value}" for par in param_set ])
+        tmp_fname = f"{ori_inpfn}.tmp_" + label
+
         replace_inputfile2(target_chars, new_chars, ori_inpfn, tmp_fname)
         Execute(mode, inputfile=tmp_fname)
-        mytools.exe('cp -r fig fig_'+"_".join([f"{par.short_name}={par.value}" for par in param_set]) )
+        mytools.exe('cp -r fig fig_'+label )
+
+    for param_set in itertools.product(*params):
+        calc_one_paramset(mode, param_set, ori_inpfn)
+
+        if submode is not None:
+            for sub_param_set in itertools.product(*subparams):
+                new_param_set = param_set + sub_param_set
+                calc_one_paramset(submode, new_param_set, ori_inpfn)
+
+            #replace_inputfile2(target_chars, new_chars, ori_inpfn, tmp_fname)
+            #Execute(mode, inputfile=tmp_fname)
+            #mytools.exe('cp -r fig fig_'+label )
+
+
 
 class Execute:
 #    def __init__(self, py="python", src_dir="", inputfile="", nohup=False):    
@@ -139,10 +160,12 @@ class Execute:
 def replace_inputfile2(target_chars, new_chars, original_file, temp_file):
     with open(original_file, mode='r') as f:
         filetxt = f.read()
+
     for tch, nch in zip(target_chars, new_chars):
         filetxt = re.sub(tch, nch, filetxt)
-    with open(temp_file, mode='w') as f:
-        f.write(filetxt)
+    if not args.dryrun:
+        with open(temp_file, mode='w') as f:
+            f.write(filetxt)
 
 
 def clean(target, rm_cmd=RMCMD, src_dir=SRCDIR, radmc_dir=RADMCDIR):
@@ -173,6 +196,26 @@ def clean(target, rm_cmd=RMCMD, src_dir=SRCDIR, radmc_dir=RADMCDIR):
 
     if target == "pkl":
         rm(getpaths(radmc_dir, ["*.pkl"]))
+
+def kill_process():
+    msg("\nMay I kill \"radmc3d\" ? ")
+    mytools.exe("ps")
+    input("")
+    mytools.exe("kill all radmc3d")
+
+    msg("\nMay I kill \"python\" ? ")
+    mytools.exe("ps")
+    input("")
+    mytools.exe("killall python python2 python3 ")
+
+    #echo -e "\nMay I kill \"radmc3d\" ? : OK[Enter]"
+    #ps
+    #read 
+    #killall radmc3d
+    #echo -e "\nMay I kill \"python\" ? : OK[Enter]"
+    #ps
+    #read 
+    #-killall python python2 python3 
 
 if __name__=='__main__':
     main()
