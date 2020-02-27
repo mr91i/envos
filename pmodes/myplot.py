@@ -15,11 +15,11 @@ import mytools
 from matplotlib.colors import BoundaryNorm, Normalize
 
 
-msg = mytools.Message(__file__)
+msg = mytools.Message(__file__, debug=False)
 #######################
 
-msg("%s is used." % os.path.abspath(__file__))
-msg("This is python %s" % pyver)
+msg("%s is used." % os.path.abspath(__file__), debug=1)
+msg("This is python %s" % pyver, debug=1)
 dn_this_file = os.path.dirname(os.path.abspath(__file__))
 
 
@@ -342,7 +342,7 @@ class Plotter:
 
             if (cblim[1]+delta - cblim[0])/delta > 100:
                 raise Exception("Wrong cblim, probably...", cblim)
-                
+
         interval = np.arange(cblim[0], cblim[1]+delta, delta)
 
 

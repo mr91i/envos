@@ -12,7 +12,7 @@ import cst
 import mytools
 import cubicsolver
 
-msg = mytools.Message(__file__)
+msg = mytools.Message(__file__, debug=False)
 #######################
 
 def main():
@@ -72,7 +72,7 @@ class EnvelopeDiskModel:
         self.mu_cav = np.cos(self.cavity_angle/180*np.pi)
 
         if args != {}:
-            msg("There is unused args :", args)
+            msg("There is unused args :", args, debug=1)
 #            raise Exception("There is unused args :", args)
 
         self.print_params()
@@ -325,11 +325,11 @@ def Plots(D, r_lim=2000, dn_fig=None):
     stamp = inp.object_name
     ph_ax = D.ph_ax if len(D.ph_ax) != 1 else np.linspace(-np.pi, np.pi, 31)
     r_mg, th_mg, ph_mg = np.meshgrid(D.r_ax, D.th_ax, ph_ax, indexing='ij')
-    R_mg, z_mg = r_mg * [np.sin(th_mg),  np.cos(th_mg)]
+    R_mg, z_mg = r_mg * [np.sin(th_mg), np.cos(th_mg)]
     x_mg, y_mg = R_mg * [np.cos(ph_mg), np.sin(ph_mg)]
 
     plmap = mp.Plotter(dn_fig, x=R_mg.take(0, 2)/cst.au, y=z_mg.take(0, 2)/cst.au, 
-                       logx=False, logy=False, logcb=True, leg=False, 
+                       logx=False, logy=False, logcb=True, leg=False, square=True,
                        xl='Radius [au]', yl='Height [au]', xlim=[0, r_lim], ylim=[0, r_lim], 
                        fn_wrapper=lambda s:'map_%s_%s'%(s, stamp),
                        decorator=lambda x: x.take(0,2))
@@ -350,8 +350,9 @@ def Plots(D, r_lim=2000, dn_fig=None):
     Vec = np.array([ux.take(-1, 1), uy.take(-1, 1)])
 
     plplane = mp.Plotter(dn_fig, x=x_mg.take(-1, 1)/cst.au, y=y_mg.take(-1, 1)/cst.au,
-                       logx=False, logy=False, leg=False,
-                       xl='x [au]', yl='y [au] (-:our direction)', xlim=[-1000, 1000], ylim=[-1000, 1000],
+                       logx=False, logy=False, leg=False, square=True,
+                       xl='x [au]', yl='y [au] (-:our direction)', 
+                       xlim=[-1000, 1000], ylim=[-1000, 1000],
                        fn_wrapper=lambda s:'plmap_%s_%s'%(s, stamp),
                        decorator=zdeco_plane)
 

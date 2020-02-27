@@ -49,7 +49,7 @@ class Message:
     def __init__(self, filename=None, debug=None):
         self.filename = os.path.basename(filename)
         self.debug = debug
-        print("Message is created.", filename, debug)
+#        print("Message is created.", filename, debug)
 
     def __call__(self, *s, **args ):
         if ("debug" in args) and args["debug"]:
