@@ -90,7 +90,7 @@ class SetRadmc:
             self.set_dust_temperature()
         elif self.temp_mode == 'mctherm':
             self.remove_gas_temperature()
-            self.remove_dust_temperature()
+            self.remove_dust_temperature()            
 
         self.set_dust_density()
         self.set_dust_opacity()
