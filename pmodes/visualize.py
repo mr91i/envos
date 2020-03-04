@@ -270,9 +270,9 @@ class FitsAnalyzer:
         Ippv = np.zeros_like(Ippv)
         Ippv[Ippv.shape[0]//2, Ippv.shape[1]//2, Ippv.shape[2]//2] = 1
 
-def _get_peaks(x, y):
+def _get_peaks(x, y, threshold_abs=None):
     maxis = []
-    for mi in peak_local_max(y, min_distance=3)[:, 0]:
+    for mi in peak_local_max(y, min_distance=3, threshold_abs=threshold_abs)[:, 0]:
         dydx = interpolate.InterpolatedUnivariateSpline(
             x[mi-2:mi+3], y[mi-2:mi+3]).derivative(1)
         maxis.append(optimize.root(dydx, x[mi]).x[0])
