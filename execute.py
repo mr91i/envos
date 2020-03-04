@@ -49,9 +49,38 @@ def main():
                  #                          ["fitsa.convolution_pvdiagram", "conv", [0,1]]],
                                            ])
     
-            subparam = make_params("beam_scale", "bsc", [0.1,0.3,3]) 
+            subparam = [ make_params("beam_scale", "bsc", [0.1,0.3,3]) ]
             parameter_survey("all", params_list, INPUT_FILE, submode="visualize", subparams=subparam ) 
+
+        elif target == "params2":
+            params_list = make_params_list([["model.simple_density", "sden", [1]],
+                                           ["radmc.nr", "nr", [128]],
+                                           ["model.ire_model", "ire", ["CM"]],
+                                           ])
+            #subparam = [ make_params("beam_scale", "bsc", [0.1,0.3,3]) ]
+            subparam = make_params_list([["beam_scale", "bsc", [0.3, 3]],
+                                        # ["fitsa.vwidth_kms", "v", [0.1, 1]]
+                                        ])
+            parameter_survey("all", params_list, INPUT_FILE, submode="visualize", subparams=subparam)
  
+        elif target == "params3":
+            params_list = make_params_list([["radmc.temp_mode", "T", ["mctherm"]],
+                                           ["model.ire_model", "ire", ["Simple", "CM"]],
+                                           ])
+            subparam = make_params_list([["beam_scale", "bsc", [0.3, 3]],
+                                        ])
+            parameter_survey("all", params_list, INPUT_FILE, submode="visualize", subparams=subparam)
+
+        elif target == "params4":
+            params_list = make_params_list([["model.ire_model", "ire", ["Simple", "CM"]],
+                                           ["model.cavity_angle", "cav", [0, 45, 60, 80, 85]],
+                                           ])
+
+            subparam = make_params_list([["beam_scale", "bsc", [0.3, 3]],
+                                        ])
+            parameter_survey("all", params_list, INPUT_FILE, submode="visualize", subparams=subparam )
+
+
         elif target == "clean":
             for tar in ["cache","subproc","radmc","fits","pkl"]:
               clean(tar)
