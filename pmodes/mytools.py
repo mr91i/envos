@@ -44,6 +44,18 @@ def make_meshgrid_interface( xxc, yyc , indexing="xy"):
         yi = make_array_interface(yyc[0,:])
         return np.meshgrid(xi, yi, indexing="ij")
 
+def x_cross_zero(x1, x2, y1, y2):
+    return x1 + y1 * (x2 - x1)/(y1 - y2)
+
+
+def find_roots(x, y1, y2):
+    #   if np.isscalar(y2):
+    dy = np.array(y1) - np.array(y2)
+    n = len(x) - 1
+    return np.array([x_cross_zero(x[i], x[i+1], dy[i], dy[i+1])
+                     for i in range(n)
+                     if dy[i]*dy[i+1] <= 0])
+
 
 class Message:
     def __init__(self, filename=None, debug=None):
