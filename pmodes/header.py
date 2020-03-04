@@ -1,6 +1,6 @@
 # header
 # Note:
-#  to supress cache files : 
+#  to supress cache files :
 #      write "PYTHONDONTWRITEBYTECODE = 1" to ~/.bashrc or ~/.bash_profile
 import os
 import sys
@@ -12,8 +12,8 @@ dn_fig = dn_home + "/fig"
 py_version = sys.version_info
 if py_version[0] == 2:
     print('''\n
-This module does not work with Python2. 
-At 1 Jan 2020, most packages stopped to support Python2 (see https://python3statement.org). 
+This module does not work with Python2.
+At 1 Jan 2020, most packages stopped to support Python2 (see https://python3statement.org).
 Please use and update your Python3 to the newest version.
 At this writing, Python 3.8.1 is the newest.''')
     exit()
@@ -31,8 +31,8 @@ class read_inp:
 inp = read_inp(dn_home+"/"+args.input_file_name)
 
 
-#or 
-#from .. import "L1527.in" as inp 
+#or
+#from .. import "L1527.in" as inp
 
 #or
 #import importlib

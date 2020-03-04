@@ -173,7 +173,7 @@ class FitsAnalyzer:
         #plt.plot(xas, -l/(self.xau*cst.au)/cst.kms*(a), c="plum", ls=":", lw=1)
         pltr.ax.plot(xas, 2*l/rCR*(2*self.xau*cst.au/rCR)**(-2/3)/cst.kms, c="hotpink", ls=":", lw=1)
         #plt.plot(xas, np.sqrt(2*cst.G*self.Mstar*cst.Msun/(self.xau*cst.au))*np.sqrt(2)/3**(3/4)/cst.kms, c="hotpink", ls=":", lw=1)
-        
+
         if self.oplot_KeplerRotation:
             pltr.ax.plot(xas, np.sqrt(cst.G*self.Mstar*cst.Msun/ \
                      (self.xau*cst.au))/cst.kms, c="cyan", ls=":", lw=1)
@@ -187,8 +187,8 @@ class FitsAnalyzer:
             for Ip, x_ in zip(Ipv.transpose(1, 0), xas):
                 for vM in _get_peaks(self.vkms, Ip, threshold_abs=np.max(Ipv)*1e-10):
                     pltr.ax.plot(x_, vM, c="blue", markersize=1, marker='o')
-                    
-                    
+
+
 
         if self.oplot_LocalPeak_2D:
             for jM, iM in peak_local_max(Ipv, min_distance=10):
@@ -198,7 +198,7 @@ class FitsAnalyzer:
 
             del jM, iM
         #jM, iM = np.unravel_index(np.argmax(Ipv[len(self.vkms)//2:, :len(self.xau)//2]), Ipv.shape)
-        
+
         jM_iM = [(jM, iM) for jM, iM in peak_local_max(Ipv, min_distance=10, threshold_abs=np.max(Ipv)*1e-10) if ((self.xau[iM]*cst.au > 0 ) and (self.vkms[jM] > 0)) ]
         if len(jM_iM) == 1:
             jM, iM = jM_iM[0]
@@ -222,7 +222,7 @@ class FitsAnalyzer:
 
 #        x_10 = interpolate.interp1d(self.vkms, x_max)(v_10)
  #       print(v_10, x_10)
-        plt.text(0.95, 0.05,r"$M_{\rm CR}$=%.3f"%M_CR+"\n"+r"$M_{\rm CB,10\%%}$=%.3f"%M_CB, 
+        plt.text(0.95, 0.05,r"$M_{\rm CR}$=%.3f"%M_CR+"\n"+r"$M_{\rm CB,10\%%}$=%.3f"%M_CB,
                  transform=pltr.ax.transAxes, ha="right", va="bottom", bbox=dict(fc="white", ec="black", pad=5))
 
         pltr.save("pvd")

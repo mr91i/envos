@@ -31,13 +31,13 @@ def main():
         mytools.exe(f"nohup {PYCMD} {cmd} >> nohup.out &")
         exit()
 
-    for target in args.targets:    
+    for target in args.targets:
         if target == "default":
             Execute("all")
-    
+
         elif target in ["all", "mkmodel", "setradmc", "sobs", "visualize"]:
             Execute(target)
-    
+
         elif target == "params":
             #params_list = []
             #params_list.append( make_params("model.ire_model","ire", ["Simple", "CM"]))
@@ -48,9 +48,9 @@ def main():
 #                                           ["beam_scale", "bsc", [0.1,0.3,1,3]],
                  #                          ["fitsa.convolution_pvdiagram", "conv", [0,1]]],
                                            ])
-    
+
             subparam = [ make_params("beam_scale", "bsc", [0.1,0.3,3]) ]
-            parameter_survey("all", params_list, INPUT_FILE, submode="visualize", subparams=subparam ) 
+            parameter_survey("all", params_list, INPUT_FILE, submode="visualize", subparams=subparam )
 
         elif target == "params2":
             params_list = make_params_list([["model.simple_density", "sden", [1]],
@@ -62,7 +62,7 @@ def main():
                                         # ["fitsa.vwidth_kms", "v", [0.1, 1]]
                                         ])
             parameter_survey("all", params_list, INPUT_FILE, submode="visualize", subparams=subparam)
- 
+
         elif target == "params3":
             params_list = make_params_list([["radmc.temp_mode", "T", ["mctherm"]],
                                            ["model.ire_model", "ire", ["Simple", "CM"]],
@@ -86,8 +86,8 @@ def main():
               clean(tar)
 
         elif "clean_" in target:
-            clean(target.replace("clean_","")) 
-    
+            clean(target.replace("clean_",""))
+
         elif target == "kill_process":
             kill_process()
 
@@ -108,7 +108,7 @@ def make_params(name, shortname, values):
 def make_params_list( param_info_list ):
     return [ make_params(name, shortname, values) for name, shortname, values in param_info_list]
 
-#### somethoiung worng 
+#### somethoiung worng
 def parameter_survey( mode , params, ori_inpfn , submode=None, subparams=None):
  #       [ [param_a_1,..], [param_b_1,..], [param_c_1,..] ]
     def calc_one_paramset(mode, param_set, ori_inpfn):
@@ -136,7 +136,7 @@ def parameter_survey( mode , params, ori_inpfn , submode=None, subparams=None):
 
 
 class Execute:
-#    def __init__(self, py="python", src_dir="", inputfile="", nohup=False):    
+#    def __init__(self, py="python", src_dir="", inputfile="", nohup=False):
     def __init__(self, mode=None, py=PYCMD, src_dir=SRCDIR, inputfile=INPUT_FILE, nohup=args.nohup):
         self.py = py
         self.src_dir = src_dir
@@ -161,7 +161,7 @@ class Execute:
 
             else:
                 raise Exception("No sunch mode.")
-    
+
 
     def _cmd(self, command):
          mytools.exe(f'{self.nohup_cmd[0]} {self.py} {self.src_dir}/{command}.py {self.inputfile} {self.nohup_cmd[1]}')
@@ -204,8 +204,8 @@ def clean(target, rm_cmd=RMCMD, src_dir=SRCDIR, radmc_dir=RADMCDIR):
         p = Path(target_dir)
         answer=[]
         for pat in patterns:
-            answer += [ str(x) for x in p.glob(pat) if not match_exclude(x.name)] 
-        return answer    
+            answer += [ str(x) for x in p.glob(pat) if not match_exclude(x.name)]
+        return answer
 
     def rm(target_list, option=""):
         target = " ".join(target_list)
@@ -239,12 +239,12 @@ def kill_process():
 
     #echo -e "\nMay I kill \"radmc3d\" ? : OK[Enter]"
     #ps
-    #read 
+    #read
     #killall radmc3d
     #echo -e "\nMay I kill \"python\" ? : OK[Enter]"
     #ps
-    #read 
-    #-killall python python2 python3 
+    #read
+    #-killall python python2 python3
 
 if __name__=='__main__':
     main()

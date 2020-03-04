@@ -9,7 +9,7 @@ from collections import namedtuple
 from scipy.interpolate import interp2d, interp1d, griddata
 import cst
 from header import inp, dn_home, dn_radmc, dn_fig
-import mytools 
+import mytools
 import radmc3dPy.analyze as rmca
 import myplot as mp
 
@@ -24,7 +24,7 @@ def main():
         exe_radmc_therm()
     else:
         del_mctherm_files()
-    
+
     if inp.radmc.plot:
         rdata = RadmcData(dn_radmc=dn_radmc, dn_fig=dn_fig, ispec=inp.radmc.mol_name, mol_abun=inp.radmc.mol_abun)
 
@@ -37,18 +37,18 @@ def del_mctherm_files():
 
 class SetRadmc:
     def __init__(self, dpath_radmc,
-                 nphot=1000000, 
+                 nphot=1000000,
                  r_in=1*cst.au, r_out=1000*cst.au, nr=128,
                  theta_in=0, theta_out=0.5*np.pi, ntheta=64,
                  phi_in=0, phi_out=0, nphi=1,
                  fdg=0.01, mol_abun=1e-7, mol_name='c18o',
                  m_mol=28*cst.amu, v_fwhm=0.5*cst.kms, Tenv=None,
-                 temp_mode='mctherm', line=True, turb=True, lowreso=False, subgrid=True, 
-                 autoset=True, fn_model_pkl=None, fn_radmcset_pkl=None, 
+                 temp_mode='mctherm', line=True, turb=True, lowreso=False, subgrid=True,
+                 autoset=True, fn_model_pkl=None, fn_radmcset_pkl=None,
                  Mstar=cst.Msun, Rstar=cst.Rsun, Lstar=cst.Lsun, **kwargs):
 
         msg("radmc directry is %s"%dpath_radmc)
-        msg("Set radmc parameters") 
+        msg("Set radmc parameters")
         for k, v in locals().items():
             if (k != 'self') and (k!="kwargs"):
                 print(k,v)
@@ -90,7 +90,7 @@ class SetRadmc:
             self.set_dust_temperature()
         elif self.temp_mode == 'mctherm':
             self.remove_gas_temperature()
-            self.remove_dust_temperature()            
+            self.remove_dust_temperature()
 
         self.set_dust_density()
         self.set_dust_opacity()
@@ -114,7 +114,7 @@ class SetRadmc:
             rc = self.D.r_ax
             thetac = self.D.th_ax
             phic = self.D.ph_ax
-            ri = rc 
+            ri = rc
 
         self.nr = self.rc.size
         self.ntheta = self.thetac.size
@@ -157,7 +157,7 @@ class SetRadmc:
         self.vph = interp_value(self.D.uph[:, :, 0])
         self.vturb = np.zeros_like(self.vr)
 
-        self.n_mol = self.rhog / (2.34*cst.amu) * self.mol_abun 
+        self.n_mol = self.rhog / (2.34*cst.amu) * self.mol_abun
         if self.temp_mode == 'const':
             if self.Tenv is not None:
                 T = self.Tenv
@@ -259,7 +259,7 @@ class SetRadmc:
         fpath = self.dpath_radmc+'/gas_temperature.inp'
         if os.path.exists(fpath):
             msg("remove gas_temperature.inp:", fpath)
-            os.remove(fpath)   
+            os.remove(fpath)
 
     def set_dust_temperature(self):
         with open(self.dpath_radmc+'/dust_temperature.dat', 'w+') as f:
@@ -304,16 +304,16 @@ class SetRadmc:
 
     def set_input(self):
         params=[["nphot", 1000000 ], #self.nphot],
-                ["scattering_mode_max", 0], 
-                ["iranfreqmode", 1], 
-                ["mc_scat_maxtauabs", 5.0], 
-                ["tgas_eq_tdust",1], 
-                #["camera_maxdphi", 0.0000001], 
+                ["scattering_mode_max", 0],
+                ["iranfreqmode", 1],
+                ["mc_scat_maxtauabs", 5.0],
+                ["tgas_eq_tdust",1],
+                #["camera_maxdphi", 0.0000001],
                 #["camera_spher_cavity_relres", 0.005], # 0.05
                 #["camera_min_dangle", 0.005], # 0.05
                 #["camera_min_drr",0.0003], # 0.003
                 #["camera_refine_criterion",1.0],
-                #["nphot_spec", 100000], 
+                #["nphot_spec", 100000],
                 #["iseed", -5415],
                 ]
 
@@ -360,13 +360,13 @@ def _interpolator2d(value, x_ori, y_ori, x_new, y_new, logx=False, logy=False, l
             ret = 10**ret0
     else:
         ret = ret0
-    return np.nan_to_num(ret0)    
+    return np.nan_to_num(ret0)
 
 def _interpolator3d(value, x_ori, y_ori, z_ori, xx_new, yy_new, zz_new, logx=False, logy=False, logz=False, logv=False):
     if len(z_ori) == 1:
         value = _interpolator2d(value, x_ori, y_ori, xx_new, yy_new, logx=False, logy=False, logv=False)
         return value
-#        return 
+#        return
 
     from scipy.interpolate import RectBivariateSpline, RegularGridInterpolator
     def points(*xyz):
@@ -382,7 +382,7 @@ def _interpolator3d(value, x_ori, y_ori, z_ori, xx_new, yy_new, zz_new, logx=Fal
     vo = np.log10(np.abs(value)) if logv else value
     print(np.stack([xn, yn, zn], axis=-1), xo, yo, zo )
 
-    
+
     ret0 = RegularGridInterpolator((xo, yo, zo), vo, bounds_error=False, fill_value=-1 )( np.stack([xn, yn, zn], axis=-1))
     print(ret0, np.max(ret0) )
     exit()
@@ -457,22 +457,22 @@ def _interpolator3d_bu(value, xyz_ori, xyz_new, logx=False, logy=False, logz=Fal
 
 ##################################################################################################################
 def readRadmcData(dn_radmc=None, use_ddens=True, use_dtemp=True,
-                use_gdens=True, use_gtemp=True, use_gvel=True, ispec=None): # modified version of radmc3dPy.analyze.readData 
+                use_gdens=True, use_gtemp=True, use_gvel=True, ispec=None): # modified version of radmc3dPy.analyze.readData
 
     res = rmca.radmc3dData()
     res.grid = rmca.radmc3dGrid()
     res.grid.readSpatialGrid(fname=dn_radmc+"/amr_grid.inp")
-    
-    if use_ddens: 
+
+    if use_ddens:
         res.readDustDens(binary=False, fname=dn_radmc+"/dust_density.inp")
 
-    if use_dtemp: 
+    if use_dtemp:
         res.readDustTemp(binary=False, fname=dn_radmc+"/dust_temperature.dat")
 
-    if use_gvel: 
+    if use_gvel:
         res.readGasVel(binary=False, fname=dn_radmc+"/gas_velocity.inp")
 
-    if use_gtemp: 
+    if use_gtemp:
         res.readGasTemp(binary=False, fname=dn_radmc+"/gas_temperature.inp")
 
     if use_gdens:
@@ -481,19 +481,19 @@ def readRadmcData(dn_radmc=None, use_ddens=True, use_dtemp=True,
             return 0
         else:
             res.ndens_mol = res._scalarfieldReader(fname=dn_radmc+"/numberdens_"+ispec+".inp", binary=False)
-    msg("RadmcData is created. Variables are : ", ", ".join([ k for k, v in res.__dict__.items() if not isinstance(v, int)]) ) 
+    msg("RadmcData is created. Variables are : ", ", ".join([ k for k, v in res.__dict__.items() if not isinstance(v, int)]) )
 
-    return res 
+    return res
 
 class RadmcData:
-    def __init__(self, dn_radmc=None, dn_fig=None, use_ddens=True, use_gdens=True, use_gtemp=True, 
+    def __init__(self, dn_radmc=None, dn_fig=None, use_ddens=True, use_gdens=True, use_gtemp=True,
                  use_dtemp=True, use_gvel=True, ispec=None, mol_abun=0, autoplot=True):
         for k, v in locals().items():
             if k is not 'self':
                 setattr(self, k, v)
 
         data = self.readRadmcData()
-        
+
         self.xauc = data.grid.x/cst.au
         self.rrc, self.ttc = np.meshgrid(self.xauc, data.grid.y, indexing='xy')
         self.RR = self.rrc * np.sin(self.ttc)
@@ -502,7 +502,7 @@ class RadmcData:
         if use_gtemp:
             try:
                 self.gtemp = data.gastemp[:,:,0,0].T
-            except: 
+            except:
                 self.gtemp = data.dusttemp[:,:,0,0].T
 
         if use_gdens and ispec:
@@ -521,24 +521,24 @@ class RadmcData:
         if autoplot:
             self.plotall()
 
-    def readRadmcData(self): # modified version of radmc3dPy.analyze.readData 
+    def readRadmcData(self): # modified version of radmc3dPy.analyze.readData
 
         res = rmca.radmc3dData()
         res.grid = rmca.radmc3dGrid()
         res.grid.readSpatialGrid(fname=self.dn_radmc+"/amr_grid.inp")
-        
-        if self.use_ddens: 
+
+        if self.use_ddens:
             res.readDustDens(binary=False, fname=self.dn_radmc+"/dust_density.inp")
-    
-        if self.use_dtemp: 
+
+        if self.use_dtemp:
             res.readDustTemp(binary=False, fname=self.dn_radmc+"/dust_temperature.dat")
-    
-        if self.use_gvel: 
+
+        if self.use_gvel:
             res.readGasVel(binary=False, fname=self.dn_radmc+"/gas_velocity.inp")
-    
-        if self.use_gtemp: 
+
+        if self.use_gtemp:
             res.readGasTemp(binary=False, fname=self.dn_radmc+"/gas_temperature.inp")
-    
+
         if self.use_gdens:
             if not self.ispec:
                 print('ERROR\nNo gas species is specified!')
@@ -546,11 +546,11 @@ class RadmcData:
             else:
                 res.ndens_mol = res._scalarfieldReader(fname=self.dn_radmc+"/numberdens_"+self.ispec+".inp", binary=False)
 
-        msg("RadmcData is created. Variables are : ", ", ".join([ k for k, v in res.__dict__.items() if not isinstance(v, int)]) ) 
-    
-        return res 
+        msg("RadmcData is created. Variables are : ", ", ".join([ k for k, v in res.__dict__.items() if not isinstance(v, int)]) )
 
-    @staticmethod 
+        return res
+
+    @staticmethod
     def cch_lifetime(nmol, nabun, T):
         k = 1.2e-11*np.exp(-998/T)
         return 1/( (nmol/nabun+1e-100)* k)
@@ -589,7 +589,7 @@ class RadmcData:
             plot_plofs(self.vt/1e5, "gvelt", lim=[-5,5], log=False, lb=lb_v)
             plot_plofs(np.abs(self.vp)/1e5, "gvelp", lim=[0,5], log=False, lb=lb_v)
 
-        if self.use_gdens and self.use_gtemp:      
+        if self.use_gdens and self.use_gtemp:
             plot_plofs( self.t_dest/self.t_dyn, "tche", lim=[1e-3,1e3], lb="CCH Lifetime/Dynamical Timescale")
 
 

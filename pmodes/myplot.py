@@ -28,17 +28,17 @@ class Struct:
         self.__dict__.update(entries)
 
 class Plotter:
-    # input --> Plotter class --> default value 
-    #                                  v 
+    # input --> Plotter class --> default value
+    #                                  v
     # input --> plot function -------------------> used parameter
 
-    def __init__(self, fig_dir_path, 
-                 figext="pdf", 
+    def __init__(self, fig_dir_path,
+                 figext="pdf",
                  x=None, y=None, xlim=None, ylim=None, cblim=None, xl=None, yl=None, cbl=None,
                  c=[], ls=[], lw=[], alp=[], pm=False,
-                 logx=False, logy=False, logxy=False, logcb=False, leg=False, 
-                 figsize=None, square=False, 
-                 fn_wrapper=lambda s:s, 
+                 logx=False, logy=False, logxy=False, logcb=False, leg=False,
+                 figsize=None, square=False,
+                 fn_wrapper=lambda s:s,
                  decorator=lambda y:y,
                  args_leg={"loc": 'best'}, args_fig={}):
 
@@ -166,7 +166,7 @@ class Plotter:
              datatype="", square=None, show=False, save=True, result="fig",
              *args, **kwargs):
 
-        input_settings = locals()  
+        input_settings = locals()
         for k, v in input_settings.items():
             setattr(self, "inp_"+k, v)
 
@@ -221,7 +221,7 @@ class Plotter:
             if True:
                 c_i = c[i] if len(c) >= i+1 else None
                 print(ar)
-                ax.annotate('', xytext=(ar[0], ar[1]), xy=(ar[2], ar[3]), 
+                ax.annotate('', xytext=(ar[0], ar[1]), xy=(ar[2], ar[3]),
                             xycoords='data', annotation_clip=False,size=30,
                             arrowprops=dict(shrink=0, width=3, headwidth=8, headlength=8, lw=0,
                                             connectionstyle='arc3', fc=c_i, ec=c_i)
@@ -241,14 +241,14 @@ class Plotter:
                 c_i = c[i] if len(c) >= i+1 else None
                 ls_i = ls[i] if len(ls) >= i+1 else None
                 lw_i = lw[i] if len(lw) >= i+1 else linewidth
-                ax.annotate('', xytext=(ar[0], ar[1]), xy=(ar[2], ar[3]), 
+                ax.annotate('', xytext=(ar[0], ar[1]), xy=(ar[2], ar[3]),
                             xycoords='data', annotation_clip=False,
                             arrowprops=dict(arrowstyle=curve,lw=lw_i*0.5,
                                             connectionstyle='arc3', facecolor=c_i, edgecolor=c_i, linestyle=ls_i)
                             )
     #            plt.plot((ar[0], ar[2]), (0.01*ar[0]+0.99*ar[1], 0.01*ar[2]+0.99*ar[3]), c=c_i, ls=ls_i, lw=lw_i)
     #            plt.plot((ar[0], ar[2]), (0.01*ar[0]+0.99*ar[1], 0.01*ar[2]+0.99*ar[3]), c=c_i, ls=ls_i, lw=lw_i)
-                ax.annotate('', xytext=(0.01*ar[0]+0.99*ar[2], 0.01*ar[1]+0.99*ar[3]), xy=(ar[2], ar[3]), 
+                ax.annotate('', xytext=(0.01*ar[0]+0.99*ar[2], 0.01*ar[1]+0.99*ar[3]), xy=(ar[2], ar[3]),
                             xycoords='data', annotation_clip=False,
                             arrowprops=dict(lw=0,headwidth=lw_i*3, headlength=lw_i*3,
                                             connectionstyle='arc3', facecolor=c_i, edgecolor=c_i, linestyle=ls_i)
@@ -271,7 +271,7 @@ class Plotter:
         plt.xlabel(self.notNone(xl, self.xl, ''))
         plt.ylabel(self.notNone(yl, self.yl, ''))
 
-        
+
         if self.notNone(square, self.square):
             plt.gca().set_aspect('equal', adjustable='box')
 
@@ -305,7 +305,7 @@ class Plotter:
             div=10.0, n_sline=18, hist=False,
             square=None, seeds_angle=[0, np.pi/2],
             save=True, show=False, result="fig",
-            twoaxis=False, 
+            twoaxis=False,
             **args):
 
         for k, v in locals().items():
@@ -330,7 +330,7 @@ class Plotter:
             yy = y
 
         z = self.decorator(z)
-   
+
         self.ax.set_xlim(self.notNone(xlim, self.xlim, [x[0], x[-1]]))
         self.ax.set_ylim(self.notNone(ylim, self.ylim, [y[0], y[-1]]))
         self.ax.set_xlabel(self.notNone(xl, self.xl, ""))
@@ -340,7 +340,7 @@ class Plotter:
         cblim[1] *=  0.999
         if self.notNone(logcb, self.logcb):  # (logcb or self.logcb):
             cblim = np.log10(cblim)
-            #print(z, np.max(z), np.min(z) )            
+            #print(z, np.max(z), np.min(z) )
             z = np.log10(np.where(z != 0, abs(z), np.nan))
 
         if cblim is not None:
@@ -355,17 +355,17 @@ class Plotter:
         levels = np.linspace(cblim[0], cblim[1], int(div)+1)
         norm = BoundaryNorm(levels, ncolors=cmap.N, clip=True)
         if mode == "grid":
-            # Note: 
+            # Note:
             # this guess of xi, yi relyies on the assumption where
             # grid space is equidistant.
 
-#            print( len(x[:,0]-0.5*(x[:,1]-x[:,0])), 
-#                              (0.5*(x[:,0:-1]+x[:,1:]) ).shape  )    
-#np.stack(( [x[:,0]-0.5*(x[:,1]-x[:,0])], 
-#                              0.5*(x[:,0:-1]+x[:,1:]), 
+#            print( len(x[:,0]-0.5*(x[:,1]-x[:,0])),
+#                              (0.5*(x[:,0:-1]+x[:,1:]) ).shape  )
+#np.stack(( [x[:,0]-0.5*(x[:,1]-x[:,0])],
+#                              0.5*(x[:,0:-1]+x[:,1:]),
 #                             [x[:,-1]+0.5*(x[:,-1]-x[:,-2])] ), axis=-1)
 #            yi = np.hstack([[y[0]-0.5*(y[1]-y[0])], 0.5*( y[0:-1]+y[1:] ), [y[-1] + 0.5*(y[-1]-y[-2])]])
-#            xxi, yyi = np.meshgrid(xi, yi, indexing='xy')  
+#            xxi, yyi = np.meshgrid(xi, yi, indexing='xy')
 
 #            dx = x[1] - x[0] if len(x) != 1 else y[1] - y[0]
 #            dy = y[1] - y[0] if len(y) != 1 else x[1] - x[0]
@@ -375,14 +375,14 @@ class Plotter:
 #            yyi = np.hstack((yyi, yyi[:, -1].reshape(-1, 1)))
 
   #          print(x.shape, y.shape)
-            
+
             xxi, yyi = mytools.make_meshgrid_interface(xx, yy)
             #print(xx.shape,"\n", xxi.shape, '\n')
-            #print(yy,"\n", yyi, "\n") 
+            #print(yy,"\n", yyi, "\n")
             #print(vars(norm), z, xxi, yyi )
  #           print(xxi.shape, yyi.shape, z.shape, x.shape, y.shape)
-            #print( (z-np.min(z))/(np.max(z)-np.min(z)) ) 
-            #img = ax.pcolormesh(xxi.T, yyi.T, (z.T-np.min(z))/(np.max(z)-np.min(z)), 
+            #print( (z-np.min(z))/(np.max(z)-np.min(z)) )
+            #img = ax.pcolormesh(xxi.T, yyi.T, (z.T-np.min(z))/(np.max(z)-np.min(z)),
             #                     cmap=cmap)
             #img = ax.pcolormesh(xxi.T, yyi.T, z.T, norm=norm, vmin=cblim[0],  vmax=cblim[1],
             #                     cmap=cmap,shading='flat')
@@ -390,7 +390,7 @@ class Plotter:
 #            print(np.max(xx), np.max(xxi))
 
 #            exit()
-#            for x0, xx0, xxi0 in zip(x, xx, xxi):                
+#            for x0, xx0, xxi0 in zip(x, xx, xxi):
 #                print(x0, xxi0)
 
             #print(xxi, yyi)
@@ -406,7 +406,7 @@ class Plotter:
             # Instead of this, use "grid" method.
             img = self.ax.contourf(xx, yy, z, interval, vmin=cblim[0],
                               vmax=cblim[1], extend='both', cmap=cmap)
-            
+
             #ax.contourf( xx , yy , z , n_lv , cmap=cmap)
 
         elif mode == "contour":
@@ -438,10 +438,10 @@ class Plotter:
 
         ticks = np.arange(cblim[0], cblim[1]+delta, delta)  # not +1 to cb_max
         img.set_clim(*cblim)
-        print(img.get_cmap(), img.get_array() , img.get_clim()) 
+        print(img.get_cmap(), img.get_array() , img.get_clim())
         #self.fig.colorbar(img, ax=self.ax, ticks=ticks,
         #             extend='both', label=self.notNone(cbl, self.cbl), pad=0.02)
-        
+
 
         #smap = mpl.cm.ScalarMappable(norm=norm, cmap=cmap)
         #smap = mpl.contour.QuadContourSet(self.ax, levels)
@@ -516,7 +516,7 @@ class Plotter:
             return self.fig
 
         elif result=="class":
-            return self #Struct(self) 
+            return self #Struct(self)
 
 
 
@@ -530,7 +530,7 @@ class Plotter:
     def show(self, out):
         plt.show()
 
-import itertools 
+import itertools
 from cycler import cycler
 from matplotlib.colors import LinearSegmentedColormap
 

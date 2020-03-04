@@ -4,7 +4,7 @@ import os
 import numpy as np
 
 #def msg_maker(filename):
-#    return m 
+#    return m
 def freq_to_vkms(freq0, dfreq):
     import cst
     return cst.c/1e5* dfreq/freq0
@@ -98,7 +98,7 @@ class Exe:
         self.dryrun = dryrun
         self.skiperror = skiperror
 
-    def __call__(self, cmd): 
+    def __call__(self, cmd):
         try:
             if self.dryrun:
                 print("[dryrun]",cmd)

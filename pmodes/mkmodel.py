@@ -17,7 +17,7 @@ msg = mytools.Message(__file__, debug=False)
 
 def main():
     data = EnvelopeDiskModel(**vars(inp.model))
-    
+
     if inp.model.plot:
         Plots(data, dn_fig=dn_fig)
 
@@ -27,15 +27,15 @@ class EnvelopeDiskModel:
     Input parameter are envelope temperautre, centrifugal radius, and  Mass of star.
 
     '''
-    def __init__(self, 
+    def __init__(self,
         ire_model=1,
         r_in=1*cst.au, r_out=1000*cst.au, nr=601,
         theta_in=0, theta_out=0.5*np.pi, ntheta=91,
         phi_in=0, phi_out=0, nphi=1,
         Tenv=10, r_CR=100*cst.au, Mstar=cst.Msun, t=None, Omega=None, j0=None,
-        cavity_angle=0, Tdisk=70, disk_star_fraction=0.01, 
+        cavity_angle=0, Tdisk=70, disk_star_fraction=0.01,
         simple_density=False, disk=True, counterclockwise_rotation=False,
-        fn_model_pkl=None, submodel=False, 
+        fn_model_pkl=None, submodel=False,
         **args):
 
         for k, v in locals().items():
@@ -54,7 +54,7 @@ class EnvelopeDiskModel:
         else:
             self.r_ax = np.logspace(np.log10(r_in), np.log10(r_out), nr)
             self.th_ax = np.linspace(theta_in, theta_out, ntheta)
-            self.ph_ax = np.linspace(phi_in, phi_out, nphi) if nphi > 1 else [0] 
+            self.ph_ax = np.linspace(phi_in, phi_out, nphi) if nphi > 1 else [0]
 
         self.mu = np.round(np.cos(self.th_ax), 15)
         self.sin = np.where(self.mu == 1, 1e-100, np.sqrt(1 - self.mu**2))
@@ -112,12 +112,12 @@ class EnvelopeDiskModel:
         print('')
 
     def calc(self):
-        vals_prt = {} 
+        vals_prt = {}
 
         for p in self.ph_ax:
             vals_rt = {}
             for r in self.r_ax:
-                vals = self.calc_physical_structure_for_theta2(r,p)       
+                vals = self.calc_physical_structure_for_theta2(r,p)
                 self.stack(vals, vals_rt)
             self.stack(vals_rt, vals_prt)
 
@@ -148,7 +148,7 @@ class EnvelopeDiskModel:
         del ret["self"]
         return ret
 
-    def stack(self, dict_vals, dict_stacked):    
+    def stack(self, dict_vals, dict_stacked):
         for k, v in dict_vals.items():
             if not k in dict_stacked:
                 dict_stacked[k] = []
@@ -328,9 +328,9 @@ def Plots(D, r_lim=2000, dn_fig=None):
     R_mg, z_mg = r_mg * [np.sin(th_mg), np.cos(th_mg)]
     x_mg, y_mg = R_mg * [np.cos(ph_mg), np.sin(ph_mg)]
 
-    plmap = mp.Plotter(dn_fig, x=R_mg.take(0, 2)/cst.au, y=z_mg.take(0, 2)/cst.au, 
+    plmap = mp.Plotter(dn_fig, x=R_mg.take(0, 2)/cst.au, y=z_mg.take(0, 2)/cst.au,
                        logx=False, logy=False, logcb=True, leg=False, square=True,
-                       xl='Radius [au]', yl='Height [au]', xlim=[0, r_lim], ylim=[0, r_lim], 
+                       xl='Radius [au]', yl='Height [au]', xlim=[0, r_lim], ylim=[0, r_lim],
                        fn_wrapper=lambda s:'map_%s_%s'%(s, stamp),
                        decorator=lambda x: x.take(0,2))
     Vec = np.array([D.uR.take(0, 2), D.uz.take(0, 2)])
@@ -351,7 +351,7 @@ def Plots(D, r_lim=2000, dn_fig=None):
 
     plplane = mp.Plotter(dn_fig, x=x_mg.take(-1, 1)/cst.au, y=y_mg.take(-1, 1)/cst.au,
                        logx=False, logy=False, leg=False, square=True,
-                       xl='x [au]', yl='y [au] (-:our direction)', 
+                       xl='x [au]', yl='y [au] (-:our direction)',
                        xlim=[-1000, 1000], ylim=[-1000, 1000],
                        fn_wrapper=lambda s:'plmap_%s_%s'%(s, stamp),
                        decorator=zdeco_plane)
