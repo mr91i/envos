@@ -106,8 +106,9 @@ class FitsAnalyzer:
                 xl="Position [au]", yl="Position [au]", cbl=r'Intensity [Jy pixel$^{-1}$ ]',
                 div=n_lv, mode='grid', cbmin=0, cbmax=Ipp.max())
 
-    def pvdiagram(self, n_lv=10):
+    def pvdiagram(self, n_lv=6):
         Ippv = copy.copy(self.Ippv_raw)
+        unit = r'[Jy pixel$^{-1}$]'
         if self.pointsource_test:
             self.self._pointsource(Ippv)
 
@@ -115,6 +116,7 @@ class FitsAnalyzer:
             Ippv = self._convolution(Ippv, beam_a_au=self.beama_au, beam_b_au=self.beamb_au,
                                      v_width_kms=self.vwidth_kms, theta_deg=self.beam_posang)
             Ippv = self._perpix_to_perbeamkms(Ippv, beam_a_au=self.beama_au, beam_b_au=self.beamb_au, v_width_kms=self.vwidth_kms)
+            unit = r'[Jy beam$^{-1}$ (km/s)$^{-1}$]'
 
         if len(self.yau) > 1:
             posang_PV_rad = self.posang_PV/180.*np.pi
@@ -134,8 +136,8 @@ class FitsAnalyzer:
         logoption = {"logcb":True, "cblim":[np.max(Ipv)*1e-2,np.max(Ipv)]} if self.logcolor_PV else {}
         pltr.map(z=Ipv, mode=self.plotmode_PV, **logoption, #logcb=True, cblim=[np.max(Ipv)*1e-2,np.max(Ipv)],
                  xl="Angular Offset [arcsec]", yl=r"Velocity [km s$^{-1}$]",
-                 cbl=r'Intensity [Jy pixel$^{-1}$ ]',
-                 lw=2, #logx=True, logy=True, xlim=[0.1, 100], ylim=[0.1, 10],
+                 cbl=r'Intensity '+unit,
+                 lw=.7, #logx=True, logy=True, xlim=[0.1, 100], ylim=[0.1, 10],
                  div=n_lv, save=False)
 
         rCR = 200*cst.au
@@ -179,22 +181,33 @@ class FitsAnalyzer:
         Ippv_conv = copy.copy(Ippv)
         convolver = {"normal": convolve, "fft": convolve_fft}[self.convolver]
 
+
+        option = {}
         if self.convolve_PV_p:
             Kernel_xy = Gaussian2DKernel(x_stddev=abs(beam_a_au/self.dx)/sigma_over_FWHM,
                                          y_stddev=abs(beam_b_au/self.dy)/sigma_over_FWHM,
-                                         x_size=4*len(self.xau) + 1,#int(abs(beam_a_au/self.dx)/sigma_over_FWHM)*12+1,
-                                         y_size=4*len(self.yau) + 1,#int(abs(beam_b_au/self.dy)/sigma_over_FWHM)*12+1,
+            #                             x_size=4*len(self.xau) + 1,#int(abs(beam_a_au/self.dx)/sigma_over_FWHM)*12+1,
+            #                             y_size=4*len(self.yau) + 1,#int(abs(beam_b_au/self.dy)/sigma_over_FWHM)*12+1,
                                          theta=theta_deg/180*np.pi)
             for i in range(self.Nz):
-                Ippv_conv[i] = convolver(Ippv_conv[i], Kernel_xy)
+                Ippv_conv[i] = convolver(Ippv_conv[i], Kernel_xy, **option)
+
 
         if self.convolve_PV_v:
             Kernel_v = Gaussian1DKernel(v_width_kms/self.dv/sigma_over_FWHM,)
 #                                        x_size=4*len(self.vkms) + 1)#int(v_width_kms/self.dv/sigma_over_FWHM)*12+1)
             for j in range(self.Ny):
                 for k in range(self.Nx):
-                    Ippv_conv[:, j, k] = convolver(Ippv_conv[:, j, k], Kernel_v)
-        return Ippv_conv
+                    Ippv_conv[:, j, k] = convolver(Ippv_conv[:, j, k], Kernel_v, **option)
+
+#        Ippv_conv = Ippv_conv.clip(np.max(Ippv)*1e-10)
+#        for Ipv in Ippv_conv:
+ #           print(Ipv)
+        #print(Ippv_conv)
+        #Ippv_conv = Ippv_conv.clip(np.max(Ippv_conv)*1e-4)
+        #print(Ippv_conv)
+#        return Ippv_conv
+        return np.where( Ippv_conv > np.max( Ippv_conv)*1e-8, Ippv_conv, 0)
 
 
     def _perpix_to_perbeamkms(self, intensity, beam_a_au, beam_b_au, v_width_kms):
