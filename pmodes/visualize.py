@@ -95,7 +95,7 @@ class FitsAnalyzer:
                      n_lv=n_lv, cbmin=0, cbmax=cbmax, mode='grid',
                      title="v = {:.3f} km/s".format(self.vkms[i]) )
 
-    def mom0map(self, n_lv=20):
+    def mom0map(self, n_lv=10):
         Ippv = copy.copy(self.Ippv_raw)
         if self.convolution_mom0map:
             Ippv = self._convolution(Ippv, beam_a_au=self.beama_au, beam_b_au=self.beamb_au,
@@ -104,9 +104,9 @@ class FitsAnalyzer:
         Plt = mp.Plotter(self.dn_fig, x=self.xau, y=self.yau)
         Plt.map(Ipp, out="mom0map",
                 xl="Position [au]", yl="Position [au]", cbl=r'Intensity [Jy pixel$^{-1}$ ]',
-                div=n_lv, mode='grid', cbmin=0, cbmax=Ipp.max())
+                div=n_lv, mode='grid', cbmin=0, cbmax=Ipp.max(), square=True)
 
-    def pvdiagram(self, n_lv=6):
+    def pvdiagram(self, n_lv=5):
         Ippv = copy.copy(self.Ippv_raw)
         unit = r'[Jy pixel$^{-1}$]'
         if self.pointsource_test:
@@ -180,15 +180,13 @@ class FitsAnalyzer:
 
         if self.oplot_LocalPeak_Pax:
             for Iv, v_ in zip(Ipv.transpose(0, 1), self.vkms):
-                for xM in _get_peaks(xas, Iv, threshold_abs=np.max(Ipv)*1e-10):
+                for xM in get_localpeak_positions(xas, Iv, threshold_abs=np.max(Ipv)*1e-10):
                     pltr.ax.plot(xM, v_, c="red", markersize=1, marker='o')
 
         if self.oplot_LocalPeak_Vax:
             for Ip, x_ in zip(Ipv.transpose(1, 0), xas):
-                for vM in _get_peaks(self.vkms, Ip, threshold_abs=np.max(Ipv)*1e-10):
+                for vM in get_localpeak_positions(self.vkms, Ip, threshold_abs=np.max(Ipv)*1e-10):
                     pltr.ax.plot(x_, vM, c="blue", markersize=1, marker='o')
-
-
 
         if self.oplot_LocalPeak_2D:
             for jM, iM in peak_local_max(Ipv, min_distance=10):
@@ -199,9 +197,14 @@ class FitsAnalyzer:
             del jM, iM
         #jM, iM = np.unravel_index(np.argmax(Ipv[len(self.vkms)//2:, :len(self.xau)//2]), Ipv.shape)
 
-        jM_iM = [(jM, iM) for jM, iM in peak_local_max(Ipv, min_distance=10, threshold_abs=np.max(Ipv)*1e-10) if ((self.xau[iM]*cst.au > 0 ) and (self.vkms[jM] > 0)) ]
-        if len(jM_iM) == 1:
-            jM, iM = jM_iM[0]
+   #     jM_iM = [(jM, iM) for jM, iM in peak_local_max(Ipv, min_distance=10, threshold_abs=np.max(Ipv)*1e-10) if ((self.xau[iM]*cst.au > 0 ) and (self.vkms[jM] > 0)) ]
+   #     if len(jM_iM) == 1:
+   #         jM, iM = jM_iM[0]
+
+        jM, iM = [(jM, iM)
+                  for jM, iM
+                  in peak_local_max(Ipv, min_distance=10, threshold_abs=np.max(Ipv)*1e-3)
+                  if ((self.xau[iM]*cst.au > 0 ) and (self.vkms[jM] > 0))][0]
         xau_peak = self.xau[iM]
         vkms_peak = self.vkms[jM]
         M_CR = (abs(xau_peak) * cst.au * (vkms_peak*cst.kms)**2 )/(cst.G*cst.Msun)
@@ -209,19 +212,18 @@ class FitsAnalyzer:
         pltr.ax.axvline(x=xau_peak/self.dpc, lw=2, ls=":", c="red", alpha=0.6)
         pltr.ax.scatter(xau_peak/self.dpc, vkms_peak, c="red", s=50 , alpha=1, linewidth=0 , zorder=10)
 
+       # for Iv in Ipv.transpose(0, 1):
+       #     i = get_maximum_position(self.xau, Iv)
+       #     print(i)
 
-        x_vmax, I_vmax = np.array([[ _get_peaks(self.xau, Iv, threshold_abs=np.max(Iv) * 1e-10 )[0], np.max(Iv) ] for Iv in Ipv.transpose(0, 1) ]).T
+        x_vmax, I_vmax = np.array([[ get_maximum_position(self.xau, Iv), np.max(Iv) ] for Iv in Ipv.transpose(0, 1)]).T
         v_10 = mytools.find_roots(self.vkms, I_vmax, 0.1*np.max(Ipv))
-        x_10 = mytools.find_roots(x_vmax, self.vkms, v_10[0]) #interpolate.interp1d(self.vkms, x_max)(v_10)
-
+        x_10 = mytools.find_roots(x_vmax, self.vkms, v_10[0])
+        M_CB = (abs(x_10[0]) * cst.au * (v_10[0]*cst.kms)**2 )/(2*cst.G*cst.Msun)
         pltr.ax.axhline(y=v_10[0], lw=2, ls=":", c="blue", alpha=0.6)
         pltr.ax.axvline(x=x_10[0]/self.dpc, lw=2, ls=":", c="blue", alpha=0.6)
         pltr.ax.scatter(x_10[0]/self.dpc, v_10[0], c="blue", s=50 , alpha=1, linewidth=0  , zorder=10)
-        M_CB = (abs(x_10[0]) * cst.au * (v_10[0]*cst.kms)**2 )/(2*cst.G*cst.Msun)
 
-
-#        x_10 = interpolate.interp1d(self.vkms, x_max)(v_10)
- #       print(v_10, x_10)
         plt.text(0.95, 0.05,r"$M_{\rm CR}$=%.3f"%M_CR+"\n"+r"$M_{\rm CB,10\%%}$=%.3f"%M_CB,
                  transform=pltr.ax.transAxes, ha="right", va="bottom", bbox=dict(fc="white", ec="black", pad=5))
 
@@ -270,13 +272,22 @@ class FitsAnalyzer:
         Ippv = np.zeros_like(Ippv)
         Ippv[Ippv.shape[0]//2, Ippv.shape[1]//2, Ippv.shape[2]//2] = 1
 
-def _get_peaks(x, y, threshold_abs=None):
-    maxis = []
-    for mi in peak_local_max(y, min_distance=3, threshold_abs=threshold_abs)[:, 0]:
-        dydx = interpolate.InterpolatedUnivariateSpline(
-            x[mi-2:mi+3], y[mi-2:mi+3]).derivative(1)
-        maxis.append(optimize.root(dydx, x[mi]).x[0])
+def find_local_peak_position(x, y, i):
+    if (2 <= i <= len(x)-3):
+        grad_y = interpolate.InterpolatedUnivariateSpline(
+                x[i-2:i+3], y[i-2:i+3]).derivative(1)
+        return optimize.root(grad_y, x[i]).x[0]
+    else:
+        return np.nan
+
+def get_localpeak_positions(x, y, min_distance=3, threshold_abs=None):
+    maxis = [find_local_peak_position(x, y, mi)
+             for mi
+             in peak_local_max(y, min_distance=min_distance, threshold_abs=threshold_abs)[:, 0]]
     return np.array(maxis)
+
+def get_maximum_position(x, y):
+    return find_local_peak_position(x, y, np.argmax(y))
 
 
         # self.data_im = pd.read_pickle(dn_home+'/obs.pkl')

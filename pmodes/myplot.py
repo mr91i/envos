@@ -12,8 +12,7 @@ pyver = sys.version_info[0] + 0.1*sys.version_info[1]
 #print("Message from %s"% os.path.dirname(os.path.abspath(__file__)))
 debug_mode = 0
 import mytools
-from matplotlib.colors import BoundaryNorm, Normalize
-
+import matplotlib.colors as mpc
 
 msg = mytools.Message(__file__, debug=False)
 #######################
@@ -98,12 +97,12 @@ class Plotter:
                 return 1
 
             ## [k, y]
-            elif checktype(vec, (str,  vector))\
+            elif checktype(vec, (str, vector))\
                     and (len(x0) == len(vec[1])):
                 return 2
 
             ## [x, y]
-            elif checktype(vec, (vector,  vector))\
+            elif checktype(vec, (vector, vector))\
                     and (len(vec[0]) == len(vec[1])) \
                     and (not isinstance(vec[0][0], str)):
                 return 3
@@ -220,7 +219,6 @@ class Plotter:
 
             if True:
                 c_i = c[i] if len(c) >= i+1 else None
-                print(ar)
                 ax.annotate('', xytext=(ar[0], ar[1]), xy=(ar[2], ar[3]),
                             xycoords='data', annotation_clip=False,size=30,
                             arrowprops=dict(shrink=0, width=3, headwidth=8, headlength=8, lw=0,
@@ -305,7 +303,7 @@ class Plotter:
             div=10.0, n_sline=18, hist=False,
             square=None, seeds_angle=[0, np.pi/2],
             save=True, show=False, result="fig",
-            twoaxis=False,
+            twoaxis=False, clabel=False,
             **args):
 
         for k, v in locals().items():
@@ -315,9 +313,6 @@ class Plotter:
         msg("Plotting %s" % out)
         self.fig = plt.figure(**self.args_fig)
         self.ax = self.fig.add_subplot(111)
-        #if twoaxis:
-        #    ax2 = ax.twinx()
-
 
         x = self.notNone(x, self.x)
         y = self.notNone(y, self.y)
@@ -337,98 +332,53 @@ class Plotter:
         self.ax.set_ylabel(self.notNone(yl, self.yl, ""))
 
         cblim = self.notNone(cblim, self.cblim, [np.min(z), np.max(z)] )
-        cblim[1] *=  0.999
+        #cblim[1] =*=  0.999
         if self.notNone(logcb, self.logcb):  # (logcb or self.logcb):
             cblim = np.log10(cblim)
-            #print(z, np.max(z), np.min(z) )
             z = np.log10(np.where(z != 0, abs(z), np.nan))
 
-        if cblim is not None:
-            delta = (cblim[1] - cblim[0])/float(div)
+        #cdelta = (cblim[1] - cblim[0])/float(div)
+        #if (cblim[1]+delta - cblim[0])/delta > 100:
+        #    raise Exception("Wrong cblim, probably...", cblim)
 
-            if (cblim[1]+delta - cblim[0])/delta > 100:
-                raise Exception("Wrong cblim, probably...", cblim)
+        contour_levels = np.linspace(cblim[0], cblim[1], int(div)+1)
+        contour_levels[-1] *= 0.999
 
-        interval = np.arange(cblim[0], cblim[1]+delta, delta)
-
-
-        levels = np.linspace(cblim[0], cblim[1], int(div)+1)
-        norm = BoundaryNorm(levels, ncolors=cmap.N, clip=True)
         if mode == "grid":
+            norm = mpc.Normalize(vmin=cblim[0], vmax=cblim[1])
             # Note:
             # this guess of xi, yi relyies on the assumption where
             # grid space is equidistant.
-
-#            print( len(x[:,0]-0.5*(x[:,1]-x[:,0])),
-#                              (0.5*(x[:,0:-1]+x[:,1:]) ).shape  )
-#np.stack(( [x[:,0]-0.5*(x[:,1]-x[:,0])],
-#                              0.5*(x[:,0:-1]+x[:,1:]),
-#                             [x[:,-1]+0.5*(x[:,-1]-x[:,-2])] ), axis=-1)
-#            yi = np.hstack([[y[0]-0.5*(y[1]-y[0])], 0.5*( y[0:-1]+y[1:] ), [y[-1] + 0.5*(y[-1]-y[-2])]])
-#            xxi, yyi = np.meshgrid(xi, yi, indexing='xy')
-
-#            dx = x[1] - x[0] if len(x) != 1 else y[1] - y[0]
-#            dy = y[1] - y[0] if len(y) != 1 else x[1] - x[0]
-#            xxi = np.hstack((xx-dx/2., (xx[:, -1]+dx/2.).reshape(-1, 1)))
-#            xxi = np.vstack((xxi, xxi[-1]))
-#            yyi = np.vstack((yy-dy/2., (yy[-1, :]+dy/2.).reshape(1, -1)))
-#            yyi = np.hstack((yyi, yyi[:, -1].reshape(-1, 1)))
-
-  #          print(x.shape, y.shape)
-
             xxi, yyi = mytools.make_meshgrid_interface(xx, yy)
-            #print(xx.shape,"\n", xxi.shape, '\n')
-            #print(yy,"\n", yyi, "\n")
-            #print(vars(norm), z, xxi, yyi )
- #           print(xxi.shape, yyi.shape, z.shape, x.shape, y.shape)
-            #print( (z-np.min(z))/(np.max(z)-np.min(z)) )
-            #img = ax.pcolormesh(xxi.T, yyi.T, (z.T-np.min(z))/(np.max(z)-np.min(z)),
-            #                     cmap=cmap)
-            #img = ax.pcolormesh(xxi.T, yyi.T, z.T, norm=norm, vmin=cblim[0],  vmax=cblim[1],
-            #                     cmap=cmap,shading='flat')
+            #img = self.ax.pcolormesh(xxi.T, yyi.T, z.T, norm=norm, vmin=cblim[0], vmax=cblim[1], cmap=cmap)
+            img = self.ax.pcolormesh(xxi.T, yyi.T, z.T, norm=norm, cmap=cmap, rasterized=True)
 
-#            print(np.max(xx), np.max(xxi))
-
-#            exit()
-#            for x0, xx0, xxi0 in zip(x, xx, xxi):
-#                print(x0, xxi0)
-
-            #print(xxi, yyi)
-            img = self.ax.pcolormesh(xxi.T, yyi.T, z.T, norm=norm, vmin=cblim[0],  vmax=cblim[1],
-                                 cmap=cmap, rasterized=True)
-
-            #img = ax.pcolormesh(x.T, y.T, z.T, norm=norm, vmin=cblim[0],  vmax=cblim[1],
-            #                     cmap=cmap, shading='gouraud', rasterized=True)
+        elif mode == "gridf":
+            norm = mpc.BoundaryNorm(contour_levels, ncolors=cmap.N, clip=True)
+            # Note:
+            # this guess of xi, yi relyies on the assumption where
+            # grid space is equidistant.
+            xxi, yyi = mytools.make_meshgrid_interface(xx, yy)
+            #img = self.ax.pcolormesh(xxi.T, yyi.T, z.T, norm=norm, vmin=cblim[0], vmax=cblim[1], cmap=cmap)
+            img = self.ax.pcolormesh(xxi.T, yyi.T, z.T, norm=norm, cmap=cmap, rasterized=True)
 
         elif mode == "contourf":
+            interval = np.arange(cblim[0], cblim[1]+delta, delta)
             # Note:
             # if len(x) or len(y) is 1, contourf returns an eroor.
             # Instead of this, use "grid" method.
             img = self.ax.contourf(xx, yy, z, interval, vmin=cblim[0],
                               vmax=cblim[1], extend='both', cmap=cmap)
 
-            #ax.contourf( xx , yy , z , n_lv , cmap=cmap)
-
         elif mode == "contour":
-            #jM, iM = np.unravel_index(np.argmax(z), z.shape)
-            #self.ax.scatter(xx[jM, iM], yy[jM, iM], c='y', s=6, zorder=12)
-            #print(levels)
-            img = self.ax.contour(xx, yy, z, cmap=cmap, levels=levels, linewidths=lw, extend='both', corner_mask =True)
-            #img = plt.contour(xx, yy, z,levels=levels )
-#            print(type(img))
+            img = self.ax.contour(xx, yy, z, cmap=cmap, levels=contour_levels, linewidths=lw, extend='both', corner_mask=True)
 
         elif mode == "contourfill":
-            #img = self.ax.contourf(xx, yy, z, interval, vmin=cblim[0],
-            #                  vmax=cblim[1], extend='both', cmap=cmap)
-            #extent = [self.ax.get_xlim()[0]-1,self.ax.get_xlim()[1]+1, self.ax.get_ylim()[0],self.ax.get_ylim()[1]]
-            #print(extent)
-            #img = self.ax.imshow(z, cmap=cmap, origin='lower', interpolation='nearest', extent=extent)
+            norm = mpc.Normalize(vmin=cblim[0], vmax=cblim[1])
             xxi, yyi = mytools.make_meshgrid_interface(xx, yy)
-            img = self.ax.pcolormesh(xxi.T, yyi.T, z.T,  vmin=cblim[0],  vmax=cblim[1],
+            img = self.ax.pcolormesh(xxi.T, yyi.T, z.T, norm=norm,
                                  cmap=cmap, rasterized=True)
-            lines =self.ax.contour(xx, yy, z, levels=levels, colors='w', linewidths=lw)
-            #s = plt.contour(xx, yy, z, levels=levels)
-            #self.ax.clabel(cs, levels[1::2])
+            lines = self.ax.contour(xx, yy, z, levels=contour_levels, colors='w', linewidths=lw)
 
         elif mode == "scatter":
             img = self.ax.scatter(xx, yy, vmin=cblim[0], vmax=cblim[1],
@@ -436,28 +386,17 @@ class Plotter:
         else:
             raise Exception("No such a mode for mapping: ", mode)
 
-        ticks = np.arange(cblim[0], cblim[1]+delta, delta)  # not +1 to cb_max
-        img.set_clim(*cblim)
-        print(img.get_cmap(), img.get_array() , img.get_clim())
-        #self.fig.colorbar(img, ax=self.ax, ticks=ticks,
-        #             extend='both', label=self.notNone(cbl, self.cbl), pad=0.02)
-
-
-        #smap = mpl.cm.ScalarMappable(norm=norm, cmap=cmap)
-        #smap = mpl.contour.QuadContourSet(self.ax, levels)
-        #smap.set_array([])
-        #smap = img
-        #smap.levels = levels
-        cbar = self.fig.colorbar(img, ax=self.ax, ticks=ticks, extend='both', label=self.notNone(cbl, self.cbl), pad=0.02, format="%.2g")
-        #img.levels = levels
-        #cbar = self.fig.colorbar(img)
+        ticks = np.linspace(cblim[0], cblim[1], int(div)+1)
+        cbar = self.fig.colorbar(img, ax=self.ax, ticks=ticks, extend='both', label=self.notNone(cbl, self.cbl), pad=0.02, format="%.3g")
         if mode == "contourfill":
             cbar.add_lines(lines)
+
+        if clabel:
+            self.ax.clabel(lines, inline=1, fontsize=5, fmt="%.2g")
 
         if fills is not None:
             for fill in fills:
                 i = fill[0]
-                #ax.fill_between( x, y[0] ,fill[1],facecolor=c_def_rgb[i],alpha=0.3,zorder=-i-0.5)
                 self.ax.contourf(xx, yy, fill[1], cmap=cmap, alpha=0.5)
 
         if Vector is not None:
@@ -489,7 +428,6 @@ class Plotter:
         if title:
             self.ax.set_title(title)
 
-
         if self.notNone(square, self.square):
             self.ax.set_aspect('equal', adjustable='box')
 
@@ -502,22 +440,18 @@ class Plotter:
         if leg or self.leg:
             self.ax.set_legend(**self.args_leg)
 
-#        self.fig = fig
-
         if show:
-            self.save(show)
+            self.show(out)
 
         # Saving
         if save:
             self.save(out)
-
 
         if result=="fig":
             return self.fig
 
         elif result=="class":
             return self #Struct(self)
-
 
 
     def save(self, out):
