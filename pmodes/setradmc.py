@@ -244,6 +244,7 @@ class SetRadmc:
             #f.write('\n')
             msg("Saved: ",f.name)
 
+
     def set_gas_temperature(self):
         with open(self.dpath_radmc+'/gas_temperature.inp', 'w+') as f:
             f.write('1\n')                       # Format number
@@ -253,6 +254,12 @@ class SetRadmc:
             data.tofile(f, sep='\n', format='%13.6e')
             #f.write('\n')
             msg("Saved: ",f.name)
+
+    def remove_gas_temperature(self):
+        fpath = self.dpath_radmc+'/gas_temperature.inp'
+        if os.path.exists(fpath):
+            msg("remove gas_temperature.inp:", fpath)
+            os.remove(fpath)   
 
     def set_dust_temperature(self):
         with open(self.dpath_radmc+'/dust_temperature.dat', 'w+') as f:
@@ -264,6 +271,12 @@ class SetRadmc:
             data.tofile(f, sep='\n', format='%13.6e')
             f.write('\n')
             msg("Saved: ",f.name)
+
+    def remove_dust_temperature(self):
+        fpath = self.dpath_radmc+'/dust_temperature.dat'
+        if os.path.exists(fpath):
+            msg("remove dust_temperature.dat':", fpath)
+            os.remove(fpath)
 
     def set_dust_density(self):
         with open(self.dpath_radmc+'/dust_density.inp', 'w+') as f:
@@ -487,7 +500,10 @@ class RadmcData:
         self.zz = self.rrc * np.cos(self.ttc)
 
         if use_gtemp:
-            self.gtemp = data.gastemp[:,:,0,0].T
+            try:
+                self.gtemp = data.gastemp[:,:,0,0].T
+            except: 
+                self.gtemp = data.dusttemp[:,:,0,0].T
 
         if use_gdens and ispec:
             self.ndens_mol = data.ndens_mol[:,:,0,0].T
@@ -544,7 +560,7 @@ class RadmcData:
         pl1d = mp.Plotter(self.dn_fig, x=self.xauc,
                        logx=True, leg=False,
                        xl='Radius [au]', xlim=[10, 10000],
-                       fn_wrapper=lambda s:'rmc_%s_1d'%s, square=True)
+                       fn_wrapper=lambda s:'rmc_%s_1d'%s)
 
         pl2d = mp.Plotter(self.dn_fig, x=self.RR, y=self.zz,
                        logx=False, logy=False, logcb=True, leg=False,
@@ -556,15 +572,21 @@ class RadmcData:
             pl2d.map(d, fname, cblim=lim, logcb=log, cbl=lb)
 
         if self.use_gdens:
-            plot_plofs(self.ndens_mol, "nden", lim=[1e-3,1e3], lb=r"Number density [cm$^{-3}$]")
+            nmin = self.ndens_mol.min()
+            nmax = self.ndens_mol.max()
+            maxlim =  10**(0.5+round(np.log10(nmax)))
+            plot_plofs(self.ndens_mol, "nden", lim=[maxlim*1e-3, maxlim], lb=r"Number density [cm$^{-3}$]")
+
+        if self.use_gtemp:
+            plot_plofs(self.gtemp, "temp", lim=[1,1000], lb='Temperature [K]')
 
         if self.use_gtemp:
             plot_plofs(self.gtemp, "temp", lim=[1,1000], lb='Temperature [K]')
 
         if self.use_gvel:
             lb_v = r"Velocity [km s$^{-1}$]"
-            plot_plofs(self.vr/1e5, "gvelr", lim=[0,5], log=False, lb=lb_v)
-            plot_plofs(self.vt/1e5, "gvelt", lim=[0,5], log=False, lb=lb_v)
+            plot_plofs(-self.vr/1e5, "gvelr", lim=[0,5], log=False, lb=lb_v)
+            plot_plofs(self.vt/1e5, "gvelt", lim=[-5,5], log=False, lb=lb_v)
             plot_plofs(np.abs(self.vp)/1e5, "gvelp", lim=[0,5], log=False, lb=lb_v)
 
         if self.use_gdens and self.use_gtemp:      
