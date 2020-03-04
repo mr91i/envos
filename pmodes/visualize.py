@@ -40,7 +40,7 @@ class FitsAnalyzer:
                  vwidth_kms=0.5, plotmode_PV='grid',
                  convolve_PV_p=True, convolve_PV_v=True,
                  convolver='normal', pointsource_test=False,
-                 logcolor_PV=False,
+                 logcolor_PV=False, normalize=None,
                  ):
 
         for k, v in locals().items():
@@ -123,6 +123,10 @@ class FitsAnalyzer:
             Ipv = interpolate.interpn((self.vkms, self.yau, self.xau), Ippv, points)
         else:
             Ipv = Ippv[:, 0, :]
+
+        if self.normalize == "peak":
+            Ipv /= np.max(Ipv)
+            unit = r'[$I_{\rm max}$]'
 
         xas = self.xau/self.dpc
         pltr = mp.Plotter(self.dn_fig, x=xas, y=self.vkms, xlim=[-5, 5], ylim=[-3, 3])
