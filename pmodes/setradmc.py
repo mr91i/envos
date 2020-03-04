@@ -88,6 +88,10 @@ class SetRadmc:
         if self.temp_mode == 'const':
             self.set_gas_temperature()
             self.set_dust_temperature()
+        elif self.temp_mode == 'mctherm':
+            self.remove_gas_temperature()
+            self.remove_dust_temperature()
+
         self.set_dust_density()
         self.set_dust_opacity()
         self.set_input()
