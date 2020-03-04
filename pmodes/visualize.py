@@ -133,12 +133,33 @@ class FitsAnalyzer:
         xas = self.xau/self.dpc
         pltr = mp.Plotter(self.dn_fig, x=xas, y=self.vkms, xlim=[-5, 5], ylim=[-3, 3])
 
-        logoption = {"logcb":True, "cblim":[np.max(Ipv)*1e-2,np.max(Ipv)]} if self.logcolor_PV else {}
+        logoption = {"logcb":True, "cblim":[np.max(Ipv)*1e-2,np.max(Ipv)]} if self.logcolor_PV else {"cblim":[0, np.max(Ipv)]}
         pltr.map(z=Ipv, mode=self.plotmode_PV, **logoption, #logcb=True, cblim=[np.max(Ipv)*1e-2,np.max(Ipv)],
                  xl="Angular Offset [arcsec]", yl=r"Velocity [km s$^{-1}$]",
                  cbl=r'Intensity '+unit,
                  lw=.7, #logx=True, logy=True, xlim=[0.1, 100], ylim=[0.1, 10],
                  div=n_lv, save=False)
+#        pltr.fig.text(0.15,0.15,"M0=%.3f"%M_CR,transform=pltr.ax.transAxes)
+#        pltr.fig.text(0.15,0.15,"M1=%.3f"%M_CR)
+        #plt.text(0.15,0.15,"M3=%.3f"%M_CR)
+
+
+#        pltr.fig.text(0.25,0.25, "M=%.3f"%M_CR, horizontalalignment='left', verticalalignment='bottom')
+
+#        pltr.fig.text(np.min(xas)*0.9, np.min(self.vkms)*0.9,"M=%.3f"%M_CR, transform=None)
+
+
+
+        pltr.ax.minorticks_on()
+        pltr.ax.tick_params("both",direction="inout" )
+        pltr.ax2 = pltr.ax.twiny()
+        pltr.ax2.minorticks_on()
+        pltr.ax2.tick_params("both",direction="inout" )
+        #pltr.ax2.plot()
+        pltr.ax2.set_xlabel("Angular Offset [au]")
+        print(pltr.ax.get_xlim()*2 , pltr.ax.get_xbound() )
+        pltr.ax2.set_xlim(np.array(pltr.ax.get_xlim())*self.dpc)
+
 
         rCR = 200*cst.au
         l = np.sqrt(cst.G*self.Mstar*cst.Msun*rCR)
@@ -150,28 +171,59 @@ class FitsAnalyzer:
         #plt.plot(xas, -l/(self.xau*cst.au)/cst.kms, c="green", ls=":", lw=1)
         #plt.plot(xas, -l/(self.xau*cst.au)/cst.kms*(a)**(0.5), c="navy", ls=":", lw=1)
         #plt.plot(xas, -l/(self.xau*cst.au)/cst.kms*(a), c="plum", ls=":", lw=1)
-        plt.plot(xas, 2*l/rCR*(2*self.xau*cst.au/rCR)**(-2/3)/cst.kms, c="hotpink", ls=":", lw=1)
+        pltr.ax.plot(xas, 2*l/rCR*(2*self.xau*cst.au/rCR)**(-2/3)/cst.kms, c="hotpink", ls=":", lw=1)
         #plt.plot(xas, np.sqrt(2*cst.G*self.Mstar*cst.Msun/(self.xau*cst.au))*np.sqrt(2)/3**(3/4)/cst.kms, c="hotpink", ls=":", lw=1)
         
         if self.oplot_KeplerRotation:
-            plt.plot(xas, np.sqrt(cst.G*self.Mstar*cst.Msun/ \
+            pltr.ax.plot(xas, np.sqrt(cst.G*self.Mstar*cst.Msun/ \
                      (self.xau*cst.au))/cst.kms, c="cyan", ls=":", lw=1)
 
-        if self.oplot_LocalPeak_Vax:
-            for Iv, v_ in zip(Ipv.transpose(0, 1), self.vkms):
-                for xM in _get_peaks(xas, Iv):
-                    plt.plot(xM, v_, c="red", markersize=1, marker='o')
-
         if self.oplot_LocalPeak_Pax:
+            for Iv, v_ in zip(Ipv.transpose(0, 1), self.vkms):
+                for xM in _get_peaks(xas, Iv, threshold_abs=np.max(Ipv)*1e-10):
+                    pltr.ax.plot(xM, v_, c="red", markersize=1, marker='o')
+
+        if self.oplot_LocalPeak_Vax:
             for Ip, x_ in zip(Ipv.transpose(1, 0), xas):
-                for vM in _get_peaks(self.vkms, Ip):
-                    plt.plot(x_, vM, c="blue", markersize=1, marker='o')
+                for vM in _get_peaks(self.vkms, Ip, threshold_abs=np.max(Ipv)*1e-10):
+                    pltr.ax.plot(x_, vM, c="blue", markersize=1, marker='o')
+                    
+                    
 
         if self.oplot_LocalPeak_2D:
             for jM, iM in peak_local_max(Ipv, min_distance=10):
-                plt.scatter(xas[iM], self.vkms[jM], c="k", s=20, zorder=10)
+                pltr.ax.scatter(xas[iM], self.vkms[jM], c="k", s=20, zorder=10)
                 print("Local Max:   {:.1f}  au  , {:.1f}    km/s  ({}, {})".format(
                     self.xau[iM], self.vkms[jM], jM, iM))
+
+            del jM, iM
+        #jM, iM = np.unravel_index(np.argmax(Ipv[len(self.vkms)//2:, :len(self.xau)//2]), Ipv.shape)
+        
+        jM_iM = [(jM, iM) for jM, iM in peak_local_max(Ipv, min_distance=10, threshold_abs=np.max(Ipv)*1e-10) if ((self.xau[iM]*cst.au > 0 ) and (self.vkms[jM] > 0)) ]
+        if len(jM_iM) == 1:
+            jM, iM = jM_iM[0]
+        xau_peak = self.xau[iM]
+        vkms_peak = self.vkms[jM]
+        M_CR = (abs(xau_peak) * cst.au * (vkms_peak*cst.kms)**2 )/(cst.G*cst.Msun)
+        pltr.ax.axhline(y=vkms_peak, lw=2, ls=":", c="red", alpha=0.6)
+        pltr.ax.axvline(x=xau_peak/self.dpc, lw=2, ls=":", c="red", alpha=0.6)
+        pltr.ax.scatter(xau_peak/self.dpc, vkms_peak, c="red", s=50 , alpha=1, linewidth=0 , zorder=10)
+
+
+        x_vmax, I_vmax = np.array([[ _get_peaks(self.xau, Iv, threshold_abs=np.max(Iv) * 1e-10 )[0], np.max(Iv) ] for Iv in Ipv.transpose(0, 1) ]).T
+        v_10 = mytools.find_roots(self.vkms, I_vmax, 0.1*np.max(Ipv))
+        x_10 = mytools.find_roots(x_vmax, self.vkms, v_10[0]) #interpolate.interp1d(self.vkms, x_max)(v_10)
+
+        pltr.ax.axhline(y=v_10[0], lw=2, ls=":", c="blue", alpha=0.6)
+        pltr.ax.axvline(x=x_10[0]/self.dpc, lw=2, ls=":", c="blue", alpha=0.6)
+        pltr.ax.scatter(x_10[0]/self.dpc, v_10[0], c="blue", s=50 , alpha=1, linewidth=0  , zorder=10)
+        M_CB = (abs(x_10[0]) * cst.au * (v_10[0]*cst.kms)**2 )/(2*cst.G*cst.Msun)
+
+
+#        x_10 = interpolate.interp1d(self.vkms, x_max)(v_10)
+ #       print(v_10, x_10)
+        plt.text(0.95, 0.05,r"$M_{\rm CR}$=%.3f"%M_CR+"\n"+r"$M_{\rm CB,10\%%}$=%.3f"%M_CB, 
+                 transform=pltr.ax.transAxes, ha="right", va="bottom", bbox=dict(fc="white", ec="black", pad=5))
 
         pltr.save("pvd")
 
