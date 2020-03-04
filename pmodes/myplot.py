@@ -47,7 +47,7 @@ class Plotter:
                 setattr(self, k, v)
 
         if self.figsize is not None:
-            self.args_fig["figsize"] = sel.figsize
+            self.args_fig["figsize"] = self.figsize
 
         # For saving figures
         self.fig_dn = os.path.abspath(fig_dir_path)
@@ -271,6 +271,7 @@ class Plotter:
         plt.xlabel(self.notNone(xl, self.xl, ''))
         plt.ylabel(self.notNone(yl, self.yl, ''))
 
+        
         if self.notNone(square, self.square):
             plt.gca().set_aspect('equal', adjustable='box')
 
@@ -295,7 +296,7 @@ class Plotter:
 
     def map(self, z=None, out=None, x=None, y=None, mode='contourf',
             c=[None], ls=[None], lw=[None], alp=[None],
-            cmap=plt.get_cmap('inferno'),
+            cmap=plt.get_cmap('cividis'),
             xl=None, yl=None, cbl=None,
             xlim=None, ylim=None, cblim=None,
             logx=None, logy=None, logcb=None, logxy=False,
@@ -304,6 +305,7 @@ class Plotter:
             div=10.0, n_sline=18, hist=False,
             square=None, seeds_angle=[0, np.pi/2],
             save=True, show=False, result="fig",
+            twoaxis=False, 
             **args):
 
         for k, v in locals().items():
@@ -311,8 +313,11 @@ class Plotter:
 
         # Start Plotting
         msg("Plotting %s" % out)
-        fig = plt.figure(**self.args_fig)
-        ax = fig.add_subplot(111)
+        self.fig = plt.figure(**self.args_fig)
+        self.ax = self.fig.add_subplot(111)
+        #if twoaxis:
+        #    ax2 = ax.twinx()
+
 
         x = self.notNone(x, self.x)
         y = self.notNone(y, self.y)
@@ -326,12 +331,13 @@ class Plotter:
 
         z = self.decorator(z)
    
-        plt.xlim(self.notNone(xlim, self.xlim, [x[0], x[-1]]))
-        plt.ylim(self.notNone(ylim, self.ylim, [y[0], y[-1]]))
-        plt.xlabel(self.notNone(xl, self.xl, ""))
-        plt.ylabel(self.notNone(yl, self.yl, ""))
+        self.ax.set_xlim(self.notNone(xlim, self.xlim, [x[0], x[-1]]))
+        self.ax.set_ylim(self.notNone(ylim, self.ylim, [y[0], y[-1]]))
+        self.ax.set_xlabel(self.notNone(xl, self.xl, ""))
+        self.ax.set_ylabel(self.notNone(yl, self.yl, ""))
 
         cblim = self.notNone(cblim, self.cblim, [np.min(z), np.max(z)] )
+        cblim[1] *=  0.999
         if self.notNone(logcb, self.logcb):  # (logcb or self.logcb):
             cblim = np.log10(cblim)
             #print(z, np.max(z), np.min(z) )            
@@ -376,9 +382,9 @@ class Plotter:
             #print(vars(norm), z, xxi, yyi )
  #           print(xxi.shape, yyi.shape, z.shape, x.shape, y.shape)
             #print( (z-np.min(z))/(np.max(z)-np.min(z)) ) 
-            #img = plt.pcolormesh(xxi.T, yyi.T, (z.T-np.min(z))/(np.max(z)-np.min(z)), 
+            #img = ax.pcolormesh(xxi.T, yyi.T, (z.T-np.min(z))/(np.max(z)-np.min(z)), 
             #                     cmap=cmap)
-            #img = plt.pcolormesh(xxi.T, yyi.T, z.T, norm=norm, vmin=cblim[0],  vmax=cblim[1],
+            #img = ax.pcolormesh(xxi.T, yyi.T, z.T, norm=norm, vmin=cblim[0],  vmax=cblim[1],
             #                     cmap=cmap,shading='flat')
 
 #            print(np.max(xx), np.max(xxi))
@@ -388,76 +394,115 @@ class Plotter:
 #                print(x0, xxi0)
 
             #print(xxi, yyi)
-            img = plt.pcolormesh(xxi.T, yyi.T, z.T, norm=norm, vmin=cblim[0],  vmax=cblim[1],
+            img = self.ax.pcolormesh(xxi.T, yyi.T, z.T, norm=norm, vmin=cblim[0],  vmax=cblim[1],
                                  cmap=cmap, rasterized=True)
 
-            #img = plt.pcolormesh(x.T, y.T, z.T, norm=norm, vmin=cblim[0],  vmax=cblim[1],
+            #img = ax.pcolormesh(x.T, y.T, z.T, norm=norm, vmin=cblim[0],  vmax=cblim[1],
             #                     cmap=cmap, shading='gouraud', rasterized=True)
 
         elif mode == "contourf":
             # Note:
             # if len(x) or len(y) is 1, contourf returns an eroor.
             # Instead of this, use "grid" method.
-            img = plt.contourf(xx, yy, z, interval, vmin=cblim[0],
+            img = self.ax.contourf(xx, yy, z, interval, vmin=cblim[0],
                               vmax=cblim[1], extend='both', cmap=cmap)
-            #plt.contourf( xx , yy , z , n_lv , cmap=cmap)
+            
+            #ax.contourf( xx , yy , z , n_lv , cmap=cmap)
 
         elif mode == "contour":
-            jM, iM = np.unravel_index(np.argmax(z), z.shape)
-            plt.scatter(xx[jM, iM], yy[jM, iM], c='y', s=6, zorder=12)
-            img = plt.contour(xx, yy, z, cmap=cmap, levels=levels, linewidths=lw)
+            #jM, iM = np.unravel_index(np.argmax(z), z.shape)
+            #self.ax.scatter(xx[jM, iM], yy[jM, iM], c='y', s=6, zorder=12)
+            #print(levels)
+            img = self.ax.contour(xx, yy, z, cmap=cmap, levels=levels, linewidths=lw, extend='both', corner_mask =True)
+            #img = plt.contour(xx, yy, z,levels=levels )
+#            print(type(img))
+
+        elif mode == "contourfill":
+            #img = self.ax.contourf(xx, yy, z, interval, vmin=cblim[0],
+            #                  vmax=cblim[1], extend='both', cmap=cmap)
+            #extent = [self.ax.get_xlim()[0]-1,self.ax.get_xlim()[1]+1, self.ax.get_ylim()[0],self.ax.get_ylim()[1]]
+            #print(extent)
+            #img = self.ax.imshow(z, cmap=cmap, origin='lower', interpolation='nearest', extent=extent)
+            xxi, yyi = mytools.make_meshgrid_interface(xx, yy)
+            img = self.ax.pcolormesh(xxi.T, yyi.T, z.T,  vmin=cblim[0],  vmax=cblim[1],
+                                 cmap=cmap, rasterized=True)
+            lines =self.ax.contour(xx, yy, z, levels=levels, colors='w', linewidths=lw)
+            #s = plt.contour(xx, yy, z, levels=levels)
+            #self.ax.clabel(cs, levels[1::2])
 
         elif mode == "scatter":
-            img = plt.scatter(xx, yy, vmin=cblim[0], vmax=cblim[1],
+            img = self.ax.scatter(xx, yy, vmin=cblim[0], vmax=cblim[1],
                               c=z, s=1, cmap=cmap)
         else:
             raise Exception("No such a mode for mapping: ", mode)
 
         ticks = np.arange(cblim[0], cblim[1]+delta, delta)  # not +1 to cb_max
-        fig.colorbar(img, ax=ax, ticks=ticks,
-                     extend='both', label=self.notNone(cbl, self.cbl), pad=0.02)
+        img.set_clim(*cblim)
+        print(img.get_cmap(), img.get_array() , img.get_clim()) 
+        #self.fig.colorbar(img, ax=self.ax, ticks=ticks,
+        #             extend='both', label=self.notNone(cbl, self.cbl), pad=0.02)
+        
+
+        #smap = mpl.cm.ScalarMappable(norm=norm, cmap=cmap)
+        #smap = mpl.contour.QuadContourSet(self.ax, levels)
+        #smap.set_array([])
+        #smap = img
+        #smap.levels = levels
+        cbar = self.fig.colorbar(img, ax=self.ax, ticks=ticks, extend='both', label=self.notNone(cbl, self.cbl), pad=0.02, format="%.2g")
+        #img.levels = levels
+        #cbar = self.fig.colorbar(img)
+        if mode == "contourfill":
+            cbar.add_lines(lines)
 
         if fills is not None:
             for fill in fills:
                 i = fill[0]
                 #ax.fill_between( x, y[0] ,fill[1],facecolor=c_def_rgb[i],alpha=0.3,zorder=-i-0.5)
-                ax.contourf(xx, yy, fill[1], cmap=cmap, alpha=0.5)
+                self.ax.contourf(xx, yy, fill[1], cmap=cmap, alpha=0.5)
 
         if Vector is not None:
             uu, vv = Vector# self.notNone(Vector,self.Vector)
             #seeds_angle = #self.notNone(seeds_angle, self.seeds_angle)
             th_seed = np.linspace(seeds_angle[0], seeds_angle[1], n_sline)
-            rad = ax.get_xlim()[1]
+            rad = self.ax.get_xlim()[1]
             seed_points = np.array(
                 [rad * np.sin(th_seed), rad * np.cos(th_seed)]).T
-            x_ax = np.linspace(ax.get_xlim()[0], ax.get_xlim()[1], 200)
-            y_ax = np.linspace(ax.get_ylim()[0], ax.get_ylim()[1], 200)
+            x_ax = np.linspace(self.ax.get_xlim()[0], self.ax.get_xlim()[1], 200)
+            y_ax = np.linspace(self.ax.get_ylim()[0], self.ax.get_ylim()[1], 200)
             xx_gr, yy_gr = np.meshgrid(x_ax, y_ax, indexing='xy')
             xy = np.array([[x, y] for x, y in zip(xx.flatten(), yy.flatten())])
             mth = 'linear'
             uu_gr = griddata(xy, uu.flatten(), (xx_gr, yy_gr), method=mth)
             vv_gr = griddata(xy, vv.flatten(), (xx_gr, yy_gr), method=mth)
-            plt.streamplot(xx_gr, yy_gr, uu_gr, vv_gr,
+            self.ax.streamplot(xx_gr, yy_gr, uu_gr, vv_gr,
                            density=n_sline/4, linewidth=0.3*30/n_sline, arrowsize=.3*30/n_sline,
                            color='w', start_points=seed_points)
 
+        # Horizontal lines
+        for h in hl:
+            plt.axhline(y=h)
+
+        # Vertical lines
+        for v in vl:
+            plt.axvline(x=v, alpha=0.5)
+
         if title:
-            plt.title(title)
+            self.ax.set_title(title)
 
 
         if self.notNone(square, self.square):
-            plt.gca().set_aspect('equal', adjustable='box')
+            self.ax.set_aspect('equal', adjustable='box')
 
         if (logx or self.logx) or (logxy or self.logxy):
-            plt.xscale("log", nonposx='clip')
+            self.ax.set_xscale("log", nonposx='clip')
 
         if (logx or self.logx) or (logxy or self.logxy):
-            plt.yscale('log', nonposy='clip')
+            self.ax.set_yscale('log', nonposy='clip')
 
         if leg or self.leg:
-            plt.legend(**self.args_leg)
+            self.ax.set_legend(**self.args_leg)
 
-        self.fig = fig
+#        self.fig = fig
 
         if show:
             self.save(show)
@@ -468,9 +513,10 @@ class Plotter:
 
 
         if result=="fig":
-            return fig
+            return self.fig
+
         elif result=="class":
-            return Struct(self) 
+            return self #Struct(self) 
 
 
 
