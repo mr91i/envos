@@ -33,8 +33,7 @@ def exe_radmc_therm():
 
 def del_mctherm_files():
     if os.path.exists(dn_radmc+"/radmc3d.out"):
-        mytools.exe('rm {}/radmc3d.out'.format(dn_radmc), skiperror=True )
-
+        mytools.exe('rm {}/radmc3d.out'.format(dn_radmc))
 
 class SetRadmc:
     def __init__(self, dpath_radmc,
