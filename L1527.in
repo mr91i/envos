@@ -6,8 +6,8 @@ import cst
 def get_square_ntheta(r_range, nr):
     import numpy as np
     dlogr = np.log10(r_range[1]/r_range[0])/nr
-    dr_over_r = 10**dlogr -1 
-    return int(round(0.5*np.pi/dr_over_r)) 
+    dr_over_r = 10**dlogr -1
+    return int(round(0.5*np.pi/dr_over_r))
 
 class Parameters:
     def __init__(self, subclass_names=None):
@@ -61,7 +61,8 @@ radmc.nphot = 1000000
 radmc.r_in = 100 * cst.au
 radmc.r_out = 1e3 * cst.au
 radmc.nr = 128 #256 #256 #128 # 128 #1024 #128
-# dr(100au) ~ 100au * dlogr * 2.3 = 230 * 1/nr au  
+# dr(100au) ~ 100au * dlogr * 2.3 = 230 * 1/nr au
+# dr(500au) ~ 1000au * dlogr * 2.3 = 2300 * 1/nr au
 radmc.theta_in = 0
 radmc.theta_out = np.pi/2
 radmc.ntheta = get_square_ntheta([radmc.r_in, radmc.r_out], radmc.nr)
@@ -104,11 +105,10 @@ sobs.omp = True
 sobs.n_thread = 16
 
 fitsa = Parameters()
-fitsa.filename = {1:"sobs", 2:"YO_noconv"}[1] # sobs.filename
+fitsa.filename = {1:"sobs"}[1] # sobs.filename
 fitsa.dpc = dpc
-fitsaddpc = dpc
 fitsa.posang_PV = sobs.posang
-fitsa.convolution_pvdiagram = 0 #1  #True
+fitsa.convolution_pvdiagram = 1 #1  #True
 fitsa.convolution_mom0map = 0  #True
 fitsa.convolver = {1:"normal", 2:"fft"}[2]
 fitsa.logcolor_PV = 0
