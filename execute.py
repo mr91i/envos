@@ -63,33 +63,44 @@ def main():
                                            ])
             #subparam = [ make_params("beam_scale", "bsc", [0.1,0.3,3]) ]
             subparam = make_params_list([["beam_scale", "bsc", [0.3, 3]],
-                                        # ["fitsa.vwidth_kms", "v", [0.1, 1]]
+                                         ["fitsa.normalize", "norm", ["peak"]]
                                         ])
             parameter_survey("all", params_list, INPUT_FILE, submode="visualize", subparams=subparam)
 
         elif target == "params3":
-            params_list = make_params_list([["radmc.temp_mode", "T", ["mctherm"]],
-                                           ["model.ire_model", "ire", ["Simple", "CM"]],
+            params_list = make_params_list([["radmc.temp_mode", "", ["const", "mctherm"]],
+                                           ["model.ire_model", "", ["Simple", "CM"]],
                                            ])
             subparam = make_params_list([["beam_scale", "bsc", [0.3, 3]],
+                                         ["fitsa.normalize", "norm", ["peak"]],
                                         ])
             parameter_survey("all", params_list, INPUT_FILE, submode="visualize", subparams=subparam)
 
         elif target == "params4":
-            params_list = make_params_list([["model.ire_model", "ire", ["Simple", "CM"]],
-                                           ["model.cavity_angle", "cav", [0, 45, 60, 80, 85]],
+            params_list = make_params_list([["model.ire_model", "", ["Simple", "CM"]],
+                                            ["radmc.temp_mode", "", ["mctherm"]],
+                                            ["model.cavity_angle", "cav", [0, 45, 60, 80, 85]],
                                            ])
-
             subparam = make_params_list([["beam_scale", "bsc", [0.3, 3]],
+                                         ["fitsa.normalize", "norm",["peak"]],
                                         ])
+            parameter_survey("all", params_list, INPUT_FILE, submode="visualize", subparams=subparam )
+
+        elif target == "params5":
+            params_list = make_params_list([["model.ire_model", "", ["Simple", "CM"]],
+                                            ["radmc.temp_mode", "", ["mctherm"]],
+                                            ["radmc.mol_name", "", ["cch"]],
+                                           ])
+            subparam = make_params_list([ ["beam_scale", "bsc", [0.3, 3]] ])
             parameter_survey("all", params_list, INPUT_FILE, submode="visualize", subparams=subparam )
 
 
         elif target == "clean":
-            for tar in ["cache","subproc","radmc","fits","pkl"]:
+            for tar in ["cache","subproc","radmc","fits","pkl","tmpinp"]:
               clean(tar)
 
         elif "clean_" in target:
+            print(target.replace("clean_",""))
             clean(target.replace("clean_",""))
 
         elif target == "kill_process":
