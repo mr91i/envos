@@ -17,6 +17,9 @@ parser.add_argument("-n",'--nohup',action='store_true')
 parser.add_argument("-i",'--input',default="L1527.in")
 argcomplete.autocomplete(parser)
 args = parser.parse_args()
+print(args.targets)
+if isinstance(args.targets, str):
+    args.targets = [args.targets]
 
 PYCMD = "python"
 BASEDIR = "."
@@ -24,7 +27,6 @@ SRCDIR = BASEDIR + "/pmodes"
 RADMCDIR = BASEDIR + "/radmc"
 INPUT_FILE = args.input
 RMCMD = "rm -fv"
-
 mytools.exe.dryrun = True if args.dryrun else False
 
 def main():
