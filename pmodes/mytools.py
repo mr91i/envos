@@ -3,8 +3,26 @@ import subprocess
 import os
 import numpy as np
 
-#def msg_maker(filename):
-#    return m
+## in input files
+def get_square_ntheta(r_range, nr):
+    dlogr = np.log10(r_range[1]/r_range[0])/nr
+    dr_over_r = 10**dlogr -1
+    return int(round(0.5*np.pi/dr_over_r))
+
+class Parameters:
+    def __init__(self, subclass_name_list=None):
+        if subclass_name_list is not None:
+            for name in subclass_name_list:
+                setattr(self, name, Subclass() )
+    class Subclass:
+        pass
+
+def set_arguments(cls, locals_dict, printer=print):
+    for k, v in locals_dict.items():
+        if (k != 'self') and (k!="kwargs"):
+            setattr(cls, k, v)
+            printer(f"{k:20} is {str(v):20}")
+
 def freq_to_vkms(freq0, dfreq):
     import cst
     return cst.c/1e5* dfreq/freq0

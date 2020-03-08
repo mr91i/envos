@@ -2,20 +2,7 @@
 # -*- coding: utf-8 -*-
 import numpy as np
 import cst
-
-def get_square_ntheta(r_range, nr):
-    import numpy as np
-    dlogr = np.log10(r_range[1]/r_range[0])/nr
-    dr_over_r = 10**dlogr -1
-    return int(round(0.5*np.pi/dr_over_r))
-
-class Parameters:
-    def __init__(self, subclass_names=None):
-        if subclass_names is not None:
-            for name in subclass_names:
-                setattr(self, name, Subclass() )
-    class Subclass:
-        pass
+import mytools
 
 # General
 debug = 1
@@ -24,7 +11,7 @@ dpc = 137
 Tenv = 10
 
 # Physical Model
-model = Parameters()
+model = mytools.Parameters()
 model.plot = 1
 model.ire_model = {1:"CM", 2:"Simple"}[2]
 model.submodel = {0:None, 1:"CM", 2:"Simple"}[0]
@@ -33,9 +20,9 @@ model.disk = 0
 model.r_in = 1 * cst.au
 model.r_out = 1e4 * cst.au
 model.nr = 601
-model.theta_in = 1e-6
+model.theta_in = 0 #1e-6
 model.theta_out = np.pi/2
-model.ntheta = get_square_ntheta([model.r_in, model.r_out], model.nr)
+model.ntheta = mytools.get_square_ntheta([model.r_in, model.r_out], model.nr)
 model.phi_in = -np.pi
 model.phi_out = +np.pi
 model.nphi = 1
@@ -65,7 +52,7 @@ radmc.nr = 128 #256 #256 #128 # 128 #1024 #128
 # dr(500au) ~ 1000au * dlogr * 2.3 = 2300 * 1/nr au
 radmc.theta_in = 0
 radmc.theta_out = np.pi/2
-radmc.ntheta = get_square_ntheta([radmc.r_in, radmc.r_out], radmc.nr)
+radmc.ntheta = mytools.get_square_ntheta([radmc.r_in, radmc.r_out], radmc.nr)
 radmc.phi_in = -np.pi
 radmc.phi_out = np.pi
 radmc.nphi = 1
