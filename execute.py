@@ -209,24 +209,33 @@ def clean(target, rm_cmd=RMCMD, base_dir=BASEDIR, src_dir=SRCDIR, radmc_dir=RADM
 
     def rm(target_list, option=""):
         target = " ".join(target_list)
-        mytools.exe(f'echo {rm_cmd} {option} {target}')
+        mytools.exe(f'{RMCMD} {option} {target}')
 
     if target == "cache":
         rm(getpaths(src_dir, ["*.pyc", "__pycache__"]))
 
-    if target == "subproc":
-        rm(getpaths(radmc_dir, ["proc*"] ), option="-d")
+    elif target == "subproc":
+        rm(getpaths(radmc_dir, ["proc*"] ), option="-r")
 
-    if target == "radmc":
+    elif target == "radmc":
         rm(getpaths(radmc_dir, ["*.inp"], exclude=[r"molecule_.*", r"dustkappa_.*"]))
 
-    if target == "fits":
+    elif target == "fits":
         rm(getpaths(radmc_dir, ["*.fits"]))
 
-    if target == "pkl":
+    elif target == "pkl":
         rm(getpaths(radmc_dir, ["*.pkl"]))
 
-def kill_process():
+    elif target == "tmpinp":
+        print("wow")
+        rm(getpaths(base_dir, ["*.in.tmp*"]))
+        rm(getpaths(base_dir, ["fig_*"]), option="-r")
+
+    else:
+        raise Exception("Unknown clean target name: ", target)
+
+
+def kiml_process():
     msg("\nMay I kill \"radmc3d\" ? ")
     mytools.exe("ps")
     input("")
