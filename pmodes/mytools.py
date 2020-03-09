@@ -31,49 +31,42 @@ def make_array_center( xi ):
     return 0.5 * ( xi[0:-1] + xi[1:] )
 
 def make_array_interface( xc ):
-#    print(np.max(xc))
-#    print(xc)
-#    print( 0.5*(xc[0:-1]+xc[1:]) )
-        return np.concatenate([ [xc[0]-0.5*(xc[1]-xc[0])],
-                             0.5*(xc[0:-1]+xc[1:]),
-                            [xc[-1]+0.5*(xc[-1]-xc[-2])] ], axis=0)
+        return np.concatenate([[xc[0]-0.5*(xc[1]-xc[0])],
+                                0.5*(xc[0:-1]+xc[1:]),
+                               [xc[-1]+0.5*(xc[-1]-xc[-2])]
+                              ], axis=0)
 
 def make_meshgrid_center(xxi, yyi, indexing="xy"):
     if indexing=="xy":
         xc = make_array_center(xxi[0,:])
         yc = make_array_center(yyi[:,0])
         return np.meshgrid(xc, yc)
+
     elif indexing=="ij":
         xc = make_array_center(xxi[:,0])
         yc = make_array_center(yyi[0,:])
         return np.meshgrid(xc, yc, indexing="ij")
 
 def make_meshgrid_interface( xxc, yyc , indexing="xy"):
-    print(np.max(xxc))
     if indexing=="xy":
-
         xi = make_array_interface(xxc[0,:])
         yi = make_array_interface(yyc[:,0])
         return np.meshgrid(xi, yi)
+
     elif indexing=="ij":
-        print(xxc)
         xi = make_array_interface(xxc[:,0])
-        print(np.max(xi))
         yi = make_array_interface(yyc[0,:])
         return np.meshgrid(xi, yi, indexing="ij")
 
 def x_cross_zero(x1, x2, y1, y2):
     return x1 + y1 * (x2 - x1)/(y1 - y2)
 
-
 def find_roots(x, y1, y2):
-    #   if np.isscalar(y2):
     dy = np.array(y1) - np.array(y2)
     n = len(x) - 1
     return np.array([x_cross_zero(x[i], x[i+1], dy[i], dy[i+1])
                      for i in range(n)
                      if dy[i]*dy[i+1] <= 0])
-
 
 class Message:
     def __init__(self, filename=None, debug=None):
@@ -95,9 +88,6 @@ class Message:
             exit()
 
 def _msg(*s, **args):
-#    import inspect
-#    import os
-#    print(os.path.basename() )
     if ("debug" in args) and args["debug"]:
         if inp.debug:
             print("[debug]", end='')

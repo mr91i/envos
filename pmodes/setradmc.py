@@ -59,12 +59,9 @@ class SetRadmc:
         self.vph = None
         self.vturb = None
         self.Tstar = None
-        #if args != {}:
-        #    raise Exception("There is unused args :", args)
+
         if kwargs != {}:
             msg("There is unused args :", kwargs)
-
-        #exit()
 
         if autoset:
             self.set_all()
@@ -315,17 +312,6 @@ class SetRadmc:
             for k,v in params:
                  f.write('{} = {}\n'.format(k, v))
 
-#            f.write('nphot = %d\n' % self.nphot)
-#            f.write('scattering_mode_max = 0\n')  # 1: with scattering
-#            f.write('iranfreqmode = 1\n')
-#            f.write('mc_scat_maxtauabs = 5.d0\n')
-#            f.write('tgas_eq_tdust = 1\n') # %d')# % int(self.temp_mode == '') )
-#            f.write('camera_maxdphi = 0.05\n')
-#            f.write('iseed = -5415\n')
-
-
-            #f.write('nphot_spec = 200000\n')
-
             msg("Saved: ",f.name)
 
 
@@ -334,7 +320,6 @@ class SetRadmc:
         savefile = self.dpath_radmc+'/'+self.fn_radmcset_pkl
         pd.to_pickle(self, savefile, protocol=2)
         msg('Saved:  %s\n' % savefile)
-
 
 
 def _interpolator2d(value, x_ori, y_ori, x_new, y_new, logx=False, logy=False, logv=False):
