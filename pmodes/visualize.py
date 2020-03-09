@@ -51,34 +51,61 @@ class FitsAnalyzer:
         self.Ippv_raw = pic.data
         header = pic.header
 
-        self.Nx = header["NAXIS1"]
-        self.Ny = header["NAXIS2"]
-        self.Nz = header["NAXIS3"]
-        self.dx = - header["CDELT1"]*np.pi/180.0*self.dpc*cst.pc/cst.au
-        self.dy = + header["CDELT2"]*np.pi/180.0*self.dpc*cst.pc/cst.au
-        Lx = self.Nx*self.dx
-        Ly = self.Ny*self.dy
-        self.xau = -0.5*Lx + (np.arange(self.Nx)+0.5)*self.dx
-        self.yau = - 0.5*Ly + (np.arange(self.Ny)+0.5)*self.dy
+        self.datatype="pv"
 
-        if header["CRVAL3"] > 1e8:
-            nu_max = header["CRVAL3"] # freq: max --> min
-            dnu = header["CDELT3"]
-            nu0 = nu_max + 0.5*dnu*(self.Nz-1)
-            self.dv = - cst.c / 1e5 * dnu / nu0
-            self.vkms = (-0.5*(self.Nz-1)+np.arange(self.Nz)) * self.dv
-        else:
-            self.dv = header["CDELT3"]/1e3
-            self.vkms = self.dv*(-0.5*(self.Nz-1) + np.arange(self.Nz))
+        if self.datatype=="ppv":
+            self.Nx = header["NAXIS1"]
+            self.Ny = header["NAXIS2"]
+            self.Nz = header["NAXIS3"]
+            self.dx = - header["CDELT1"]*np.pi/180.0*self.dpc*cst.pc/cst.au
+            self.dy = + header["CDELT2"]*np.pi/180.0*self.dpc*cst.pc/cst.au
+            Lx = self.Nx*self.dx
+            Ly = self.Ny*self.dy
+            self.xau = -0.5*Lx + (np.arange(self.Nx)+0.5)*self.dx
+            self.yau = - 0.5*Ly + (np.arange(self.Ny)+0.5)*self.dy
 
-        if ((self.dx < 0) or (self.xau[1] < self.xau[0])) \
-            or ((self.dy < 0) or (self.yau[1] < self.yau[0])) \
-            or ((self.dv < 0) or (self.vkms[1] < self.vkms[0])):
-            raise Exception("reading axis is wrong.")
+            if header["CRVAL3"] > 1e8:
+                nu_max = header["CRVAL3"] # freq: max --> min
+                dnu = header["CDELT3"]
+                nu0 = nu_max + 0.5*dnu*(self.Nz-1)
+                self.dv = - cst.c / 1e5 * dnu / nu0
+                self.vkms = (-0.5*(self.Nz-1)+np.arange(self.Nz)) * self.dv
+            else:
+                self.dv = header["CDELT3"]/1e3
+                self.vkms = self.dv*(-0.5*(self.Nz-1) + np.arange(self.Nz))
 
-        msg(f"fits file path: {self.fits_file_path}")
-        msg("pixel size[au]: {:g} {:g}".format(self.dx, self.dy))
-        msg("L[au]: {:g} {:g}".format(Lx, Ly))
+            if ((self.dx < 0) or (self.xau[1] < self.xau[0])) \
+                or ((self.dy < 0) or (self.yau[1] < self.yau[0])) \
+                or ((self.dv < 0) or (self.vkms[1] < self.vkms[0])):
+                raise Exception("reading axis is wrong.")
+            print("fits file path: {}".format(self.fits_file_path))
+            print("pixel size[au]: {} {}".format(self.dx, self.dy))
+            print("L[au]: {} {}".format(Lx, Ly))
+
+        elif self.datatype=="pv":
+
+            self.Nx = header["NAXIS1"]
+            self.Nz = header["NAXIS2"]
+            self.dx = header["CDELT1"]*np.pi/180.0*self.dpc*cst.pc/cst.au
+            Lx = self.Nx*self.dx
+            self.xau = -0.5*Lx + (np.arange(self.Nx)+0.5)*self.dx
+
+            if header["CRVAL2"] > 1e8:
+                nu_max = header["CRVAL2"] # freq: max --> min
+                dnu = header["CDELT2"]
+                nu0 = nu_max + 0.5*dnu*(self.Nz-1)
+                self.dv = - cst.c / 1e5 * dnu / nu0
+                self.vkms = (-0.5*(self.Nz-1)+np.arange(self.Nz)) * self.dv
+            else:
+                self.dv = header["CDELT2"]/1e3 # in m/s to in km/s
+                self.vkms = self.dv*(-0.5*(self.Nz-1) + np.arange(self.Nz))
+            self.Ippv_raw = self.Ippv_raw[::-1,:]
+            print(self.xau, self.dx, self.vkms, self.dv)
+
+            if ((self.dx < 0) or (self.xau[1] < self.xau[0])) \
+                or ((self.dv < 0) or (self.vkms[1] < self.vkms[0])):
+                raise Exception("reading axis is wrong.")
+
 
     def chmap(self, n_lv=20):
 #        xx, yy = np.meshgrid(self.xau, self.yau)
@@ -108,23 +135,39 @@ class FitsAnalyzer:
         if self.pointsource_test:
             Ippv = self.use_pointsource(Ippv)
 
-        if self.convolution_pvdiagram:
-            Ippv = self._convolution(Ippv, beam_a_au=self.beama_au, beam_b_au=self.beamb_au,
+        if self.datatype=="ppv":
+
+            if self.convolution_pvdiagram:
+                Ippv = self._convolution(Ippv, beam_a_au=self.beama_au, beam_b_au=self.beamb_au,
                                      v_width_kms=self.vwidth_kms, theta_deg=self.beam_posang)
 
-            #Ippv = self._perpix_to_perbeam(Ippv, beam_a_au=self.beama_au, beam_b_au=self.beamb_au, v_width_kms=self.vwidth_kms)
-            #unit = r'[Jy beam$^{-1}$]'
+                #Ippv = self._perpix_to_perbeam(Ippv, beam_a_au=self.beama_au, beam_b_au=self.beamb_au, v_width_kms=self.vwidth_kms)
+                #unit = r'[Jy beam$^{-1}$]'
 
-            #Ippv = self._perpix_to_pergunit(Ippv)
-            #unit = r'[Jy cm$^{-2}$ (km/s)$^{-1}$ ]'
+                #Ippv = self._perpix_to_pergunit(Ippv)
+                #unit = r'[Jy cm$^{-2}$ (km/s)$^{-1}$ ]'
 
-        if len(self.yau) > 1:
-            posang_PV_rad = self.posang_PV/180.*np.pi
-            points = [[(v, r*np.sin(posang_PV_rad), r*np.cos(posang_PV_rad))
-                       for r in self.xau ] for v in self.vkms]
-            Ipv = interpolate.interpn((self.vkms, self.yau, self.xau), Ippv, points)
-        else:
-            Ipv = Ippv[:, 0, :]
+            if len(self.yau) > 1:
+                posang_PV_rad = self.posang_PV/180.*np.pi
+                points = [[(v, r*np.sin(posang_PV_rad), r*np.cos(posang_PV_rad))
+                           for r in self.xau ] for v in self.vkms]
+                Ipv = interpolate.interpn((self.vkms, self.yau, self.xau), Ippv, points)
+            else:
+                Ipv = Ippv[:, 0, :]
+                    Ippv = self._perpix_to_perbeamkms(Ippv, beam_a_au=self.beama_au, beam_b_au=self.beamb_au, v_width_kms=self.vwidth_kms)
+                    unit = r'[Jy beam$^{-1}$ (km/s)$^{-1}$]'
+
+            if len(self.yau) > 1:
+                posang_PV_rad = self.posang_PV/180.*np.pi
+                points = [[(v, r*np.sin(posang_PV_rad), r*np.cos(posang_PV_rad))
+                           for r in self.xau ] for v in self.vkms]
+                Ipv = interpolate.interpn((self.vkms, self.yau, self.xau), Ippv, points)
+            else:
+                Ipv = Ippv[:, 0, :]
+
+        elif self.datatype=="pv":
+            Ipv = self.Ippv_raw
+
 
         if self.normalize == "peak":
             Ipv /= np.max(Ipv)
