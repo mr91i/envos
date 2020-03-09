@@ -20,8 +20,12 @@ At this writing, Python 3.8.1 is the newest.''')
 
 parser = argparse.ArgumentParser(description='')
 parser.add_argument('input_file_name', nargs='?', default="L1527.in")
+parser.add_argument('-e','--edit', action='store_true')
 args = parser.parse_args()
 print("[header.py] Input file path is ", dn_home+"/"+args.input_file_name)
+if args.edit:
+    print("Enter edit mode with vim...")
+    os.system("vim "+dn_home+"/"+args.input_file_name)
 
 class read_inp:
     def __init__(self, path):
