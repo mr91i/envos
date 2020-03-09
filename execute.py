@@ -119,7 +119,7 @@ def parameter_survey( mode , params, ori_inpfn , submode=None, subparams=None):
 
         replace_inputfile2(target_chars, new_chars, ori_inpfn, tmp_fname)
         Execute(mode, inputfile=tmp_fname)
-        mytools.exe('cp -r fig fig_'+label )
+        mytools.exe('cp -r fig -T fig_'+label )
 
     for param_set in itertools.product(*params):
         calc_one_paramset(mode, param_set, ori_inpfn)
