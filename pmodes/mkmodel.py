@@ -116,8 +116,8 @@ class EnvelopeDiskModel:
             vals_rt = {}
             for r in self.r_ax:
                 vals = self.calc_physical_structure_for_theta2(r,p)
-                self.stack(vals, vals_rt)
-            self.stack(vals_rt, vals_prt)
+                self._stack_dict(vals, vals_rt)
+            self._stack_dict(vals_rt, vals_prt)
 
         for k, v_prt in vals_prt.items():
             setattr(self, k, np.array(v_prt).transpose(1,2,0))
@@ -139,6 +139,7 @@ class EnvelopeDiskModel:
         vth_tot = np.where(b_disk, 0, uth)
         rr = np.full_like(self.th_ax, r)
         tt = self.th_ax
+        zeta = np.full_like(RR,zeta)
         if self.submodel is not None:
             rho_sub, ur_sub, uth_sub, uph_sub, zeta_sub, mu0_sub, uR_sub, uz_sub = self.calc_Kinematics(
                 r, model=self.submodel)
@@ -146,7 +147,8 @@ class EnvelopeDiskModel:
         del ret["self"]
         return ret
 
-    def stack(self, dict_vals, dict_stacked):
+    @staticmethod
+    def _stack_dict(dict_vals, dict_stacked):
         for k, v in dict_vals.items():
             if not k in dict_stacked:
                 dict_stacked[k] = []
@@ -172,9 +174,9 @@ class EnvelopeDiskModel:
                 raise Exception("Bad values.")
 
         if self.simple_density:
-            print(np.max(rho))
+            #print(np.max(rho))
             rho = self.get_Kinematics_SimpleBalistic(r)[0]
-            print("-->", np.max(rho))
+            #print("-->", np.max(rho))
         if self.counterclockwise_rotation:
             uph *= -1
         uR = ur * self.sin + uth * self.mu
@@ -187,28 +189,28 @@ class EnvelopeDiskModel:
         sin0 = np.sqrt(1 - mu0**2)
         v0 = np.sqrt(self.GM / r)
         # np.where( np.logical_and(mu0==0,mu==0) , 1-zeta, mu/mu0 )
-        mu_to_mu0 = 1 - zeta*(1 - mu0**2)
-        ur = - v0 * np.sqrt(1 + mu_to_mu0)
-        uth = v0 * zeta*sin0**2*mu0/self.sin * np.sqrt(1 + mu_to_mu0)
+        mu_over_mu0 = 1 - zeta*(1 - mu0**2)
+        ur = - v0 * np.sqrt(1 + mu_over_mu0)
+        uth = v0 * zeta*sin0**2*mu0/self.sin * np.sqrt(1 + mu_over_mu0)
         uph = v0 * sin0**2/self.sin * np.sqrt(zeta)
-        rho = - self.dMdt / (4 * np.pi * r**2 * ur) / (1 + zeta*(3*mu0**2-1))
+        rho = - self.dMdt / (4 * np.pi * r**2 * ur * (1 + zeta*(3*mu0**2-1) ) )
         mask = 1.0
         if self.cavity_angle is not None:
             mask = np.where(mu0 < self.mu_cav, 1, 0)
         return rho*mask, ur, uth, uph, zeta, mu0
 
     @staticmethod
-    def sol1(m,zeta):
+    def sol_with_roots(m,zeta):
         sols = [ round(sol, 10) for sol in np.roots([zeta, 0, 1-zeta, -m]).real if 0 <= round(sol, 10) <= 1 ]
         return sols[0]
 
     @staticmethod
-    def sol2(m,zeta):
+    def sol_with_cubic(m,zeta):
         sols = [ round(sol, 10) for sol in cubicsolver.solve(zeta, 0, 1-zeta, -m).real if 0 <= round(sol, 10) <= 1 ]
         return sols[0]
 
     def get_mu0(self, zeta, method='roots'):
-        solver = {"roots":self.sol1, "cubic":self.sol2}[method]
+        solver = {"roots":self.sol_with_roots, "cubic":self.sol_with_cubic}[method]
         return np.array([solver(m, zeta) for m in self.mu])
 
     def get_Kinematics_SimpleBalistic(self, r, p=-1.5, r0=None, rho0=None, dMdt=None, h=0.1, fillv=0):
