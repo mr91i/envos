@@ -388,7 +388,37 @@ class Plotter:
             raise Exception("No such a mode for mapping: ", mode)
 
         ticks = np.linspace(cblim[0], cblim[1], int(div)+1)
-        cbar = self.fig.colorbar(img, ax=self.ax, ticks=ticks, extend='both', label=self.notNone(cbl, self.cbl), pad=0.02, format="%.3g")
+        fmt = mpt.ScalarFormatter()#(useMathText=True)
+        #fmt = mpt.StrMethodFormatter()
+        #fmt = mpt.PercentFormatter(xmax=np.max(z))
+        #fmt._usetex = True
+        #fmt.set_locs([1])
+        cbl = self.notNone(cbl, self.cbl)
+        cbar = self.fig.colorbar(img, ax=self.ax, ticks=ticks, extend='both', label=cbl, pad=0.02, format=fmt)
+        #cbar = self.fig.colorbar(img, ticks=ticks, extend='both', label=cbl, pad=0.02, format=fmt)
+
+        #print(cbar.ax.xaxis.get_offset_text(), cbar.ax.yaxis.get_offset_text(), cbar.get_offset_text())
+        #print(vars(cbar.ax.yaxis.offsetText), cbar.ax.yaxis.offsetText.get_text(), cbar.ax.yaxis.get_minor_formatter().get_offset() )
+       # print(vars(self.ax),     cbar.ax.yaxis.get_offset_text() )
+
+        cbar.ax.yaxis.get_offset_text().set_position((5, 0))
+        print(cbar.ax.yaxis.get_offset_text()._text )
+
+        #bar.ax.yaxis.offsetText, vars(cbar.ax.yaxis))
+        #cbar.ax.yaxis.offsetText.set_visible(False)
+        offset = cbar.ax.yaxis.get_major_formatter().get_offset()
+        #cbar.ax.yaxis.offset_text_position = "right"
+
+        #print(cbar.ax.yaxis.get_label(), vars(cbar.ax.yaxis))
+#        cbar.ax.yaxis.set_label_text( cbl.replace("[", "["+offset+" " ))
+
+
+
+        if ("[" in cbl) and (offset != ""):
+            cbar.ax.yaxis.set_label_text( cbl.replace("[", "["+offset+"" ))
+  #      else:
+   #         cbar.ax.yaxis.set_label_text( cbl + offset)
+
         if mode == "contourfill":
             cbar.add_lines(lines)
 
