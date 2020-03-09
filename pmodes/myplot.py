@@ -13,6 +13,7 @@ pyver = sys.version_info[0] + 0.1*sys.version_info[1]
 debug_mode = 0
 import mytools
 import matplotlib.colors as mpc
+import matplotlib.ticker as mpt
 
 msg = mytools.Message(__file__, debug=False)
 #######################
@@ -363,11 +364,11 @@ class Plotter:
             img = self.ax.pcolormesh(xxi.T, yyi.T, z.T, norm=norm, cmap=cmap, rasterized=True)
 
         elif mode == "contourf":
-            interval = np.arange(cblim[0], cblim[1]+delta, delta)
+            #interval = np.arange(cblim[0], cblim[1]+delta, delta)
             # Note:
             # if len(x) or len(y) is 1, contourf returns an eroor.
             # Instead of this, use "grid" method.
-            img = self.ax.contourf(xx, yy, z, interval, vmin=cblim[0],
+            img = self.ax.contourf(xx, yy, z, contour_levels, vmin=cblim[0],
                               vmax=cblim[1], extend='both', cmap=cmap)
 
         elif mode == "contour":
