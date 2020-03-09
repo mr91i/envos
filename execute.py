@@ -197,7 +197,7 @@ def replace_inputfile2(target_chars, new_chars, original_file, temp_file):
             f.write(filetxt)
 
 
-def clean(target, rm_cmd=RMCMD, src_dir=SRCDIR, radmc_dir=RADMCDIR):
+def clean(target, rm_cmd=RMCMD, base_dir=BASEDIR, src_dir=SRCDIR, radmc_dir=RADMCDIR):
     def getpaths(target_dir,patterns=[],exclude=[]):
         def match_exclude(x):
             return any([re.fullmatch(exc, x) for exc in exclude ])
