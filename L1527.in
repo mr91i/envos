@@ -90,7 +90,7 @@ sobs.omp = True
 sobs.n_thread = 16
 
 fitsa = mytools.Parameters()
-fitsa.filename = {1:"sobs"}[1] # sobs.filename
+fitsa.filename = {1:"sobs",2:"Flare20_PV"}[2] # sobs.filename
 fitsa.dpc = dpc
 fitsa.posang_PV = sobs.posang
 fitsa.convolution_pvdiagram = 1 #1  #True
