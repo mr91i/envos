@@ -75,9 +75,9 @@ class FitsAnalyzer:
             or ((self.dv < 0) or (self.vkms[1] < self.vkms[0])):
             raise Exception("reading axis is wrong.")
 
-        print("fits file path: {}".format(self.fits_file_path))
-        print("pixel size[au]: {} {}".format(self.dx, self.dy))
-        print("L[au]: {} {}".format(Lx, Ly))
+        msg(f"fits file path: {self.fits_file_path}")
+        msg("pixel size[au]: {:g} {:g}".format(self.dx, self.dy))
+        msg("L[au]: {:g} {:g}".format(Lx, Ly))
 
     def chmap(self, n_lv=20):
 #        xx, yy = np.meshgrid(self.xau, self.yau)
@@ -105,7 +105,7 @@ class FitsAnalyzer:
         Ippv = copy.copy(self.Ippv_raw)
         unit = r'[Jy pixel$^{-1}$]'
         if self.pointsource_test:
-            self.self._pointsource(Ippv)
+            Ippv = self.use_pointsource(Ippv)
 
         if self.convolution_pvdiagram:
             Ippv = self._convolution(Ippv, beam_a_au=self.beama_au, beam_b_au=self.beamb_au,
