@@ -501,11 +501,9 @@ class RadmcData:
             self.plotall()
 
     def readRadmcData(self): # modified version of radmc3dPy.analyze.readData
-
         res = rmca.radmc3dData()
         res.grid = rmca.radmc3dGrid()
         res.grid.readSpatialGrid(fname=self.dn_radmc+"/amr_grid.inp")
-
         if self.use_ddens:
             res.readDustDens(binary=False, fname=self.dn_radmc+"/dust_density.inp")
 
