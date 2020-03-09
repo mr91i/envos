@@ -465,14 +465,14 @@ def readRadmcData(dn_radmc=None, use_ddens=True, use_dtemp=True,
     return res
 
 class RadmcData:
-    def __init__(self, dn_radmc=None, dn_fig=None, use_ddens=True, use_gdens=True, use_gtemp=True,
-                 use_dtemp=True, use_gvel=True, ispec=None, mol_abun=0, autoplot=True):
-        for k, v in locals().items():
-            if k is not 'self':
-                setattr(self, k, v)
+    def __init__(self, dn_radmc=None, dn_fig=None,
+                 use_ddens=True, use_gdens=True, use_gtemp=True,
+                 use_dtemp=True, use_gvel=True,
+                 ispec=None, mol_abun=0, autoplot=True):
+
+        mytools.set_arguments(self, locals(), printer=msg)
 
         data = self.readRadmcData()
-
         self.xauc = data.grid.x/cst.au
         self.rrc, self.ttc = np.meshgrid(self.xauc, data.grid.y, indexing='xy')
         self.RR = self.rrc * np.sin(self.ttc)
