@@ -15,7 +15,8 @@ import copy
 import astropy.io.fits as iofits
 from scipy import integrate, optimize, interpolate
 from skimage.feature import peak_local_max
-from astropy.convolution import convolve, convolve_fft, Gaussian1DKernel, Gaussian2DKernel
+import astropy.convolution as aconv
+#import convolve, convolve_fft, Gaussian1DKernel, Gaussian2DKernel
 from header import inp, dn_home, dn_radmc, dn_fig
 import myplot as mp
 import cst
@@ -101,7 +102,7 @@ class FitsAnalyzer:
                 xl="Position [au]", yl="Position [au]", cbl=r'Intensity [Jy pixel$^{-1}$ ]',
                 div=n_lv, mode='grid', cbmin=0, cbmax=Ipp.max(), square=True)
 
-    def pvdiagram(self, n_lv=5):
+    def pvdiagram(self, n_lv=10):
         Ippv = copy.copy(self.Ippv_raw)
         unit = r'[Jy pixel$^{-1}$]'
         if self.pointsource_test:
@@ -110,8 +111,12 @@ class FitsAnalyzer:
         if self.convolution_pvdiagram:
             Ippv = self._convolution(Ippv, beam_a_au=self.beama_au, beam_b_au=self.beamb_au,
                                      v_width_kms=self.vwidth_kms, theta_deg=self.beam_posang)
-            Ippv = self._perpix_to_perbeamkms(Ippv, beam_a_au=self.beama_au, beam_b_au=self.beamb_au, v_width_kms=self.vwidth_kms)
-            unit = r'[Jy beam$^{-1}$ (km/s)$^{-1}$]'
+
+            #Ippv = self._perpix_to_perbeam(Ippv, beam_a_au=self.beama_au, beam_b_au=self.beamb_au, v_width_kms=self.vwidth_kms)
+            #unit = r'[Jy beam$^{-1}$]'
+
+            #Ippv = self._perpix_to_pergunit(Ippv)
+            #unit = r'[Jy cm$^{-2}$ (km/s)$^{-1}$ ]'
 
         if len(self.yau) > 1:
             posang_PV_rad = self.posang_PV/180.*np.pi
@@ -124,50 +129,40 @@ class FitsAnalyzer:
         if self.normalize == "peak":
             Ipv /= np.max(Ipv)
             unit = r'[$I_{\rm max}$]'
+            cblim = [0, np.max(Ipv)]
+        else:
+            cblim = [0, np.max(Ipv)]  if not self.Imax else [0, self.Imax]
+
+
+        # Set cblim
+        if self.logcolor_PV:
+            cblim[1] = cblim[0]*0.001
 
         xas = self.xau/self.dpc
         pltr = mp.Plotter(self.dn_fig, x=xas, y=self.vkms, xlim=[-5, 5], ylim=[-3, 3])
 
-        logoption = {"logcb":True, "cblim":[np.max(Ipv)*1e-2,np.max(Ipv)]} if self.logcolor_PV else {"cblim":[0, np.max(Ipv)]}
-        pltr.map(z=Ipv, mode=self.plotmode_PV, **logoption, #logcb=True, cblim=[np.max(Ipv)*1e-2,np.max(Ipv)],
+        print(cblim)
+#        logoption = {"logcb":True, "cblim":[np.max(Ipv)*1e-2,np.max(Ipv)]} if self.logcolor_PV else {"cblim":[0, np.max(Ipv) for not self.Imax in self.Imax ]}
+        pltr.map(z=Ipv, mode=self.plotmode_PV, logcb=self.logcolor_PV, cblim=cblim, #cblim=[np.max(Ipv)*1e-2,np.max(Ipv)],
                  xl="Angular Offset [arcsec]", yl=r"Velocity [km s$^{-1}$]",
                  cbl=r'Intensity '+unit,
                  lw=.7, #logx=True, logy=True, xlim=[0.1, 100], ylim=[0.1, 10],
                  div=n_lv, save=False)
-#        pltr.fig.text(0.15,0.15,"M0=%.3f"%M_CR,transform=pltr.ax.transAxes)
-#        pltr.fig.text(0.15,0.15,"M1=%.3f"%M_CR)
-        #plt.text(0.15,0.15,"M3=%.3f"%M_CR)
-
-
-#        pltr.fig.text(0.25,0.25, "M=%.3f"%M_CR, horizontalalignment='left', verticalalignment='bottom')
-
-#        pltr.fig.text(np.min(xas)*0.9, np.min(self.vkms)*0.9,"M=%.3f"%M_CR, transform=None)
-
-
 
         pltr.ax.minorticks_on()
         pltr.ax.tick_params("both",direction="inout" )
         pltr.ax2 = pltr.ax.twiny()
         pltr.ax2.minorticks_on()
         pltr.ax2.tick_params("both",direction="inout" )
-        #pltr.ax2.plot()
         pltr.ax2.set_xlabel("Angular Offset [au]")
-        print(pltr.ax.get_xlim()*2 , pltr.ax.get_xbound() )
         pltr.ax2.set_xlim(np.array(pltr.ax.get_xlim())*self.dpc)
-
 
         rCR = 200*cst.au
         l = np.sqrt(cst.G*self.Mstar*cst.Msun*rCR)
         a = (2*self.xau*cst.au/rCR)
 
-        #plt.plot(xas, l/(self.xau*cst.au)/cst.kms, c="green", ls=":", lw=1)
-        #plt.plot(xas, l/(self.xau*cst.au)/cst.kms*(a)**(0.5), c="navy", ls=":", lw=1)
-        #plt.plot(xas, l/(self.xau*cst.au)/cst.kms*(a), c="plum", ls=":", lw=1)
-        #plt.plot(xas, -l/(self.xau*cst.au)/cst.kms, c="green", ls=":", lw=1)
-        #plt.plot(xas, -l/(self.xau*cst.au)/cst.kms*(a)**(0.5), c="navy", ls=":", lw=1)
-        #plt.plot(xas, -l/(self.xau*cst.au)/cst.kms*(a), c="plum", ls=":", lw=1)
-        pltr.ax.plot(xas, 2*l/rCR*(2*self.xau*cst.au/rCR)**(-2/3)/cst.kms, c="hotpink", ls=":", lw=1)
-        #plt.plot(xas, np.sqrt(2*cst.G*self.Mstar*cst.Msun/(self.xau*cst.au))*np.sqrt(2)/3**(3/4)/cst.kms, c="hotpink", ls=":", lw=1)
+        if self.oplot_ire_fit:
+            pltr.ax.plot(xas, 2*l/rCR*(2*self.xau.clip(0)*cst.au/rCR)**(-2/3)/cst.kms, c="hotpink", ls=":", lw=1)
 
         if self.oplot_KeplerRotation:
             pltr.ax.plot(xas, np.sqrt(cst.G*self.Mstar*cst.Msun/ \
@@ -184,88 +179,122 @@ class FitsAnalyzer:
                     pltr.ax.plot(x_, vM, c="blue", markersize=1, marker='o')
 
         if self.oplot_LocalPeak_2D:
-            for jM, iM in peak_local_max(Ipv, min_distance=10):
+            for jM, iM in peak_local_max(Ipv, num_peaks=4, min_distance=10):#  min_distance=None):
                 pltr.ax.scatter(xas[iM], self.vkms[jM], c="k", s=20, zorder=10)
                 print("Local Max:   {:.1f}  au  , {:.1f}    km/s  ({}, {})".format(
                     self.xau[iM], self.vkms[jM], jM, iM))
 
             del jM, iM
-        #jM, iM = np.unravel_index(np.argmax(Ipv[len(self.vkms)//2:, :len(self.xau)//2]), Ipv.shape)
 
-   #     jM_iM = [(jM, iM) for jM, iM in peak_local_max(Ipv, min_distance=10, threshold_abs=np.max(Ipv)*1e-10) if ((self.xau[iM]*cst.au > 0 ) and (self.vkms[jM] > 0)) ]
-   #     if len(jM_iM) == 1:
-   #         jM, iM = jM_iM[0]
+        def draw_cross_pointer(x, y, c):
+            pltr.ax.axhline(y=y, lw=2, ls=":", c=c, alpha=0.6)
+            pltr.ax.axvline(x=x, lw=2, ls=":", c=c, alpha=0.6)
+            pltr.ax.scatter(x, y, c=c, s=50 , alpha=1, linewidth=0, zorder=10)
 
-        jM, iM = [(jM, iM)
-                  for jM, iM
-                  in peak_local_max(Ipv, min_distance=10, threshold_abs=np.max(Ipv)*1e-3)
-                  if ((self.xau[iM]*cst.au > 0 ) and (self.vkms[jM] > 0))][0]
-        xau_peak = self.xau[iM]
-        vkms_peak = self.vkms[jM]
+        #vkms_peak, xau_peak
+        vp_peaks = np.array([(self.vkms[jM], self.xau[iM]) for jM, iM
+                             in peak_local_max(Ipv,  num_peaks=4, min_distance=10)])
+
+        i = np.argmax( np.sign(vp_peaks[:,0])*vp_peaks[:,0] * vp_peaks[:,1]  )
+        print(vp_peaks, i)
+        vkms_peak, xau_peak = vp_peaks[i]
+#                              if ((self.xau[iM]*cst.au > 0) and (self.vkms[jM] > 0))][0]
+
+        #xau_peak = self.xau[iM]
+        #vkms_peak = self.vkms[jM]
         M_CR = (abs(xau_peak) * cst.au * (vkms_peak*cst.kms)**2 )/(cst.G*cst.Msun)
-        pltr.ax.axhline(y=vkms_peak, lw=2, ls=":", c="red", alpha=0.6)
-        pltr.ax.axvline(x=xau_peak/self.dpc, lw=2, ls=":", c="red", alpha=0.6)
-        pltr.ax.scatter(xau_peak/self.dpc, vkms_peak, c="red", s=50 , alpha=1, linewidth=0 , zorder=10)
-
-       # for Iv in Ipv.transpose(0, 1):
-       #     i = get_maximum_position(self.xau, Iv)
-       #     print(i)
+        draw_cross_pointer(xau_peak/self.dpc, vkms_peak, mp.c_def[1])
 
         x_vmax, I_vmax = np.array([[ get_maximum_position(self.xau, Iv), np.max(Iv) ] for Iv in Ipv.transpose(0, 1)]).T
-        v_10 = mytools.find_roots(self.vkms, I_vmax, 0.1*np.max(Ipv))
+        if (np.min(I_vmax) < 0.1*cblim[1]) and (0.1*cblim[1] < np.max(I_vmax)):
+            print("Use 0.1*cblim")
+            v_10 = mytools.find_roots(self.vkms, I_vmax, 0.1*cblim[1])
+        else:
+            print("Use 0.1*max Ippv")
+            v_10 = mytools.find_roots(self.vkms, I_vmax, 0.1*np.max(Ippv) )
+
+        print( I_vmax, )
         x_10 = mytools.find_roots(x_vmax, self.vkms, v_10[0])
         M_CB = (abs(x_10[0]) * cst.au * (v_10[0]*cst.kms)**2 )/(2*cst.G*cst.Msun)
-        pltr.ax.axhline(y=v_10[0], lw=2, ls=":", c="blue", alpha=0.6)
-        pltr.ax.axvline(x=x_10[0]/self.dpc, lw=2, ls=":", c="blue", alpha=0.6)
-        pltr.ax.scatter(x_10[0]/self.dpc, v_10[0], c="blue", s=50 , alpha=1, linewidth=0  , zorder=10)
+        draw_cross_pointer(x_10[0]/self.dpc, v_10[0], mp.c_def[0])
 
         plt.text(0.95, 0.05,r"$M_{\rm CR}$=%.3f"%M_CR+"\n"+r"$M_{\rm CB,10\%%}$=%.3f"%M_CB,
                  transform=pltr.ax.transAxes, ha="right", va="bottom", bbox=dict(fc="white", ec="black", pad=5))
 
+        import matplotlib.patches as pat
+        from mpl_toolkits.axes_grid1.anchored_artists import AnchoredAuxTransformBox
+
+        beam_crosslength_asec = ( np.cos(self.beam_posang/180*np.pi)/self.beama_au**2 + np.sin(self.beam_posang/180*np.pi)/self.beamb_au**2 )**(-0.5)/self.dpc
+
+        frameon = False
+        box = AnchoredAuxTransformBox(pltr.ax.transData, loc='lower left', frameon=frameon, pad=0., borderpad=0.4)
+        if frameon:
+            e1 = pat.Ellipse(xy=(0,0), width=beam_crosslength_asec, height=self.vwidth_kms,
+                         lw=1, fill=True, ec="k", fc="0.6")
+        else:
+            e1 = pat.Ellipse(xy=(0,0), width=beam_crosslength_asec, height=self.vwidth_kms,
+                         lw=0, fill=True, ec="k", fc="0.7", alpha=0.6)
+        box.drawing_area.add_artist(e1)
+        box.patch.set_linewidth(1)
+        pltr.ax.add_artist(box)
+
+
+
         pltr.save("pvd")
 
     # theta : cclw is positive
-    def _convolution(self, Ippv, beam_a_au, beam_b_au, v_width_kms, theta_deg=0):
+    def _convolution(self, Ippv, beam_a_au, beam_b_au, v_width_kms, theta_deg=0, ver="new"):
         sigma_over_FWHM = 2 * np.sqrt(2 * np.log(2))
         Ippv_conv = copy.copy(Ippv)
-        convolver = {"normal": convolve, "fft": convolve_fft}[self.convolver]
+        convolver = {"normal": aconv.convolve, "fft":aconv.convolve_fft}[self.convolver]
+        option = {"allow_huge":True}
 
+        if ver=="new":# super fast
+            Kernel_2d = aconv.Gaussian2DKernel(x_stddev=abs(beam_a_au/self.dx)/sigma_over_FWHM,
+                                               y_stddev=abs(beam_b_au/self.dy)/sigma_over_FWHM,
+                                               theta=theta_deg/180*np.pi)._array
+            Kernel_1d = aconv.Gaussian1DKernel(v_width_kms/self.dv/sigma_over_FWHM)._array
+            Kernel_3d = np.multiply(Kernel_2d[np.newaxis,:,:], Kernel_1d[:,np.newaxis, np.newaxis])
+            #Kernel_3d /= np.sum(Kernel_3d)
+            Ippv_conv = convolver(Ippv_conv, Kernel_3d, **option)
+            #return  Ippv_conv.clip(np.max(Ippv_conv)*1e-3)
+            return np.where( Ippv_conv > np.max(Ippv_conv)*1e-6, Ippv_conv, -1)
 
-        option = {}
-        if self.convolve_PV_p:
-            Kernel_xy = Gaussian2DKernel(x_stddev=abs(beam_a_au/self.dx)/sigma_over_FWHM,
-                                         y_stddev=abs(beam_b_au/self.dy)/sigma_over_FWHM,
-            #                             x_size=4*len(self.xau) + 1,#int(abs(beam_a_au/self.dx)/sigma_over_FWHM)*12+1,
+        if ver=="old":
+            if self.convolve_PV_p:
+                Kernel_xy = aconv.Gaussian2DKernel(x_stddev=abs(beam_a_au/self.dx)/sigma_over_FWHM,
+                                          y_stddev=abs(beam_b_au/self.dy)/sigma_over_FWHM,
+                                         #x_size= len(self.xau) + 1,#int(abs(beam_a_au/self.dx)/sigma_over_FWHM)*12+1,
             #                             y_size=4*len(self.yau) + 1,#int(abs(beam_b_au/self.dy)/sigma_over_FWHM)*12+1,
                                          theta=theta_deg/180*np.pi)
-            for i in range(self.Nz):
-                Ippv_conv[i] = convolver(Ippv_conv[i], Kernel_xy, **option)
+                for i in range(self.Nz):
+                    Ippv_conv[i] = convolver(Ippv_conv[i], Kernel_xy, **option)
 
+            if self.convolve_PV_v:
+                Kernel_v = aconv.Gaussian1DKernel(v_width_kms/self.dv/sigma_over_FWHM,)
+                             #           x_size=4*len(self.vkms) + 1) #int(v_width_kms/self.dv/sigma_over_FWHM)*12+1)
+                for j in range(self.Ny):
+                    for k in range(self.Nx):
+                        Ippv_conv[:, j, k] = convolver(Ippv_conv[:, j, k], Kernel_v, **option)
 
-        if self.convolve_PV_v:
-            Kernel_v = Gaussian1DKernel(v_width_kms/self.dv/sigma_over_FWHM,)
-#                                        x_size=4*len(self.vkms) + 1)#int(v_width_kms/self.dv/sigma_over_FWHM)*12+1)
-            for j in range(self.Ny):
-                for k in range(self.Nx):
-                    Ippv_conv[:, j, k] = convolver(Ippv_conv[:, j, k], Kernel_v, **option)
+            return np.where( Ippv_conv > np.max(Ippv_conv)*1e-8, Ippv_conv, 0)
 
-#        Ippv_conv = Ippv_conv.clip(np.max(Ippv)*1e-10)
-#        for Ipv in Ippv_conv:
- #           print(Ipv)
-        #print(Ippv_conv)
-        #Ippv_conv = Ippv_conv.clip(np.max(Ippv_conv)*1e-4)
-        #print(Ippv_conv)
-#        return Ippv_conv
-        return np.where( Ippv_conv > np.max( Ippv_conv)*1e-8, Ippv_conv, 0)
-
-
-    def _perpix_to_perbeamkms(self, intensity, beam_a_au, beam_b_au, v_width_kms):
+    def _perpix_to_perbeam(self, intensity_ppix, beam_a_au, beam_b_au, v_width_kms):
         beam_area = np.pi * beam_a_au / 2.0 * beam_b_au / 2.0
-        return intensity*(beam_area*v_width_kms)/(self.dx*self.dy*self.dv)
+        pixel_in_beam = beam_area/(self.dx*self.dy)
+        return intensity_ppix * pixel_in_beam
 
-    def _pointsource(self, Ippv):
+    def _perpix_to_pergunit(self, intensity):
+        return intensity*1./(self.dx*self.dy*self.dv)
+#(self.dx*self.dy*self.dv)*cst.au**2*cst.kms
+#(cst.au**2 * cst.km/s)
+
+#        return intensity*(self.dx*self.dy*self.dv)
+
+    def use_pointsource(self, Ippv):
         Ippv = np.zeros_like(Ippv)
         Ippv[Ippv.shape[0]//2, Ippv.shape[1]//2, Ippv.shape[2]//2] = 1
+        return Ippv
 
 def find_local_peak_position(x, y, i):
     if (2 <= i <= len(x)-3):
@@ -320,3 +349,5 @@ def get_maximum_position(x, y):
 
 if __name__ == '__main__':
     main()
+
+
