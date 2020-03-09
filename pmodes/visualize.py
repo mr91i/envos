@@ -154,16 +154,6 @@ class FitsAnalyzer:
                 Ipv = interpolate.interpn((self.vkms, self.yau, self.xau), Ippv, points)
             else:
                 Ipv = Ippv[:, 0, :]
-                    Ippv = self._perpix_to_perbeamkms(Ippv, beam_a_au=self.beama_au, beam_b_au=self.beamb_au, v_width_kms=self.vwidth_kms)
-                    unit = r'[Jy beam$^{-1}$ (km/s)$^{-1}$]'
-
-            if len(self.yau) > 1:
-                posang_PV_rad = self.posang_PV/180.*np.pi
-                points = [[(v, r*np.sin(posang_PV_rad), r*np.cos(posang_PV_rad))
-                           for r in self.xau ] for v in self.vkms]
-                Ipv = interpolate.interpn((self.vkms, self.yau, self.xau), Ippv, points)
-            else:
-                Ipv = Ippv[:, 0, :]
 
         elif self.datatype=="pv":
             Ipv = self.Ippv_raw
