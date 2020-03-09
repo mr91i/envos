@@ -336,8 +336,18 @@ def Plots(D, r_lim=2000, dn_fig=None):
     Vec = np.array([D.uR.take(0, 2), D.uz.take(0, 2)])
     # Density and velocity map
     plmap.map(D.rho, 'rho', cblim=[1e-21, 1e-16], cbl=r'log Density [g/cm$^{3}$]', div=10, n_sl=40)
+
     # Ratio between mu0 and mu : where these gas come from
     plmap.map(np.arccos(D.mu0)*180/np.pi, 'theta0', cblim=[0, 90], cbl=r'$\theta_0$ [degree]', div=10, Vector=Vec, n_sl=40, logcb=False)
+
+    plmap.map(D.rho*r_mg**2, 'rhor2', cblim=[1e9, 1e14], cbl=r'log $\rho*r^2$ [g/cm]', div=10, n_sl=40)
+
+    #from scipy.integrate import simps
+    #integrated_value = np.where(r_mg < 300 * cst.au  , D.rho*r_mg**2*np.sin(th_mg), 0)
+    #Mtot = 2*np.pi*simps( simps(integrated_value[:,:,0],D.th_ax, axis=1), D.r_ax)
+    #print("Mtot is ", Mtot/cst.Msun)
+    #plmap.map(D.zeta, 'zeta', cblim=[1e-2, 1e2], cbl=r'log $\zeta$ [g/cm$^{3}$]', div=6, n_sl=40)
+
 
     def zdeco_plane(z):
         if z.shape[2] == 1:
@@ -373,9 +383,13 @@ def Plots(D, r_lim=2000, dn_fig=None):
 
     # Density as a function of distance from the center
     pl.plot([['nH2_env', rho0/cst.mn], ['nH2_disk', (rho_tot0-rho0)/cst.mn], ['nH2_tot', rho_tot0/cst.mn]],
-            'rhos_%s' % stamp, ylim=[1e4, 1e15],  xlim=[1, 1000],
+            'rhos_%s' % stamp, ylim=[1e3, 1e9],  xlim=[10, 10000],
             lw=[3, 3, 6], c=[None, None, 'k'], ls=['--', ':', '-'],
             logxy=True, vl=[2*D.r_CB/cst.au])
+
+    pl.plot(['nH2_env', rho0/cst.mn], #['nH2_disk', (rho_tot0-rho0)/cst.mn], ['nH2_tot', rho_tot0/cst.mn]],
+            'nenv_%s' % stamp, ylim=[1e3, 1e9],  xlim=[10, 10000],
+            lw=[3], logxy=True, vl=[2*D.r_CB/cst.au])
 
     # Make a 'balistic' orbit similar procedure to Oya+2014
     pl.plot([['-uR', -uR0/cst.kms], ['uph', uph0/cst.kms]],
