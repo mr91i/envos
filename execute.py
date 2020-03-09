@@ -69,30 +69,15 @@ def main():
 
         elif target == "params3":
             params_list = make_params_list([["radmc.temp_mode", "", ["const", "mctherm"]],
-                                           ["model.ire_model", "", ["Simple", "CM"]],
+                                            ["model.ire_model", "", ["Simple", "CM"]],
+                                            ["model.cavity_angle", "cav", [0, 45, 60, 80, 85]],
+                                            ["model.simple_density","sden",[0,1]],
+                                            ["radmc.mol_name", "", ["c18o","cch"]],
                                            ])
-            subparam = make_params_list([["beam_scale", "bsc", [0.3, 3]],
-                                         ["fitsa.normalize", "norm", ["peak"]],
+            subparam = make_params_list([["beam_scale", "bsc", [0.3, 1, 3]],
+                                         ["fitsa.normalize", "norm", ["None","peak"]],
                                         ])
             parameter_survey("all", params_list, INPUT_FILE, submode="visualize", subparams=subparam)
-
-        elif target == "params4":
-            params_list = make_params_list([["model.ire_model", "", ["Simple", "CM"]],
-                                            ["radmc.temp_mode", "", ["mctherm"]],
-                                            ["model.cavity_angle", "cav", [0, 45, 60, 80, 85]],
-                                           ])
-            subparam = make_params_list([["beam_scale", "bsc", [0.3, 3]],
-                                         ["fitsa.normalize", "norm",["peak"]],
-                                        ])
-            parameter_survey("all", params_list, INPUT_FILE, submode="visualize", subparams=subparam )
-
-        elif target == "params5":
-            params_list = make_params_list([["model.ire_model", "", ["Simple", "CM"]],
-                                            ["radmc.temp_mode", "", ["mctherm"]],
-                                            ["radmc.mol_name", "", ["cch"]],
-                                           ])
-            subparam = make_params_list([ ["beam_scale", "bsc", [0.3, 3]] ])
-            parameter_survey("all", params_list, INPUT_FILE, submode="visualize", subparams=subparam )
 
 
         elif target == "clean":
