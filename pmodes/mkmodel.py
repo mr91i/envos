@@ -38,9 +38,7 @@ class EnvelopeDiskModel:
         fn_model_pkl=None, submodel=False,
         **args):
 
-        for k, v in locals().items():
-            if k is not 'self':
-                setattr(self, k, v)
+        mytools.set_arguments(self, locals(), printer=msg)
 
         # Non Variable Paramters Through Calculation
         self.model = self.read_inp_ire_model(ire_model)

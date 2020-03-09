@@ -40,20 +40,15 @@ class FitsAnalyzer:
                  vwidth_kms=0.5, plotmode_PV='grid',
                  convolve_PV_p=True, convolve_PV_v=True,
                  convolver='normal', pointsource_test=False,
-                 logcolor_PV=False, normalize=None,
+                 logcolor_PV=False, normalize=None, oplot_ire_fit=False, Imax=None,
                  ):
 
-        for k, v in locals().items():
-            if k != 'self':
-                setattr(self, k, v)
-                msg(k.ljust(20)+"is {:20}".format(v))
+        mytools.set_arguments(self, locals(), printer=msg)
 
         self.fits_file_path = dn_radmc + '/' + filename + '.fits'
         pic = iofits.open(self.fits_file_path)[0]
         self.Ippv_raw = pic.data
         header = pic.header
-        for k, v in header.__dict__.items():
-            print(k, " = ", v)
 
         self.Nx = header["NAXIS1"]
         self.Ny = header["NAXIS2"]

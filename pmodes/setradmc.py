@@ -48,16 +48,10 @@ class SetRadmc:
                  Mstar=cst.Msun, Rstar=cst.Rsun, Lstar=cst.Lsun, **kwargs):
 
         msg("radmc directry is %s"%dpath_radmc)
-        msg("Set radmc parameters")
-        for k, v in locals().items():
-            if (k != 'self') and (k!="kwargs"):
-                print(k,v)
-                setattr(self, k, v)
-                msg(k.ljust(20)+"is {:20}".format(v if v is not None else "None"))
+        mytools.set_arguments(self, locals(), printer=msg)
 
         self.nlam = None
         self.lam = None
-
         self.rhog = None
         self.rhod = None
         self.vr = None
