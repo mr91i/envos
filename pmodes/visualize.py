@@ -42,6 +42,7 @@ class FitsAnalyzer:
                  convolve_PV_p=True, convolve_PV_v=True,
                  convolver='normal', pointsource_test=False,
                  logcolor_PV=False, normalize=None, oplot_ire_fit=False, Imax=None,
+                 mass_estimation=True,
                  ):
 
         mytools.set_arguments(self, locals(), printer=msg)
@@ -224,55 +225,33 @@ class FitsAnalyzer:
             pltr.ax.axvline(x=x, lw=2, ls=":", c=c, alpha=0.6)
             pltr.ax.scatter(x, y, c=c, s=50 , alpha=1, linewidth=0, zorder=10)
 
-        #vkms_peak, xau_peak
-        vp_peaks = np.array([(self.vkms[jM], self.xau[iM]) for jM, iM
-                             in peak_local_max(Ipv,  num_peaks=4, min_distance=10)])
+        if self.mass_estimation:
+            vp_peaks = np.array([(self.vkms[jM], self.xau[iM]) for jM, iM
+                                 in peak_local_max(Ipv, num_peaks=4, min_distance=10)])
+            i = np.argmax( np.sign(vp_peaks[:,0])*vp_peaks[:,0] * vp_peaks[:,1]  )
+            vkms_peak, xau_peak = vp_peaks[i]
+            M_CR = (abs(xau_peak) * cst.au * (vkms_peak*cst.kms)**2 )/(cst.G*cst.Msun)
+            draw_cross_pointer(xau_peak/self.dpc, vkms_peak, mp.c_def[1])
+    
+            x_vmax, I_vmax = np.array([[ get_maximum_position(self.xau, Iv), np.max(Iv) ] for Iv in Ipv.transpose(0, 1)]).T
+            if (np.min(I_vmax) < 0.1*cblim[1]) and (0.1*cblim[1] < np.max(I_vmax)):
+                print("Use 0.1*cblim")
+                v_10 = mytools.find_roots(self.vkms, I_vmax, 0.1*cblim[1])
+            else:
+                print("Use 0.1*max Ippv")
+                v_10 = mytools.find_roots(self.vkms, I_vmax, 0.1*np.max(Ippv) )
+    
+            print( I_vmax,)
+            x_10 = mytools.find_roots(x_vmax, self.vkms, v_10[0])
+            M_CB = (abs(x_10[0]) * cst.au * (v_10[0]*cst.kms)**2 )/(2*cst.G*cst.Msun)
+            draw_cross_pointer(x_10[0]/self.dpc, v_10[0], mp.c_def[0])
+    
+            plt.text(0.95, 0.05,r"$M_{\rm CR}$=%.3f"%M_CR+"\n"+r"$M_{\rm CB,10\%%}$=%.3f"%M_CB,
+                     transform=pltr.ax.transAxes, ha="right", va="bottom", bbox=dict(fc="white", ec="black", pad=5))
+    
+    
 
-        i = np.argmax( np.sign(vp_peaks[:,0])*vp_peaks[:,0] * vp_peaks[:,1]  )
-        print(vp_peaks, i)
-        vkms_peak, xau_peak = vp_peaks[i]
-#                              if ((self.xau[iM]*cst.au > 0) and (self.vkms[jM] > 0))][0]
-
-        #xau_peak = self.xau[iM]
-        #vkms_peak = self.vkms[jM]
-        M_CR = (abs(xau_peak) * cst.au * (vkms_peak*cst.kms)**2 )/(cst.G*cst.Msun)
-        draw_cross_pointer(xau_peak/self.dpc, vkms_peak, mp.c_def[1])
-
-        x_vmax, I_vmax = np.array([[ get_maximum_position(self.xau, Iv), np.max(Iv) ] for Iv in Ipv.transpose(0, 1)]).T
-        if (np.min(I_vmax) < 0.1*cblim[1]) and (0.1*cblim[1] < np.max(I_vmax)):
-            print("Use 0.1*cblim")
-            v_10 = mytools.find_roots(self.vkms, I_vmax, 0.1*cblim[1])
-        else:
-            print("Use 0.1*max Ippv")
-            v_10 = mytools.find_roots(self.vkms, I_vmax, 0.1*np.max(Ippv) )
-
-        print( I_vmax, )
-        x_10 = mytools.find_roots(x_vmax, self.vkms, v_10[0])
-        M_CB = (abs(x_10[0]) * cst.au * (v_10[0]*cst.kms)**2 )/(2*cst.G*cst.Msun)
-        draw_cross_pointer(x_10[0]/self.dpc, v_10[0], mp.c_def[0])
-
-        plt.text(0.95, 0.05,r"$M_{\rm CR}$=%.3f"%M_CR+"\n"+r"$M_{\rm CB,10\%%}$=%.3f"%M_CB,
-                 transform=pltr.ax.transAxes, ha="right", va="bottom", bbox=dict(fc="white", ec="black", pad=5))
-
-        import matplotlib.patches as pat
-        from mpl_toolkits.axes_grid1.anchored_artists import AnchoredAuxTransformBox
-
-        beam_crosslength_asec = ( np.cos(self.beam_posang/180*np.pi)/self.beama_au**2 + np.sin(self.beam_posang/180*np.pi)/self.beamb_au**2 )**(-0.5)/self.dpc
-
-        frameon = False
-        box = AnchoredAuxTransformBox(pltr.ax.transData, loc='lower left', frameon=frameon, pad=0., borderpad=0.4)
-        if frameon:
-            e1 = pat.Ellipse(xy=(0,0), width=beam_crosslength_asec, height=self.vwidth_kms,
-                         lw=1, fill=True, ec="k", fc="0.6")
-        else:
-            e1 = pat.Ellipse(xy=(0,0), width=beam_crosslength_asec, height=self.vwidth_kms,
-                         lw=0, fill=True, ec="k", fc="0.7", alpha=0.6)
-        box.drawing_area.add_artist(e1)
-        box.patch.set_linewidth(1)
-        pltr.ax.add_artist(box)
-
-
-
+        self.show_beamsize(pltr, mode="PV") 
         pltr.save("pvd")
 
     # theta : cclw is positive
@@ -328,6 +307,24 @@ class FitsAnalyzer:
         Ippv = np.zeros_like(Ippv)
         Ippv[Ippv.shape[0]//2, Ippv.shape[1]//2, Ippv.shape[2]//2] = 1
         return Ippv
+
+
+    def show_beamsize(self, plot_cls, mode=None, with_box=False):
+        import matplotlib.patches as pat
+        from mpl_toolkits.axes_grid1.anchored_artists import AnchoredAuxTransformBox
+        if mode=="PV":
+            beam_crosslength_asec = (np.cos(self.beam_posang/180*np.pi)/self.beama_au**2 + np.sin(self.beam_posang/180*np.pi)/self.beamb_au**2 )**(-0.5)/self.dpc
+            beamx = beam_crosslength_asec
+            beamy = self.vwidth_kms
+
+        if with_box:
+            e1 = pat.Ellipse(xy=(0,0), width=beamx, height=beamy, lw=1, fill=True, ec="k", fc="0.6")
+        else:
+            e1 = pat.Ellipse(xy=(0,0), width=beamx, height=beamy, lw=0, fill=True, ec="k", fc="0.7", alpha=0.6)
+        box = AnchoredAuxTransformBox(plot_cls.ax.transData, loc='lower left', frameon=with_box, pad=0., borderpad=0.4)
+        box.drawing_area.add_artist(e1)
+        box.patch.set_linewidth(1)
+        plot_cls.ax.add_artist(box)
 
 def find_local_peak_position(x, y, i):
     if (2 <= i <= len(x)-3):
