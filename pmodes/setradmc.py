@@ -26,7 +26,7 @@ def main():
         del_mctherm_files()
 
     if inp.radmc.plot:
-        rdata = RadmcData(dn_radmc=dn_radmc, dn_fig=dn_fig, ispec=inp.radmc.mol_name, mol_abun=inp.radmc.mol_abun)
+        rdata = RadmcData(dn_radmc=dn_radmc, dn_fig=dn_fig, ispec=inp.radmc.mol_name, mol_abun=inp.radmc.mol_abun, opac=inp.radmc.opac)
 
 def exe_radmc_therm():
     mytools.exe('cd %s ; radmc3d mctherm setthreads 16' % dn_radmc )
@@ -43,6 +43,7 @@ class SetRadmc:
                  phi_in=0, phi_out=0, nphi=1,
                  fdg=0.01, mol_abun=1e-7, mol_name='c18o',
                  m_mol=28*cst.amu, v_fwhm=0.5*cst.kms, Tenv=None,
+                 opac="silicate",
                  temp_mode='mctherm', line=True, turb=True, lowreso=False, subgrid=True,
                  autoset=True, fn_model_pkl=None, fn_radmcset_pkl=None,
                  Mstar=cst.Msun, Rstar=cst.Rsun, Lstar=cst.Lsun, **kwargs):
@@ -76,7 +77,7 @@ class SetRadmc:
             self.set_mol_lines()
             self.set_mol_ndens()
             self.set_gas_velocity()
-        if self.temp_mode == 'const':
+        if (self.temp_mode == 'const') or (self.temp_mode == 'powerlaw'):
             self.set_gas_temperature()
             self.set_dust_temperature()
         elif self.temp_mode == 'mctherm':
@@ -141,7 +142,8 @@ class SetRadmc:
 
         self.rhog = interp_value(self.D.rho_tot[:, :, 0])
         if np.max(self.rhog) == 0:
-            raise Exception("Zero density")
+            print("!! WARNING !! : Zero density")
+            #raise Exception("Zero density")
         self.rhod = self.rhog * self.fdg
         self.vr = interp_value(self.D.ur[:, :, 0])
         self.vth = interp_value(self.D.uth[:, :, 0])
@@ -159,6 +161,12 @@ class SetRadmc:
             msg("Constant temperature is ", T)
             msg("v_FWHM_kms is ", v_fwhm/cst.kms)
             self.tgas = T * np.ones_like(self.rhog)
+
+        if self.temp_mode == 'powerlaw':
+            #rr, tt = np.meshgrid(self.D.r_ax, self.D.th_ax)
+            #print(self.rr.shape, self.rhog.shape)
+            self.tgas = 10 * (self.rr/(1000*cst.au))**(-1.5)
+            self.tgas = self.tgas.clip(max=10000)
 
         self.Tstar = (self.Lstar/cst.Lsun)**0.25 * cst.Tsun
 
@@ -282,7 +290,7 @@ class SetRadmc:
 
     def set_dust_opacity(self):
         with open(self.dpath_radmc+'/dustopac.inp', 'w+') as f:
-            opacs = ['silicate']
+            opacs = self.opac if isinstance(self.opac,list) else [self.opac]
             f.write('2      Format number of this file\n')
             f.write('{}     Nr of dust species\n'.format(len(opacs)))
             f.write('========================================================\n')
@@ -468,7 +476,7 @@ class RadmcData:
     def __init__(self, dn_radmc=None, dn_fig=None,
                  use_ddens=True, use_gdens=True, use_gtemp=True,
                  use_dtemp=True, use_gvel=True,
-                 ispec=None, mol_abun=0, autoplot=True):
+                 ispec=None, mol_abun=0, opac="", autoplot=True):
 
         mytools.set_arguments(self, locals(), printer=msg)
 
@@ -568,6 +576,20 @@ class RadmcData:
 
         if self.use_gdens and self.use_gtemp:
             plot_plofs( self.t_dest/self.t_dyn, "tche", lim=[1e-3,1e3], lb="CCH Lifetime/Dynamical Timescale")
+
+        if self.opac!="":
+            with open(f"{dn_radmc}/dustkappa_{self.opac}.inp", mode='r') as f:
+                read_data = f.readlines()
+                mode = int(read_data[0])
+            if mode==2:
+                lam, kappa_abs, kappa_sca = np.loadtxt(f"{dn_radmc}/dustkappa_{self.opac}.inp", skiprows=2).T
+            elif mode==3:
+                lam, kappa_abs, kappa_sca, _ = np.loadtxt(f"{dn_radmc}/dustkappa_{self.opac}.inp", skiprows=3).T
+
+            mp.Plotter(self.dn_fig).plot([["ext",kappa_abs+kappa_sca],["abs", kappa_abs],["sca",kappa_sca]], "dustopac",
+                x=lam, xlim=[0.03,3e4], ylim=[1e-4,1e6], logx=True, logy=True,
+                xl=r'Wavelength [$\mu$m]', yl=r"Dust Extinction Opacity [cm$^2$ g$^{-1}$]",
+                ls=["--"], c=["k"], lw=[3,2,2])
 
 
 if __name__ == '__main__':

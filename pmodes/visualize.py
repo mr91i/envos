@@ -41,6 +41,7 @@ class FitsAnalyzer:
                  vwidth_kms=0.5, plotmode_PV='grid',
                  convolve_PV_p=True, convolve_PV_v=True,
                  convolver='normal', pointsource_test=False,
+                 P_offset_yau=0,
                  logcolor_PV=False, normalize=None, oplot_ire_fit=False, Imax=None,
                  mass_estimation=True,
                  ):
@@ -51,8 +52,8 @@ class FitsAnalyzer:
         pic = iofits.open(self.fits_file_path)[0]
         self.Ippv_raw = pic.data
         header = pic.header
-
-        self.datatype="pv"
+        self.isconvolved = False
+        self.datatype="ppv"
 
         if self.datatype=="ppv":
             self.Nx = header["NAXIS1"]
@@ -101,23 +102,35 @@ class FitsAnalyzer:
                 self.dv = header["CDELT2"]/1e3 # in m/s to in km/s
                 self.vkms = self.dv*(-0.5*(self.Nz-1) + np.arange(self.Nz))
             self.Ippv_raw = self.Ippv_raw[::-1,:]
-            print(self.xau, self.dx, self.vkms, self.dv)
+           # print(self.xau, self.dx, self.vkms, self.dv)
 
             if ((self.dx < 0) or (self.xau[1] < self.xau[0])) \
                 or ((self.dv < 0) or (self.vkms[1] < self.vkms[0])):
                 raise Exception("reading axis is wrong.")
 
+        self.pangle_rad = self.posang_PV/180.*np.pi
+
+    def position_line(self, offset_perp_au=0):
+        #print(offset_perp_au)
+        return np.array([[r*np.cos(self.pangle_rad) -offset_perp_au*np.sin(self.pangle_rad),
+                          r*np.sin(self.pangle_rad) +offset_perp_au*np.cos(self.pangle_rad)]
+                             for r in self.xau]).T
 
     def chmap(self, n_lv=20):
+        Ippv = copy.copy(self.Ippv_raw)
+        if self.convolution_mom0map:
+            Ippv = self._convolution(Ippv, beam_a_au=self.beama_au, beam_b_au=self.beamb_au,
+                                     v_width_kms=self.vwidth_kms, theta_deg=self.beam_posang)
 #        xx, yy = np.meshgrid(self.xau, self.yau)
-        cbmax = self.Ippv.max()
+        cbmax = Ippv.max()
+
         pltr = mp.Plotter(self.dn_fig, x=self.xau, y=self.yau,
                           xl="Position [au]", yl="Position [au]",
                           cbl=r'Intensity [Jy pixel$^{-1}$ ]')
         for i in range(self.Nz):
-            pltr.map(self.Ippv[i], out="chmap_{:0=4d}".format(i),
-                     n_lv=n_lv, cbmin=0, cbmax=cbmax, mode='grid',
-                     title="v = {:.3f} km/s".format(self.vkms[i]) )
+            pltr.map(Ippv[i], out="chmap_{:0=4d}".format(i),
+                     n_lv=n_lv, cblim=[0, cbmax], mode='grid',
+                     title="v = {:.3f} km/s".format(self.vkms[i]) , square=True)
 
     def mom0map(self, n_lv=10):
         Ippv = copy.copy(self.Ippv_raw)
@@ -125,12 +138,21 @@ class FitsAnalyzer:
             Ippv = self._convolution(Ippv, beam_a_au=self.beama_au, beam_b_au=self.beamb_au,
                                      v_width_kms=self.vwidth_kms, theta_deg=self.beam_posang)
         Ipp = integrate.simps(Ippv, axis=0)
-        Plt = mp.Plotter(self.dn_fig, x=self.xau, y=self.yau)
-        Plt.map(Ipp, out="mom0map",
+        pltr = mp.Plotter(self.dn_fig, x=self.xau, y=self.yau)
+        pltr.map(Ipp, out="mom0map",
                 xl="Position [au]", yl="Position [au]", cbl=r'Intensity [Jy pixel$^{-1}$ ]',
-                div=n_lv, mode='grid', cbmin=0, cbmax=Ipp.max(), square=True)
+                div=n_lv, mode='grid', cblim=[0,Ipp.max()], square=True, save=False)
 
-    def pvdiagram(self, n_lv=10):
+        self.show_center_line(pltr.ax)
+        pline0 = self.position_line()
+        pline = self.position_line(offset_perp_au=self.P_offset_yau)
+        plt.plot(pline0[0], pline0[1], ls='--', c='w', lw=1)
+        plt.plot(pline[0], pline[1], c='w', lw=1)
+        self.show_beamsize(pltr, mode="mom0")
+        pltr.save("mom0map")
+
+
+    def pvdiagram(self, n_lv=5):
         Ippv = copy.copy(self.Ippv_raw)
         unit = r'[Jy pixel$^{-1}$]'
         if self.pointsource_test:
@@ -149,40 +171,51 @@ class FitsAnalyzer:
                 #unit = r'[Jy cm$^{-2}$ (km/s)$^{-1}$ ]'
 
             if len(self.yau) > 1:
-                posang_PV_rad = self.posang_PV/180.*np.pi
-                points = [[(v, r*np.sin(posang_PV_rad), r*np.cos(posang_PV_rad))
-                           for r in self.xau ] for v in self.vkms]
-                Ipv = interpolate.interpn((self.vkms, self.yau, self.xau), Ippv, points)
+                points = [[(v, ply, plx) for plx, ply in zip(*self.position_line(offset_perp_au=self.P_offset_yau))] for v in self.vkms]
+                print(np.shape(points))
+                Ipv = interpolate.interpn((self.vkms, self.yau, self.xau), Ippv, points, bounds_error=False, fill_value=0)
             else:
                 Ipv = Ippv[:, 0, :]
 
         elif self.datatype=="pv":
             Ipv = self.Ippv_raw
 
-
         if self.normalize == "peak":
-            Ipv /= np.max(Ipv)
+            if np.max(Ipv) > 0:
+                Ipv /= np.max(Ipv)
+                cblim = [1/n_lv, 1]
+                n_lv -= 1
+            else:
+                cblim = [0, 0.1]
             unit = r'[$I_{\rm max}$]'
-            cblim = [0, np.max(Ipv)]
         else:
             cblim = [0, np.max(Ipv)]  if not self.Imax else [0, self.Imax]
-
 
         # Set cblim
         if self.logcolor_PV:
             cblim[1] = cblim[0]*0.001
 
-        xas = self.xau/self.dpc
-        pltr = mp.Plotter(self.dn_fig, x=xas, y=self.vkms, xlim=[-5, 5], ylim=[-3, 3])
+#        if output_fits:
+        if 1:
+            create_radmc3dImage(Ipv, self.xau, self.vkms, filename= self.dn_fig+'/PV.fits')
 
-        print(cblim)
+    #import astropy.io.fits as fits
+            #hdu = fits.PrimaryHDU(Ipv)
+            #hdulist = fits.HDUList([hdu])
+            #print(hdu, hdulist)
+            #hdulist.writeto('new.fits', overwrite=True)
+
+        xas = self.xau/self.dpc
+        pltr = mp.Plotter(self.dn_fig, x=xas, y=self.vkms, xlim=[-5, 5], ylim=[-4, 4])
+
 #        logoption = {"logcb":True, "cblim":[np.max(Ipv)*1e-2,np.max(Ipv)]} if self.logcolor_PV else {"cblim":[0, np.max(Ipv) for not self.Imax in self.Imax ]}
         pltr.map(z=Ipv, mode=self.plotmode_PV, logcb=self.logcolor_PV, cblim=cblim, #cblim=[np.max(Ipv)*1e-2,np.max(Ipv)],
                  xl="Angular Offset [arcsec]", yl=r"Velocity [km s$^{-1}$]",
                  cbl=r'Intensity '+unit,
-                 lw=.7, #logx=True, logy=True, xlim=[0.1, 100], ylim=[0.1, 10],
-                 div=n_lv, save=False)
+                 lw=1.5, #logx=True, logy=True, xlim=[0.1, 100], ylim=[0.1, 10],
+                 div=n_lv, save=False, clabel=True)
 
+        self.show_center_line(pltr.ax)
         pltr.ax.minorticks_on()
         pltr.ax.tick_params("both",direction="inout" )
         pltr.ax2 = pltr.ax.twiny()
@@ -226,13 +259,22 @@ class FitsAnalyzer:
             pltr.ax.scatter(x, y, c=c, s=50 , alpha=1, linewidth=0, zorder=10)
 
         if self.mass_estimation:
-            vp_peaks = np.array([(self.vkms[jM], self.xau[iM]) for jM, iM
-                                 in peak_local_max(Ipv, num_peaks=4, min_distance=10)])
-            i = np.argmax( np.sign(vp_peaks[:,0])*vp_peaks[:,0] * vp_peaks[:,1]  )
-            vkms_peak, xau_peak = vp_peaks[i]
+            #vp_peaks = np.array([(self.vkms[jM], self.xau[iM]) for jM, iM
+            #                     in peak_local_max(Ipv[len(Ipv[0])//2:, len(Ipv[1])//2:], num_peaks=4)])
+            jmax, imax = Ipv.shape
+            #print(Ipv.shape, imax, jmax)
+            #print(self.vkms.shape, self.xau.shape)
+            jpeak, ipeak = peak_local_max( Ipv[jmax//2:, imax//2:], num_peaks=1)[0]
+            vkms_peak, xau_peak = self.vkms[jmax//2 + jpeak], self.xau[imax//2 + ipeak]
+
+
+#            vp_peaks = [ (self.vkms[jM], self.xau[iM]) for jM, iM in peak_local_max( Ipv[imax//2:, jmax//2:], num_peaks=1) ]
+#
+#            i = np.argmax( np.sign(vp_peaks[:,0])*vp_peaks[:,0] * vp_peaks[:,1]  )
+#            vkms_peak, xau_peak = vp_peaks[i]
             M_CR = (abs(xau_peak) * cst.au * (vkms_peak*cst.kms)**2 )/(cst.G*cst.Msun)
             draw_cross_pointer(xau_peak/self.dpc, vkms_peak, mp.c_def[1])
-    
+
             x_vmax, I_vmax = np.array([[ get_maximum_position(self.xau, Iv), np.max(Iv) ] for Iv in Ipv.transpose(0, 1)]).T
             if (np.min(I_vmax) < 0.1*cblim[1]) and (0.1*cblim[1] < np.max(I_vmax)):
                 print("Use 0.1*cblim")
@@ -240,18 +282,17 @@ class FitsAnalyzer:
             else:
                 print("Use 0.1*max Ippv")
                 v_10 = mytools.find_roots(self.vkms, I_vmax, 0.1*np.max(Ippv) )
-    
-            print( I_vmax,)
+            if len(v_10) == 0 :
+                v_10 = [self.vkms[0]]
+
             x_10 = mytools.find_roots(x_vmax, self.vkms, v_10[0])
             M_CB = (abs(x_10[0]) * cst.au * (v_10[0]*cst.kms)**2 )/(2*cst.G*cst.Msun)
             draw_cross_pointer(x_10[0]/self.dpc, v_10[0], mp.c_def[0])
-    
+
             plt.text(0.95, 0.05,r"$M_{\rm CR}$=%.3f"%M_CR+"\n"+r"$M_{\rm CB,10\%%}$=%.3f"%M_CB,
                      transform=pltr.ax.transAxes, ha="right", va="bottom", bbox=dict(fc="white", ec="black", pad=5))
-    
-    
 
-        self.show_beamsize(pltr, mode="PV") 
+        self.show_beamsize(pltr, mode="PV")
         pltr.save("pvd")
 
     # theta : cclw is positive
@@ -260,8 +301,9 @@ class FitsAnalyzer:
         Ippv_conv = copy.copy(Ippv)
         convolver = {"normal": aconv.convolve, "fft":aconv.convolve_fft}[self.convolver]
         option = {"allow_huge":True}
-
-        if ver=="new":# super fast
+        if self.isconvolved==True:
+            return self.Ippv_conv
+        if ver=="new" and self.isconvolved==False:# super fast
             Kernel_2d = aconv.Gaussian2DKernel(x_stddev=abs(beam_a_au/self.dx)/sigma_over_FWHM,
                                                y_stddev=abs(beam_b_au/self.dy)/sigma_over_FWHM,
                                                theta=theta_deg/180*np.pi)._array
@@ -270,7 +312,9 @@ class FitsAnalyzer:
             #Kernel_3d /= np.sum(Kernel_3d)
             Ippv_conv = convolver(Ippv_conv, Kernel_3d, **option)
             #return  Ippv_conv.clip(np.max(Ippv_conv)*1e-3)
-            return np.where( Ippv_conv > np.max(Ippv_conv)*1e-6, Ippv_conv, -1)
+            self.isconvolved = True
+            self.Ippv_conv = np.where( Ippv_conv > np.max(Ippv_conv)*1e-6, Ippv_conv, -1e-100)
+            return self.Ippv_conv
 
         if ver=="old":
             if self.convolve_PV_p:
@@ -309,6 +353,11 @@ class FitsAnalyzer:
         return Ippv
 
 
+    def show_center_line(self,ax):
+        ax.axhline(y=0, lw=2, ls=":", c="k", alpha=1, zorder=1)
+        ax.axvline(x=0, lw=2, ls=":", c="k", alpha=1, zorder=1)
+        ax.scatter(0, 0, c="k", s=10 , alpha=1, linewidth=0,  zorder=1)
+
     def show_beamsize(self, plot_cls, mode=None, with_box=False):
         import matplotlib.patches as pat
         from mpl_toolkits.axes_grid1.anchored_artists import AnchoredAuxTransformBox
@@ -316,6 +365,9 @@ class FitsAnalyzer:
             beam_crosslength_asec = (np.cos(self.beam_posang/180*np.pi)/self.beama_au**2 + np.sin(self.beam_posang/180*np.pi)/self.beamb_au**2 )**(-0.5)/self.dpc
             beamx = beam_crosslength_asec
             beamy = self.vwidth_kms
+        elif mode=="mom0":
+            beamx = self.beama_au
+            beamy = self.beamb_au
 
         if with_box:
             e1 = pat.Ellipse(xy=(0,0), width=beamx, height=beamy, lw=1, fill=True, ec="k", fc="0.6")
@@ -325,6 +377,14 @@ class FitsAnalyzer:
         box.drawing_area.add_artist(e1)
         box.patch.set_linewidth(1)
         plot_cls.ax.add_artist(box)
+
+    def save_fits(self, obj):
+        fp_fitsdata = self.dn_fits+'/'+self.filename+'.fits'
+        if os.path.exists(fp_fitsdata):
+            msg("remove old fits file:",fp_fitsdata)
+            os.remove(fp_fitsdata)
+        self.data.writeFits(fname=fp_fitsdata, dpc=self.dpc)
+        msg("Saved fits file:",fp_fitsdata)
 
 def find_local_peak_position(x, y, i):
     if (2 <= i <= len(x)-3):
@@ -344,8 +404,50 @@ def get_maximum_position(x, y):
     return find_local_peak_position(x, y, np.argmax(y))
 
 
-        # self.data_im = pd.read_pickle(dn_home+'/obs.pkl')
 
+#def create_radmc3dImage(Image2d, x1_ax, x2_ax, freq, unitx_cm=1, unity_cm=1 ):
+def create_radmc3dImage(Image2d, x1_ax, x2_ax, filename="PVimage.fits", unitx1_conv=1, unitx2_conv=1 ):
+    import astropy.io.fits as fits
+    nx1 = len(x1_ax)
+    nx2 = len(x2_ax)
+    dx1 = (x1_ax[1] - x1_ax[0]) * unitx1_conv
+    dx2 = (x2_ax[1] - x2_ax[0]) * unitx2_conv
+#    nfreq = 1
+#    freq = freq
+    hdu = fits.PrimaryHDU(Image2d)
+    hdu.header['NAXIS'] = 2
+    hdu.header['CTYPE1'] = 'Position'
+    hdu.header['CUNIT1'] = 'au'
+    hdu.header['NAXIS1'] = nx1
+    hdu.header['CRVAL1'] = 0.0
+    hdu.header['CRPIX1'] = (nx1 + 1.)/2.
+    hdu.header['CDELT1'] = dx1
+
+    hdu.header['CTYPE2'] = 'Velocity'
+    hdu.header['CUNIT2'] = 'km/s'
+    hdu.header['NAXIS2'] = nx2
+    hdu.header['CRVAL2'] = 0.0
+    hdu.header['CRPIX2'] = (nx2 + 1.)/2.
+    hdu.header['CDELT2'] = dx2
+
+    hdu.header['BUNIT'] =  'Jy/pixel'
+    hdu.header['BTYPE'] =  'Intensity'
+
+#    hdu.header['OBJECT'] =  'Model'
+#    hdu.header['TELESCOP'] =  'None    '
+#    hdu.header['INSTRUME'] =  'None    '
+#    hdu.header['DATE-OBS'] = 'TBF'
+
+#    hdu.header['OBSRA'] =  0
+#    hdu.header['OBSDEC'] = 0
+
+#    hdu.header['BMAJ'] = 3.2669255431920E-05
+#    hdu.header['BMIN'] = 2.1551359086060E-05
+#    hdu.header['BPA'] =  -8.5868155934400E+01
+    hdulist = fits.HDUList([hdu])
+    hdulist.writeto(filename, overwrite=True)
+
+    return
 # def total_intensity_model():
 # f_rho = interpolate.interp1d( self.xauc , self.data.ndens_mol[:,-1,0,0] , fill_value = (0,) , bounds_error=False ,  kind='cubic')
 # def f_totemsv(x, y):
