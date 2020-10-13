@@ -6,10 +6,11 @@ import logging
 logger = logging.getLogger(__name__)
 
 class solve_TSC:
-    def __init__(self, tau, run=True):
-        self.tau = tau
+    def __init__(self, t, cs, Omega, run=True):
+        self.tau = t * Omega
         self.f_rho0 = None
         eps = 1e-10
+        self.cs = cs
         self.figopt = {"logx":True, "logy" :True, "save":True, "leg":True, "show":False}
 
         self.x = np.logspace(np.log10(1/tau), np.log10(tau**2), 2000)
@@ -81,6 +82,7 @@ class solve_TSC:
         self.V_0 = V_0     
         self.al_0 = al_0 
         self.Gamma_mid0 = 0.25 * (sol0x**2*al_0*(sol0x-V_0))**2
+        self.f_Gamma_mid0 = fnize(self.x, self.Gamma_mid0)
         self.save_0th_solution(al_0, V_0)
     
     def save_0th_solution(self, al_0, V_0, mode=1):
@@ -168,12 +170,14 @@ class solve_TSC:
         else:
             K = K0
         solx, soly, Delta_Q = sol_Q(K)
-
+        self.Delta_Q = Delta_Q
         self.al_Q = soly[0] - Delta_Q * solx * self.f_dal0dx(solx)
         self.V_Q = soly[1] - Delta_Q * solx * self.f_dV0dx(solx)
         self.W_Q = soly[2]
+        self.f_al_Q = self.fnize(self.x, self.al_Q)
+        self.f_V_Q = self.fnize(self.x, self.V_Q)
+        self.f_W_Q = self.fnize(self.x, self.W_Q)
 
- 
     def solve_Monopolar(self):
         #def f_MonoPolar(x, vals, fun_al0=None, fun_V0=None ,fun_dal0dx=None, fun_dV0dx=None):
         def f_MonoPolar(x, vals):
@@ -193,10 +197,11 @@ class solve_TSC:
     
         y0 = (1/2, 0, 0)
         solM = integrate.solve_ivp(f_MonoPolar, (self.x[0], self.x[-1]), y0, t_eval=self.x, method='BDF', rtol=1e-10, atol=1e-10)
-   
         self.al_M = solM.y[0]
         self.V_M = solM.y[1]
- 
+        self.f_al_M = self.fnize(self.x, self.al_M)
+        self.f_V_M = self.fnize(self.x, self.V_M) 
+
     def plot_TSC_figs(self): 
         print(self.rho_eq, self.M_eq, self.ksi_eq) 
 
@@ -228,6 +233,22 @@ class solve_TSC:
             sgn = np.sign(fsgn(X)) if logy else 1
             return sgn*np.exp(f(X)) if logy else f(X)
         return fnized
+
+    
+    def calc_rho(r, theta):
+        x = r/self.cs/self.t
+        P2 = 1 - 3/2*np.sin(theta)**2
+        y = x * (1 + self.tau**2*self.Delta_Q*P2)
+        return 1/(4*cst.pi*cst.G)*(self.f_al0(y) + self.tau**2*(self.f_alM(y) + self.f_alQ(y)*P2))
+
+    def calc_velocity(r, theta):
+        x = r/self.cs/self.t
+        P2 = 1 - 3/2*np.sin(theta)**2
+        y = x * (1 + self.tau**2*self.Delta_Q*P2)
+        vr = self.cs * (self.f_V0(y) + self.tau**2*(self.f_V_M(y) + self.f_V_Q(y)*P2 ))
+        vth = self.cs * self.tau**2*self.f_W_Q(y)*(-3*np.sin(theta)*np.cos(theta)) 
+        vph = self.cs**2/(self.Omega*r) * self.f_Gamma_mid0(y)*np.sin(theta)
+        return vr, vth, vph        
 
 if __name__=="__main__":
     sol = solve_TSC(tau=0.1)
