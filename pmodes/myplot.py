@@ -1,0 +1,576 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+from __future__ import print_function
+import os
+import sys
+import numpy as np
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+from scipy.interpolate import interp2d, griddata
+plt.switch_backend('agg')
+pyver = sys.version_info[0] + 0.1*sys.version_info[1]
+#print("Message from %s"% os.path.dirname(os.path.abspath(__file__)))
+debug_mode = 0
+import mytools
+import matplotlib.colors as mpc
+import matplotlib.ticker as mpt
+
+msg = mytools.Message(__file__, debug=False)
+#######################
+
+msg("%s is used." % os.path.abspath(__file__), debug=1)
+msg("This is python %s" % pyver, debug=1)
+dn_this_file = os.path.dirname(os.path.abspath(__file__))
+plt.style.use(['seaborn-colorblind'])
+
+class Struct:
+    def __init__(self, entries):
+        self.__dict__.update(entries)
+
+class Plotter:
+    # input --> Plotter class --> default value
+    #                                  v
+    # input --> plot function -------------------> used parameter
+
+    def __init__(self, fig_dir_path,
+                 figext="pdf",
+                 x=None, y=None, xlim=None, ylim=None, cblim=None, xl=None, yl=None, cbl=None,
+                 c=[], ls=[], lw=[], alp=[], pm=False,
+                 logx=False, logy=False, logxy=False, logcb=False, leg=False,
+                 figsize=None, square=False,
+                 fn_wrapper=lambda s:s,
+                 decorator=lambda y:y,
+                 args_leg={"loc": 'best'}, args_fig={}):
+
+        for k, v in locals().items():
+            if k is not "self":
+                setattr(self, k, v)
+
+        if self.figsize is not None:
+            self.args_fig["figsize"] = self.figsize
+
+        # For saving figures
+        self.fig_dn = os.path.abspath(fig_dir_path)
+        self._mkdir(self.fig_dn)
+        self.fig = None
+
+    @staticmethod
+    def _mkdir(dpath):
+        if pyver >= 3.2:
+            os.makedirs(dpath, exist_ok=True)
+        else:
+            if not os.path.exists(dpath):
+                os.makedirs(dpath)
+
+    @staticmethod
+    def notNone(*args):
+        for a in args:
+            if a is not None:
+                return a
+        else:
+            return None
+
+    def reform_ylist(self, x, l):
+        x0 = x if x is not None else self.x
+
+        def checktype(a, types):
+            if len(a) == len(types):
+                return all([isinstance(aa, t) for aa, t in zip(a, types)])
+            else:
+                return False
+#       def analyze_vector(vec):
+#           for vv in vec:
+#               if isvector(v):
+#                   return "V"
+#               elif is:
+
+        def isvector(vec):
+            return not np.isscalar(vec)
+
+#       def isdata(d):
+
+        def check_list_type(vec):
+            vector = (list, np.ndarray)
+
+            ## [k, x, y]
+            if checktype(vec, (str, vector, vector)) \
+               and len(vec[1]) == len(vec[2]):
+                return 1
+
+            ## [k, y]
+            elif checktype(vec, (str, vector))\
+                    and (len(x0) == len(vec[1])):
+                return 2
+
+            ## [x, y]
+            elif checktype(vec, (vector, vector))\
+                    and (len(vec[0]) == len(vec[1])) \
+                    and (not isinstance(vec[0][0], str)):
+                return 3
+
+            # y
+            elif len(vec) == len(x0) \
+                    and isvector(vec):
+                return 4
+
+            else:
+                return -1
+
+        if isvector(l):
+            itype = check_list_type(l)
+            msg("itype = ", itype, debug=1)
+            if itype == 1:
+                return [l]
+
+            elif itype == 2:
+                return [[l[0], x0, l[1]]]
+
+            elif itype == 3:
+                return [[0, l[0], l[1]]]
+
+            elif itype == 4:
+                return [[0, x0, l]]
+            else:
+
+                jtype = check_list_type(l[0])
+                msg("jtype = ", jtype, debug=1)
+                if jtype == 1:
+                    return l
+
+                elif jtype == 2:
+                    return [[k, x0, y] for k, y in l]
+
+                elif jtype == 3:
+                    return [[i, x, y] for i, x, y in enumerate(l)]
+
+                elif jtype == 4:
+                    return [[0, x0, l]]
+
+            raise Exception("Unknown type")
+
+    #
+    # Plot function : draw lines
+    #
+    # usage:
+    # plot(y, "name")
+    # plot([y1, y2, ..., yN], "test", x=x)
+    # plot([leg1, y1], [leg2, y2], ..., [legN, yN] ], "test")
+    # plot([leg1, x1, y1], [leg2, x2, y2], ..., [legN, xN, yN] ], "test")
+    #
+
+    def plot(self, y_list, out=None, x=None, c=[None],
+             ls=[], lw=[], alp=[], leg=None, frg_leg=0, title='',
+             xl=None, yl=None, xlim=None, ylim=None,
+             logx=False, logy=False, logxy=False, pm=False,
+             hl=[], vl=[], fills=None, arrow=[], lbs=None,
+             datatype="", square=None, show=False, save=True, result="fig",
+             *args, **kwargs):
+
+        input_settings = locals()
+        for k, v in input_settings.items():
+            setattr(self, "inp_"+k, v)
+
+        # Start Plotting
+        msg("Plotting %s" % out)
+        fig = plt.figure(**self.args_fig)
+        ax = fig.add_subplot(111)
+
+        # Preprocesing
+        data = self.reform_ylist(x, y_list)
+
+        # Main plot
+        for i, (k, x, y) in enumerate(data):
+            # Preprocessing for each plot
+            lb_i = lbs[i] if lbs else k
+            xy_i = (x, self.decorator(y)) if (x is not None) else (self.decorator(y),)
+            c_i = c[i] if len(c) >= i+1 else None
+            ls_i = ls[i] if len(ls) >= i+1 else None
+            lw_i = lw[i] if len(lw) >= i+1 else None
+            alp_i = alp[i] if len(alp) >= i+1 else None
+
+            # Plot
+            msg('Inputs to plot', xy_i, debug=1)
+            #print(*xy_i, lb_i, c_i, ls_i, lw_i, alp_i, -i)
+            ax.plot(*xy_i, label=lb_i, c=c_i, linestyle=ls_i,
+                    lw=lw_i, alpha=alp_i, zorder=-i, **kwargs)
+            if pm:
+                ax.plot(x, -y, label=lb_i, c=c_i, ls=ls_i,
+                        lw=lw_i, alpha=alp_i, zorder=-i, **kwargs)
+
+            # Enroll flags
+            if lb_i and frg_leg == 0:
+                frg_leg = 1
+
+        # Fill
+        if fills:
+            for fil in fills:
+                i = fil[0]
+                ax.fill_between(
+                    x, fil[1], fil[2], facecolor=c_def_rgb[i], alpha=0.2, zorder=-i-0.5)
+
+        # Horizontal lines
+        for h in hl:
+            plt.axhline(y=h)
+
+        # Vertical lines
+        for v in vl:
+            plt.axvline(x=v, alpha=0.5)
+
+        # Arrow
+        for i, ar in enumerate(arrow):
+
+            if True:
+                c_i = c[i] if len(c) >= i+1 else None
+                if (ar[0] > x[0]) and (ar[0] < x[-1]) :
+                    ax.annotate('', xytext=(ar[0], ar[1]), xy=(ar[2], ar[3]),
+                                xycoords='data', annotation_clip=False,size=30,
+                                arrowprops=dict(shrink=0, width=3, headwidth=8, headlength=8, lw=0,
+                                                connectionstyle='arc3', fc=c_i, ec=c_i)
+                                )
+            else:
+                ar_x = ar[0]
+                ar_y = ar[1]
+                ar_dx = ar[2] - ar[0]
+                ar_dy = ar[3] - ar[1]
+                ar_len = np.sqrt(ar_dx**2 + ar_dy**2)
+                linewidth = mpl.rcParams['lines.linewidth']
+                import matplotlib.patches as pat
+                curve = pat.ArrowStyle.Curve()
+                #curve.set_capstyle("batt")
+                curve.capstyle = "batt"
+                curve._capstyle = "batt"
+                c_i = c[i] if len(c) >= i+1 else None
+                ls_i = ls[i] if len(ls) >= i+1 else None
+                lw_i = lw[i] if len(lw) >= i+1 else linewidth
+                ax.annotate('', xytext=(ar[0], ar[1]), xy=(ar[2], ar[3]),
+                            xycoords='data', annotation_clip=False,
+                            arrowprops=dict(arrowstyle=curve,lw=lw_i*0.5,
+                                            connectionstyle='arc3', facecolor=c_i, edgecolor=c_i, linestyle=ls_i)
+                            )
+    #            plt.plot((ar[0], ar[2]), (0.01*ar[0]+0.99*ar[1], 0.01*ar[2]+0.99*ar[3]), c=c_i, ls=ls_i, lw=lw_i)
+    #            plt.plot((ar[0], ar[2]), (0.01*ar[0]+0.99*ar[1], 0.01*ar[2]+0.99*ar[3]), c=c_i, ls=ls_i, lw=lw_i)
+                ax.annotate('', xytext=(0.01*ar[0]+0.99*ar[2], 0.01*ar[1]+0.99*ar[3]), xy=(ar[2], ar[3]),
+                            xycoords='data', annotation_clip=False,
+                            arrowprops=dict(lw=0,headwidth=lw_i*3, headlength=lw_i*3,
+                                            connectionstyle='arc3', facecolor=c_i, edgecolor=c_i, linestyle=ls_i)
+                            )
+
+        # Postprocessing
+        plt.title(title)
+
+        if (leg or self.leg) and frg_leg == 1:
+            plt.legend(**self.args_leg)
+
+        if (logx or self.logx) or (logxy or self.logxy):
+            plt.xscale("log", nonposx='clip')
+
+        if (logy or self.logy) or (logxy or self.logxy):
+            plt.yscale('log', nonposy='clip')
+
+        plt.xlim(self.notNone(xlim, self.xlim, [min(x), max(x)]))
+        plt.ylim(self.notNone(ylim, self.ylim, [min(y), max(y)]))
+        plt.xlabel(self.notNone(xl, self.xl, ''))
+        plt.ylabel(self.notNone(yl, self.yl, ''))
+        #ax.tick_params(which="major",direction='in', axis="both")
+        #ax.tick_params(which="minor",direction='in', axis="both")
+        #ax.yaxis.set_minor_locator(mpt.LogitLocator())
+        #ax.xaxis.set_minor_locator(mpt.AutoMinorLocator(5))
+        #ax.yaxis.set_minor_locator(mpt.AutoMinorLocator(5))
+        if self.notNone(square, self.square):
+            plt.gca().set_aspect('equal', adjustable='box')
+
+        self.fig = fig
+
+        if show:
+            self.save(show)
+
+        # Saving
+        if save:
+            self.save(out)
+
+        if result=="fig":
+            return fig
+        elif result=="class":
+            return Struct(input_settings)
+    #
+    # Plot function : draw a map
+    #
+    #   cmap=plt.get_cmap('cividis')
+    #   cmap=plt.get_cmap('magma')
+
+    def map(self, z=None, out=None, x=None, y=None, mode='contourf',
+            c=[None], ls=[None], lw=[None], alp=[None],
+            cmap=plt.get_cmap('cividis'),
+            xl=None, yl=None, cbl=None,
+            xlim=None, ylim=None, cblim=None,
+            logx=None, logy=None, logcb=None, logxy=False,
+            pm=False, leg=False, hl=[], vl=[], title=None,
+            fills=None, data="", Vector=None,
+            div=10.0, n_sline=18, hist=False,
+            square=None, seeds_angle=[0, np.pi/2],
+            save=True, show=False, result="fig",
+            twoaxis=False, cbar=True, clabel=False,
+            **args):
+
+        for k, v in locals().items():
+            setattr(self, "inp_"+k, v)
+
+        msg(f"Plotting {out}")
+        self.fig = plt.figure(**self.args_fig)
+        self.ax = self.fig.add_subplot(111)
+
+        x = self.notNone(x, self.x)
+        y = self.notNone(y, self.y)
+        z = self.decorator(z)
+
+        y = y[0] if data == "1+1D" else y
+        if not isinstance(x[0], (list, np.ndarray)):
+            xx, yy = np.meshgrid(x, y, indexing='xy')
+        else:
+            xx = x
+            yy = y
+
+        self.ax.set_xlim(self.notNone(xlim, self.xlim, [x[0], x[-1]]))
+        self.ax.set_ylim(self.notNone(ylim, self.ylim, [y[0], y[-1]]))
+        self.ax.set_xlabel(self.notNone(xl, self.xl, ""))
+        self.ax.set_ylabel(self.notNone(yl, self.yl, ""))
+
+        cblim = self.notNone(cblim, self.cblim, [np.min(z), np.max(z)] )
+        if self.notNone(logcb, self.logcb):  # (logcb or self.logcb):
+            print("logcb:", logcb, self.logcb)
+            cblim = np.log10(cblim)
+            z = np.log10(np.where(z != 0, abs(z), np.nan))
+
+        #cdelta = (cblim[1] - cblim[0])/float(div)
+        #if (cblim[1]+delta - cblim[0])/delta > 100:
+        #    raise Exception("Wrong cblim, probably...", cblim)
+
+        #contour_levels = np.linspace(cblim[0], cblim[1], int(div)+1)
+        #contour_levels[-1] *= 0.999
+        cbar_levels = np.linspace(cblim[0], cblim[1], int(div)+1)
+        import copy
+        contour_levels = copy.copy(cbar_levels)
+        contour_levels[-1] *= 0.999
+        print(cbar_levels, contour_levels)
+
+#        print(cblim)
+#        exit()
+        if mode == "grid":
+
+            norm = mpc.Normalize(vmin=cblim[0], vmax=cblim[1])
+            # Note:
+            # this guess of xi, yi relyies on the assumption where
+            # grid space is equidistant.
+            xxi, yyi = mytools.make_meshgrid_interface(xx, yy)
+            #img = self.ax.pcolormesh(xxi.T, yyi.T, z.T, norm=norm, vmin=cblim[0], vmax=cblim[1], cmap=cmap)
+            img = self.ax.pcolormesh(xxi.T, yyi.T, z.T, norm=norm, cmap=cmap, rasterized=True)
+
+        elif mode == "gridf":
+            norm = mpc.BoundaryNorm(contour_levels, ncolors=cmap.N, clip=True)
+            # Note:
+            # this guess of xi, yi relyies on the assumption where
+            # grid space is equidistant.
+            xxi, yyi = mytools.make_meshgrid_interface(xx, yy)
+            #img = self.ax.pcolormesh(xxi.T, yyi.T, z.T, norm=norm, vmin=cblim[0], vmax=cblim[1], cmap=cmap)
+            img = self.ax.pcolormesh(xxi.T, yyi.T, z.T, norm=norm, cmap=cmap, rasterized=True)
+
+        elif mode == "contourf":
+            #norm = mpc.Normalize(vmin=cblim[0], vmax=cblim[1])
+            # Note:
+            # if len(x) or len(y) is 1, contourf returns an eroor.
+            # Instead of this, use "grid" method.
+            #img = self.ax.contourf(xx, yy, z, norm=norm, extend='both', cmap=cmap)
+            img = self.ax.contourf(xx, yy, z, levels=cbar_levels, extend='both', cmap=cmap)
+
+        elif mode == "contour":
+            norm = mpc.Normalize(vmin=cblim[0], vmax=cblim[1])
+            print("cl is ",contour_levels, norm, cblim)
+            img = self.ax.contour(xx, yy, z, cmap=cmap, levels=contour_levels, linewidths=lw, extend='both', corner_mask=True)
+            #img = self.ax.contour(xx, yy, z, cmap=cmap, levels=contour_levels, norm=norm, vmin=cbar_levels[0],vmax=cbar_levels[-1],linewidths=lw, extend='both', corner_mask=True)
+            cbar = False
+            clabel = True
+        elif mode == "contourfill":
+            norm = mpc.Normalize(vmin=cblim[0], vmax=cblim[1])
+            xxi, yyi = mytools.make_meshgrid_interface(xx, yy)
+            img = self.ax.pcolormesh(xxi.T, yyi.T, z.T, norm=norm,
+                                 cmap=cmap, rasterized=True)
+            lines = self.ax.contour(xx, yy, z, levels=contour_levels, colors='w', linewidths=lw)
+
+        elif mode == "scatter":
+            img = self.ax.scatter(xx, yy, vmin=cblim[0], vmax=cblim[1],
+                              c=z, s=1, cmap=cmap)
+        else:
+            raise Exception("No such a mode for mapping: ", mode)
+
+        #def ffmt(xarr):
+        #    index = np.max(xarr)
+        #    return
+
+        img.set_clim(cbar_levels[0], cbar_levels[-1])
+        cbl = self.notNone(cbl, self.cbl)
+        #fmt = mpt.ScalarFormatter(useMathText=True)
+        fmt = FormatScalarFormatter("%.2f")
+        #fmt.set_powerlimits(self, lims)
+        #fmt.format="$%10.1g$"
+        #print(vars(fmt))
+        #print("ticks is ", cbar_levels)
+        if cbar:
+            #sm = plt.cm.ScalarMappable(norm=mpc.Normalize(vmin=cblim[0], vmax=cblim[1]))
+            print("setting colorbar")
+            cbar = self.fig.colorbar(img, ticks=cbar_levels, extend='both', label=cbl, pad=0.02, format=fmt)
+            print("done")
+            #cbar = self.fig.colorbar(img, ticks=cbar_levels, extend='both', label=cbl, pad=0.02, format="%.2g")
+            cyax = cbar.ax.yaxis
+            cyax._update_ticks()
+            offset = cyax.get_major_formatter().get_offset()
+            cyax.offsetText.set_visible(False)
+            cyax.get_offset_text().set_position((5, 0))
+
+            if ("[" in cbl) and (offset != ""):
+                cyax.set_label_text( cbl.replace("[", "["+offset.replace(r"\times","")+" " ))
+
+        if clabel:
+            self.ax.clabel(img, inline=True, fontsize=8, fmt="%.2g")
+
+
+        if mode == "contourfill":
+            cbar.add_lines(lines)
+
+        if fills is not None:
+            for fill in fills:
+                i = fill[0]
+                self.ax.contourf(xx, yy, fill[1], cmap=cmap, alpha=0.5)
+
+        if Vector is not None:
+            uu, vv = Vector# self.notNone(Vector,self.Vector)
+            #seeds_angle = #self.notNone(seeds_angle, self.seeds_angle)
+            th_seed = np.linspace(seeds_angle[0], seeds_angle[1], n_sline)
+            rad = self.ax.get_xlim()[1]
+            seed_points = np.array(
+                [rad * np.sin(th_seed), rad * np.cos(th_seed)]).T
+            x_ax = np.linspace(self.ax.get_xlim()[0], self.ax.get_xlim()[1], 200)
+            y_ax = np.linspace(self.ax.get_ylim()[0], self.ax.get_ylim()[1], 200)
+            xx_gr, yy_gr = np.meshgrid(x_ax, y_ax, indexing='xy')
+            xy = np.array([[x, y] for x, y in zip(xx.flatten(), yy.flatten())])
+            mth = 'linear'
+            uu_gr = griddata(xy, uu.flatten(), (xx_gr, yy_gr), method=mth)
+            vv_gr = griddata(xy, vv.flatten(), (xx_gr, yy_gr), method=mth)
+            self.ax.streamplot(xx_gr, yy_gr, uu_gr, vv_gr,
+                           density=n_sline/4, linewidth=0.3*30/n_sline, arrowsize=.3*30/n_sline,
+                           color='w', start_points=seed_points)
+
+        # Horizontal lines
+        for h in hl:
+            plt.axhline(y=h, alpha=1.0, lw=1, ls="--")
+
+        # Vertical lines
+        for v in vl:
+            plt.axvline(x=v, alpha=1.0, lw=1, ls="--")
+
+        if title:
+            self.ax.set_title(title)
+
+        if self.notNone(square, self.square):
+            self.ax.set_aspect('equal', adjustable='box')
+
+        if (logx or self.logx) or (logxy or self.logxy):
+            self.ax.set_xscale("log", nonposx='clip')
+
+        if (logx or self.logx) or (logxy or self.logxy):
+            self.ax.set_yscale('log', nonposy='clip')
+
+        if leg or self.leg:
+            self.ax.set_legend(**self.args_leg)
+
+        if show:
+            self.show(out)
+
+        # Saving
+        if save:
+            self.save(out)
+
+        if result=="fig":
+            return self.fig
+
+        elif result=="class":
+            return self #Struct(self)
+
+
+    def save(self, out):
+        savefile = "%s/%s.%s" % (self.fig_dn, self.fn_wrapper(out), self.figext)
+        self.fig.savefig(savefile, bbox_inches='tight')
+        msg("   Saved %s to %s" % (out, savefile))
+        plt.close()
+        plt.clf()
+
+    def show(self, out):
+        plt.show()
+
+
+class FormatScalarFormatter(mpt.ScalarFormatter):
+    ## After https://stackoverflow.com/questions/45815396/how-to-change-the-the-number-of-digits-of-the-mantissa-using-offset-notation-in
+    def __init__(self, fformat="%1.1f", offset=True, mathText=True):
+        self.fformat = fformat
+        mpt.ScalarFormatter.__init__(self,useOffset=offset,
+                                          useMathText=mathText)
+    def _set_format(self):
+        self.format = self.fformat
+        if self._useMathText:
+            self.format = '$%s$' % mpt._mathdefault(self.format)
+
+import itertools
+from cycler import cycler
+from matplotlib.colors import LinearSegmentedColormap
+
+def generate_cmap(colors):
+    values = range(len(colors))
+    vmax = np.ceil(np.max(values))
+    color_list = []
+    for v, c in zip(values, colors):
+        color_list.append((v / vmax, c))
+    return LinearSegmentedColormap.from_list('custom_cmap', color_list)
+
+def generate_cmap_rgb(cmap):
+    return [(int(c[1:3], 16)/255., int(c[3:5], 16)/255., int(c[5:7], 16)/255.) for c in cmap]
+
+class cycle_list:
+    def __init__(self, cylist):
+        self.cylist = cylist
+        self.len = len(cylist)
+    def __getitem__(self, i):
+        return self.cylist[i%self.len]
+
+c_def = ["#3498db", "#e74c3c", "#1abc9c", "#9b59b6", "#f1c40f", "#34495e",
+         "#446cb3", "#d24d57", "#27ae60", "#663399", "#f7ca18", "#bdc3c7", "#2c3e50"]
+myls = cycle_list(["-","--",":","-."])
+myls_txt = cycle_list(["solid","dashed","dotted","dashdot"])
+myc = cycle_list(c_def)
+
+
+c_def_rgb = generate_cmap_rgb(c_def)
+c_cycle = cycler(color=c_def)
+mpl.rc('font', weight='bold', size=17)
+mpl.rc('lines', linewidth=4, color="#2c3e50", markeredgewidth=0.9, #solid_capstyle="projecting", dash_capstyle='butt',
+       marker=None, markersize=4)
+mpl.rc('patch', linewidth=2, edgecolor='k')
+mpl.rc('text', color='#2c3e50')
+mpl.rc('axes', linewidth=2, facecolor='none', titlesize=30, labelsize=20,
+       labelweight='bold', prop_cycle=c_cycle, grid=False)
+mpl.rc('xtick.major', size=6, width=2)
+mpl.rc('ytick.major', size=6, width=2)
+mpl.rc('xtick.minor', size=3, width=2)
+mpl.rc('ytick.minor', size=3, width=2)
+mpl.rc('xtick', direction="in", bottom=True, top=True)
+mpl.rc('ytick', direction="in", left=True, right=True)
+mpl.rc('grid', color='#c0392b', alpha=0.3, linewidth=1)
+mpl.rc('legend', loc='upper right', numpoints=1, fontsize=12, borderpad=0.5,
+       markerscale=1, labelspacing=0.2, frameon=True, facecolor='w',
+       framealpha=0.9, edgecolor='#303030', handlelength=1, handleheight=0.5,
+       fancybox=False)
+golden_ratio = np.array([1, (1+np.sqrt(5))*0.5])
+golden_ratio_rev = np.array([(1+np.sqrt(5))*0.5, 1])
+mpl.rc('figure', figsize=golden_ratio_rev*5, dpi=160, edgecolor="k")
+mpl.rc('savefig', dpi=200, facecolor='none', edgecolor='none')
+mpl.rc('path', simplify=True, simplify_threshold=1)
+mpl.rc('pdf', compression=9, fonttype=3)
+
