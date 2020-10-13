@@ -13,8 +13,9 @@ from multiprocessing import Pool
 from header import inp, dn_home, dn_radmc, dn_fig
 import cst
 import mytools
+import logging
+logger = logging.getLogger(__name__)
 
-msg = mytools.Message(__file__)
 #####################################
 
 def main():
@@ -29,20 +30,16 @@ class ObsSimulator():  # This class returns observation data
                  incl=None, phi=None, posang=None,
                  rect_camera=True, omp=True, n_thread=1,**kwargs):
 
-        del kwargs
         for k, v in locals().items():
-            if k != 'self':
+            if k != 'self' and k != 'kwargs':
                 setattr(self, k, v)
-                msg(k.ljust(20)+"is {:20}".format(v if v is not None else "None"))
+                logger.info(k.ljust(20)+"is {:20}".format(v if v is not None else "None"))
 
         self.linenlam = 2*int(round(self.vwidth_kms/self.dv_kms)) + 1
         self.set_camera_info()
-        print("Total cell number is {} x {} x {} = {}".format(
+        logger.debug("Total cell number is {} x {} x {} = {}".format(
               self.npixx, self.npixy,self.linenlam,
               self.npixx*self.npixy*self.linenlam))
-
-        #if kwargs != {}:
-        #    raise Exception("There is unused args :", kwargs)
 
     def set_camera_info(self):
         if self.rect_camera and (self.sizex_au != self.sizey_au):
@@ -100,7 +97,7 @@ class ObsSimulator():  # This class returns observation data
     def observe(self):
         common = "incl %d phi %d posang %d" % (
             self.incl, self.phi, self.posang)
-        option = "noscat nostar " #fluxcons doppcatch"
+        option = "noscat nostar nodust" #fluxcons doppcatch"
         camera = "npixx {} npixy {} ".format(self.npixx, self.npixy)
         camera += "zoomau {:g} {:g} {:g} {:g} ".format(*(self.zoomau_x+self.zoomau_y))
         line = "iline {:d}".format(self.iline)
@@ -112,11 +109,10 @@ class ObsSimulator():  # This class returns observation data
             v_thread_seps = self.calc_thread_seps(v_calc_points, n_points)
             v_center = [ 0.5*(v_range[1] + v_range[0] ) for v_range in v_thread_seps ]
             v_width = [ 0.5*(v_range[1] - v_range[0] ) for v_range in v_thread_seps ]
-            print("All calc points:\n", v_calc_points, '\n')
-            print("Thread loading:\n", n_points, '\n')
-            print("Calc points in each threads:")
+            logger.info(f"All calc points: {format_array(v_calc_points)}")
+            logger.info("Calc points in each thread:")
             for i, (vc, vw, ncp) in enumerate(zip(v_center, v_width, n_points)):
-                print( "%dth thread:"%i ,np.linspace(vc-vw, vc+vw, ncp)  )
+                logger.info(f"    {i}th thread: {format_array(np.linspace(vc-vw, vc+vw, ncp))}")
 
             def cmd(p):
                 freq = "vkms {:g} widthkms {:g} linenlam {:d} ".format(
@@ -127,12 +123,12 @@ class ObsSimulator():  # This class returns observation data
             rets = Pool(self.n_thread).map(call_subcalc, args)
 
             for i, r in enumerate(rets):
-                print("\nThe",i,"th return")
+                logger.debug(f"The{i}th return")
                 for k, v in r.__dict__.items():
                     if isinstance(v, (np.ndarray)):
-                        print("{}: shape is {}, range is [{}, {}]".format(k, v.shape, np.min(v), np.max(v) ) )
+                        logger.debug("{}: shape is {}, range is [{}, {}]".format(k, v.shape, np.min(v), np.max(v)))
                     else:
-                        print("{}: {}".format(k, v ) )
+                        logger.debug(f"{k}: {v}")
 
             data = rets[0]
             for ret in rets[1:]:
@@ -144,22 +140,23 @@ class ObsSimulator():  # This class returns observation data
                 data.nwav += ret.nwav
             self.data = data
         else:
-            freq = "widthkms {} linenlam {:d} ".format(
-                    self.vwidth_kms, self.linenlam)
+            freq = f"widthkms {self.vwidth_kms} linenlam {self.linenlam:d} "
             cmd = " ".join(["radmc3d image", line, freq, camera, common, option])
-            print(cmd)
+            logger.info(f"command is {cmd}")
             os.chdir(self.dn_radmc)
             subprocess.call(cmd, shell=True)
             self.data = rmci.readImage()
 
         if np.max(self.data.image) == 0:
-            raise Exception("zero image...")
+            logger.warning("Zero image !")
+#            raise Exception("zero image...")
 
         freq0 = (self.data.freq[0] + self.data.freq[-1])*0.5
         dfreq = self.data.freq[1] - self.data.freq[0]
         vkms = np.round(mytools.freq_to_vkms(freq0, self.data.freq-freq0), 8)
-        print("x_au is:\n", np.round(self.data.x,8)/cst.au,"\n")
-        print("v_kms is:\n", vkms,"\n")
+
+        logger.info("x_au is " + format_array(self.data.x/cst.au) )
+        logger.info("v_kms is " + format_array(vkms) )
         self.save_instance()
         self.save_fits()
 
@@ -167,14 +164,20 @@ class ObsSimulator():  # This class returns observation data
 
     def subcalc(self, args):
         p, dn, cmd = args
-        print("execute: ", cmd)
+        logger.debug("execute: " + cmd)
         dpath_sub = self.dn_radmc + '/' + dn
         if not os.path.exists(dpath_sub):
             os.makedirs(dpath_sub)
         os.system("cp %s/{*.inp,*.dat} %s/" % (self.dn_radmc, dpath_sub))
         os.chdir(dpath_sub)
         if p == 1:
-            subprocess.call(cmd, shell=True)
+            logger.info("Calculating ray-tracing with RADMC3d...")
+            if logger.isEnabledFor(logging.DEBUG):
+                logger.debug("Log from RADMC3d")
+                subprocess.call(cmd, shell=True)
+            else:
+                subprocess.call(cmd, shell=True,
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         else:
             subprocess.call(cmd, shell=True,
                             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -183,10 +186,10 @@ class ObsSimulator():  # This class returns observation data
     def save_fits(self):
         fp_fitsdata = self.dn_fits+'/'+self.filename+'.fits'
         if os.path.exists(fp_fitsdata):
-            msg("remove old fits file:",fp_fitsdata)
+            logger.info(f"remove old fits file: {fp_fitsdata}")
             os.remove(fp_fitsdata)
         self.data.writeFits(fname=fp_fitsdata, dpc=self.dpc)
-        msg("Saved fits file:",fp_fitsdata)
+        logger.info(f"Saved fits file: {fp_fitsdata}")
 
     def save_instance(self):
         pd.to_pickle(self, self.dn_fits+'/'+self.filename+'.pkl')
@@ -200,6 +203,9 @@ def call_subcalc(args_list):
     "This fucntion is implemented for fucking Python2."
     instance, args = args_list
     return getattr(instance, "subcalc")(args)
+
+def format_array(array):
+    return f"[{min(array):.4g}:{max(array):.4g}] with delta = {abs(array[1]-array[0]):.4g} and N = {len(array)}"
 
 if __name__ == '__main__':
     main()

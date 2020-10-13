@@ -10,26 +10,29 @@ from scipy.interpolate import interp2d, interp1d, griddata
 import cst
 from header import inp, dn_home, dn_radmc, dn_fig
 import mytools
+import radmc3dPy.image as rmci
 import radmc3dPy.analyze as rmca
 import myplot as mp
-
+import subprocess
 
 msg = mytools.Message(__file__)
 #######################
 
 def main():
-    SetRadmc(dn_radmc, **vars(inp.radmc))
-    # or you can input parmeters directly.
-    if inp.radmc.temp_mode=="mctherm":
-        exe_radmc_therm()
-    else:
-        del_mctherm_files()
+    calc_temp = 1
+    if calc_temp:
+        SetRadmc(dn_radmc, **vars(inp.radmc))
+        # or you can input parmeters directly.
+        if inp.radmc.temp_mode=="mctherm":
+            exe_radmc_therm()
+        else:
+            del_mctherm_files()
 
     if inp.radmc.plot:
-        rdata = RadmcData(dn_radmc=dn_radmc, dn_fig=dn_fig, ispec=inp.radmc.mol_name, mol_abun=inp.radmc.mol_abun)
+        rdata = RadmcData(dn_radmc=dn_radmc, dn_fig=dn_fig, ispec=inp.radmc.mol_name, mol_abun=inp.radmc.mol_abun, opac=inp.radmc.opac)
 
 def exe_radmc_therm():
-    mytools.exe('cd %s ; radmc3d mctherm setthreads 16' % dn_radmc )
+    mytools.exe('cd %s ; radmc3d mctherm setthreads 16 ' % dn_radmc )
 
 def del_mctherm_files():
     if os.path.exists(dn_radmc+"/radmc3d.out"):
@@ -43,8 +46,10 @@ class SetRadmc:
                  phi_in=0, phi_out=0, nphi=1,
                  fdg=0.01, mol_abun=1e-7, mol_name='c18o',
                  m_mol=28*cst.amu, v_fwhm=0.5*cst.kms, Tenv=None,
+                 opac="silicate",
                  temp_mode='mctherm', line=True, turb=True, lowreso=False, subgrid=True,
                  autoset=True, fn_model_pkl=None, fn_radmcset_pkl=None,
+                 scattering_mode_max=0, temp_lambda=None,
                  Mstar=cst.Msun, Rstar=cst.Rsun, Lstar=cst.Lsun, **kwargs):
 
         msg("radmc directry is %s"%dpath_radmc)
@@ -76,7 +81,7 @@ class SetRadmc:
             self.set_mol_lines()
             self.set_mol_ndens()
             self.set_gas_velocity()
-        if self.temp_mode == 'const':
+        if (self.temp_mode == 'const') or (self.temp_mode == 'lambda'):
             self.set_gas_temperature()
             self.set_dust_temperature()
         elif self.temp_mode == 'mctherm':
@@ -141,7 +146,8 @@ class SetRadmc:
 
         self.rhog = interp_value(self.D.rho_tot[:, :, 0])
         if np.max(self.rhog) == 0:
-            raise Exception("Zero density")
+            print("!! WARNING !! : Zero density")
+            #raise Exception("Zero density")
         self.rhod = self.rhog * self.fdg
         self.vr = interp_value(self.D.ur[:, :, 0])
         self.vth = interp_value(self.D.uth[:, :, 0])
@@ -159,6 +165,13 @@ class SetRadmc:
             msg("Constant temperature is ", T)
             msg("v_FWHM_kms is ", v_fwhm/cst.kms)
             self.tgas = T * np.ones_like(self.rhog)
+
+        if self.temp_mode == 'lambda':
+            #rr, tt = np.meshgrid(self.D.r_ax, self.D.th_ax)
+            #print(self.rr.shape, self.rhog.shape)
+            self.tgas = self.temp_lambda(self.rr/cst.au)
+#10 * (self.rr/(1000*cst.au))**(-1.5)
+            self.tgas = self.tgas.clip(min=0.1, max=10000)
 
         self.Tstar = (self.Lstar/cst.Lsun)**0.25 * cst.Tsun
 
@@ -282,7 +295,7 @@ class SetRadmc:
 
     def set_dust_opacity(self):
         with open(self.dpath_radmc+'/dustopac.inp', 'w+') as f:
-            opacs = ['silicate']
+            opacs = self.opac if isinstance(self.opac,list) else [self.opac]
             f.write('2      Format number of this file\n')
             f.write('{}     Nr of dust species\n'.format(len(opacs)))
             f.write('========================================================\n')
@@ -294,29 +307,34 @@ class SetRadmc:
             msg("Saved: ",f.name)
 
     def set_input(self):
-        params=[["nphot", 1000000 ], #self.nphot],
-                ["scattering_mode_max", 0],
+        params=[["nphot", int(self.nphot) ],
+                ["scattering_mode_max", self.scattering_mode_max],
                 ["iranfreqmode", 1],
                 ["mc_scat_maxtauabs", 5.0],
                 ["tgas_eq_tdust",1],
+                #["nphot_scat", 1000000],
                 #["camera_maxdphi", 0.0000001],
                 #["camera_spher_cavity_relres", 0.005], # 0.05
                 #["camera_min_dangle", 0.005], # 0.05
                 #["camera_min_drr",0.0003], # 0.003
                 #["camera_refine_criterion",1.0],
                 #["nphot_spec", 100000],
-                #["iseed", -5415],
+                #"iseed", -5415],
                 ]
 
         with open(self.dpath_radmc+'/radmc3d.inp', 'w+') as f:
             for k,v in params:
-                 f.write('{} = {}\n'.format(k, v))
+                 f.write(f'{k} = {v}\n')
 
             msg("Saved: ",f.name)
 
 
     def save_pickle(self):
-        del self.D
+        del self.D, self.temp_lambda
+#        import dill
+#        dill.dump(self, open(self.dpath_radmc+'/'+self.fn_radmcset_pkl+".dill",'wb'))
+#        return
+
         savefile = self.dpath_radmc+'/'+self.fn_radmcset_pkl
         pd.to_pickle(self, savefile, protocol=2)
         msg('Saved:  %s\n' % savefile)
@@ -468,34 +486,47 @@ class RadmcData:
     def __init__(self, dn_radmc=None, dn_fig=None,
                  use_ddens=True, use_gdens=True, use_gtemp=True,
                  use_dtemp=True, use_gvel=True,
-                 ispec=None, mol_abun=0, autoplot=True):
+                 ispec=None, mol_abun=0, opac="", autoplot=True, plot_tau=False):
 
         mytools.set_arguments(self, locals(), printer=msg)
 
         data = self.readRadmcData()
+        print(vars(data))
+        self.r_ax = data.grid.x
+        self.th_ax = data.grid.y
         self.xauc = data.grid.x/cst.au
         self.rrc, self.ttc = np.meshgrid(self.xauc, data.grid.y, indexing='xy')
         self.RR = self.rrc * np.sin(self.ttc)
         self.zz = self.rrc * np.cos(self.ttc)
 
+        self.rhodust = data.rhodust[:,:,0,0]
+        self.rhogas = self.rhodust/inp.radmc.fdg
+
         if use_gtemp:
             try:
-                self.gtemp = data.gastemp[:,:,0,0].T
+                self.gtemp = data.gastemp[:,:,0,0]
             except:
-                self.gtemp = data.dusttemp[:,:,0,0].T
+                self.gtemp = data.dusttemp[:,:,0,0]
 
         if use_gdens and ispec:
-            self.ndens_mol = data.ndens_mol[:,:,0,0].T
+            self.ndens_mol = data.ndens_mol[:,:,0,0]
 
         if use_gvel:
-            self.vr = data.gasvel[:,:,0,0].T
-            self.vt = data.gasvel[:,:,0,1].T
-            self.vp = data.gasvel[:,:,0,2].T
+            self.vr = data.gasvel[:,:,0,0]
+            self.vt = data.gasvel[:,:,0,1]
+            self.vp = data.gasvel[:,:,0,2]
 
         if use_gdens and use_gtemp:
             # Chemical lifetime
             self.t_dest = self.cch_lifetime( self.ndens_mol, self.mol_abun, self.gtemp)
             self.t_dyn = 5.023e6 * np.sqrt( self.rrc**3 /0.18 ) ## sqrt(au^3/GMsun) = 5.023e6
+
+        if plot_tau:
+            self.tau = self.calc_tau_surface(tau=1e-4, npix=100, sizeau=500, incl=70, phi=0, posang=0, n_thread=10, lamb=1249)
+            print(self.tau.shape,np.min(self.tau), np.max(self.tau))
+
+        self.calc_gas_trajectries()
+        exit()
 
         if autoplot:
             self.plotall()
@@ -532,11 +563,31 @@ class RadmcData:
         k = 1.2e-11*np.exp(-998/T)
         return 1/( (nmol/nabun+1e-100)* k)
 
+    def calc_tau_surface(self, tau=1, npix=100, sizeau=500, incl=90, phi=0, posang=85, n_thread=10, iline=None, lamb=None):
+        common = f"incl {incl} phi {phi} setthreads {n_thread:d} "
+        wl = f"iline {iline} " if iline is not None else f"lambda {lamb} "
+        cmd = f"radmc3d tausurf {tau} npix {npix} sizeau {sizeau} fluxcons " + common + wl
+        print(cmd)
+        import os
+        os.chdir(dn_radmc)
+        subprocess.call(cmd, shell=True)
+        data = rmci.readImage()
+        self.imx = data.x
+        self.imy = data.y
+        print(vars(data))
+        return data.image[:,:,0].T.clip(0)
+#        fig = plt.figure()
+#        c   = plb.contourf( data.x/cst.au , data.y/cst.au , data.image[:,:,0].T.clip(0)/cst.au, levels=np.linspace(0.0, 30, 20+1) )
+#        cb = plb.colorbar(c)
+#        plt.savefig(dn_fig+"tausurf.pdf")
+
     def plotall(self):
+
+        xlim = [self.xauc[0], self.xauc[-1]]
 
         pl1d = mp.Plotter(self.dn_fig, x=self.xauc,
                        logx=True, leg=False,
-                       xl='Radius [au]', xlim=[10, 10000],
+                       xl='Radius [au]', xlim=xlim,
                        fn_wrapper=lambda s:'rmc_%s_1d'%s)
 
         pl2d = mp.Plotter(self.dn_fig, x=self.RR, y=self.zz,
@@ -555,10 +606,16 @@ class RadmcData:
             plot_plofs(self.ndens_mol, "nden", lim=[maxlim*1e-3, maxlim], lb=r"Number density [cm$^{-3}$]")
 
         if self.use_gtemp:
-            plot_plofs(self.gtemp, "temp", lim=[1,1000], lb='Temperature [K]')
+            pl1d.plot(self.gtemp[-1,:], "temp", ylim=[1,1000], logy=True, yl='Temperature [K]')
+            pl1d.plot(self.gtemp[0,:], "temp_pol", ylim=[1,1000], logy=True, yl='Temperature [K]')
+            pl2d.map(self.gtemp, "temp_in", cblim=[0,200], xlim=[0,100],ylim=[0,100], logcb=False, cbl='Temperature [K]')
+            pl2d.map(self.gtemp, "temp_out", cblim=[0,100], logcb=False, cbl='Temperature [K]')
+            pl2d_log = mp.Plotter(self.dn_fig, x=self.RR, y=self.zz,
+                       logx=True, logy=True, logcb=True, leg=False,
+                       xl='log Radius [au]', yl='log Height [au]', xlim=[1, 1000], ylim=[1, 1000],
+                       fn_wrapper=lambda s:'rmc_%s_2d'%s, square=True)
 
-        if self.use_gtemp:
-            plot_plofs(self.gtemp, "temp", lim=[1,1000], lb='Temperature [K]')
+            pl2d_log.map(self.gtemp, "temp_log", cblim=[10**0.5, 10**2.5], cbl='log Temperature [K]')
 
         if self.use_gvel:
             lb_v = r"Velocity [km s$^{-1}$]"
@@ -568,6 +625,63 @@ class RadmcData:
 
         if self.use_gdens and self.use_gtemp:
             plot_plofs( self.t_dest/self.t_dyn, "tche", lim=[1e-3,1e3], lb="CCH Lifetime/Dynamical Timescale")
+
+        if self.opac!="":
+            with open(f"{dn_radmc}/dustkappa_{self.opac}.inp", mode='r') as f:
+                read_data = f.readlines()
+                mode = int(read_data[0])
+            if mode==2:
+                lam, kappa_abs, kappa_sca = np.loadtxt(f"{dn_radmc}/dustkappa_{self.opac}.inp", skiprows=2).T
+            elif mode==3:
+                lam, kappa_abs, kappa_sca, _ = np.loadtxt(f"{dn_radmc}/dustkappa_{self.opac}.inp", skiprows=3).T
+
+            mp.Plotter(self.dn_fig).plot([["ext",kappa_abs+kappa_sca],["abs", kappa_abs],["sca",kappa_sca]], "dustopac",
+                x=lam, xlim=[0.03,3e4], ylim=[1e-4,1e6], logx=True, logy=True,
+                xl=r'Wavelength [$\mu$m]', yl=r"Dust Extinction Opacity [cm$^2$ g$^{-1}$]",
+                ls=["--"], c=["k"], lw=[3,2,2])
+
+
+        if self.plot_tau:
+            pl1d = mp.Plotter(self.dn_fig, x=self.imx/cst.au,
+                           logx=True, leg=False,
+                           xl='Radius [au]', xlim=xlim,
+                           fn_wrapper=lambda s:'rmc_%s_1d'%s)
+
+            pl2d = mp.Plotter(self.dn_fig, x=self.imx/cst.au, y=self.imy/cst.au,
+                           logx=False, logy=False, logcb=True, leg=False,
+                           xl='Radius [au]', yl='Height [au]', xlim=[-500/2, 500/2], ylim=[-500/2, 500/2],
+                           fn_wrapper=lambda s:'rmc_%s_2d'%s, square=True)
+            plot_plofs(self.tau/cst.au, "tau", lim=[1e-2, 1000], lb=r"tau")
+
+
+
+    def calc_gas_trajectries(self):
+        from scipy import interpolate
+        from mkmodel import trace_particle_2d_meridional
+
+        pos0_list = [(500*cst.au, np.pi/180*80), ]
+        pos_list = [trace_particle_2d_meridional(self.r_ax, self.th_ax, self.vr, self.vt, (0, 1e6*cst.yr), pos0)
+                     for pos0 in pos0_list]
+
+        dens_func = interpolate.RegularGridInterpolator((self.r_ax, self.th_ax), self.rhogas, bounds_error=False, fill_value=None)
+        temp_func = interpolate.RegularGridInterpolator((self.r_ax, self.th_ax), self.gtemp, bounds_error=False, fill_value=None)
+
+        for i, pos in enumerate(pos_list):
+            stream_pos = pos.y.T
+            dens_stream = dens_func(stream_pos)
+            temp_stream = temp_func(stream_pos)
+            stream_data = np.stack((pos.t, pos.R, pos.z, dens_stream/cst.m_n, temp_stream), axis=-1)
+            np.savetxt(f"stream_{i:d}", stream_data, header="t[s] R[cm] z[cm] n_gas[cm^-3] T[K]")
+
+
+#def vertical_integrate(value_sph, rr, tt, zlim=None):
+#    x_new =
+#    y_new =
+#    value_cyl = _interpolator2d(value, rr, tt, R, z, logx=False, logy=False, logv=False)
+#    print(value_cyl)
+    # _interpolator2d(value_sphe, x_ori, y_ori, x_new, y_new, logx=False, logy=False, logv=False)
+    #interpolate.interp2d(value_sph)
+    #integrate.simps(value_cyl, z)
 
 
 if __name__ == '__main__':

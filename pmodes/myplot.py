@@ -271,8 +271,11 @@ class Plotter:
         plt.ylim(self.notNone(ylim, self.ylim, [min(y), max(y)]))
         plt.xlabel(self.notNone(xl, self.xl, ''))
         plt.ylabel(self.notNone(yl, self.yl, ''))
-
-
+        #ax.tick_params(which="major",direction='in', axis="both")
+        #ax.tick_params(which="minor",direction='in', axis="both")
+        #ax.yaxis.set_minor_locator(mpt.LogitLocator())
+        #ax.xaxis.set_minor_locator(mpt.AutoMinorLocator(5))
+        #ax.yaxis.set_minor_locator(mpt.AutoMinorLocator(5))
         if self.notNone(square, self.square):
             plt.gca().set_aspect('equal', adjustable='box')
 
@@ -306,19 +309,19 @@ class Plotter:
             div=10.0, n_sline=18, hist=False,
             square=None, seeds_angle=[0, np.pi/2],
             save=True, show=False, result="fig",
-            twoaxis=False, clabel=False,
+            twoaxis=False, cbar=True, clabel=False,
             **args):
 
         for k, v in locals().items():
             setattr(self, "inp_"+k, v)
 
-        # Start Plotting
-        msg("Plotting %s" % out)
+        msg(f"Plotting {out}")
         self.fig = plt.figure(**self.args_fig)
         self.ax = self.fig.add_subplot(111)
 
         x = self.notNone(x, self.x)
         y = self.notNone(y, self.y)
+        z = self.decorator(z)
 
         y = y[0] if data == "1+1D" else y
         if not isinstance(x[0], (list, np.ndarray)):
@@ -327,16 +330,14 @@ class Plotter:
             xx = x
             yy = y
 
-        z = self.decorator(z)
-
         self.ax.set_xlim(self.notNone(xlim, self.xlim, [x[0], x[-1]]))
         self.ax.set_ylim(self.notNone(ylim, self.ylim, [y[0], y[-1]]))
         self.ax.set_xlabel(self.notNone(xl, self.xl, ""))
         self.ax.set_ylabel(self.notNone(yl, self.yl, ""))
 
         cblim = self.notNone(cblim, self.cblim, [np.min(z), np.max(z)] )
-        #cblim[1] =*=  0.999
         if self.notNone(logcb, self.logcb):  # (logcb or self.logcb):
+            print("logcb:", logcb, self.logcb)
             cblim = np.log10(cblim)
             z = np.log10(np.where(z != 0, abs(z), np.nan))
 
@@ -344,10 +345,18 @@ class Plotter:
         #if (cblim[1]+delta - cblim[0])/delta > 100:
         #    raise Exception("Wrong cblim, probably...", cblim)
 
-        contour_levels = np.linspace(cblim[0], cblim[1], int(div)+1)
+        #contour_levels = np.linspace(cblim[0], cblim[1], int(div)+1)
+        #contour_levels[-1] *= 0.999
+        cbar_levels = np.linspace(cblim[0], cblim[1], int(div)+1)
+        import copy
+        contour_levels = copy.copy(cbar_levels)
         contour_levels[-1] *= 0.999
+        print(cbar_levels, contour_levels)
 
+#        print(cblim)
+#        exit()
         if mode == "grid":
+
             norm = mpc.Normalize(vmin=cblim[0], vmax=cblim[1])
             # Note:
             # this guess of xi, yi relyies on the assumption where
@@ -366,16 +375,20 @@ class Plotter:
             img = self.ax.pcolormesh(xxi.T, yyi.T, z.T, norm=norm, cmap=cmap, rasterized=True)
 
         elif mode == "contourf":
-            #interval = np.arange(cblim[0], cblim[1]+delta, delta)
+            #norm = mpc.Normalize(vmin=cblim[0], vmax=cblim[1])
             # Note:
             # if len(x) or len(y) is 1, contourf returns an eroor.
             # Instead of this, use "grid" method.
-            img = self.ax.contourf(xx, yy, z, contour_levels, vmin=cblim[0],
-                              vmax=cblim[1], extend='both', cmap=cmap)
+            #img = self.ax.contourf(xx, yy, z, norm=norm, extend='both', cmap=cmap)
+            img = self.ax.contourf(xx, yy, z, levels=cbar_levels, extend='both', cmap=cmap)
 
         elif mode == "contour":
+            norm = mpc.Normalize(vmin=cblim[0], vmax=cblim[1])
+            print("cl is ",contour_levels, norm, cblim)
             img = self.ax.contour(xx, yy, z, cmap=cmap, levels=contour_levels, linewidths=lw, extend='both', corner_mask=True)
-
+            #img = self.ax.contour(xx, yy, z, cmap=cmap, levels=contour_levels, norm=norm, vmin=cbar_levels[0],vmax=cbar_levels[-1],linewidths=lw, extend='both', corner_mask=True)
+            cbar = False
+            clabel = True
         elif mode == "contourfill":
             norm = mpc.Normalize(vmin=cblim[0], vmax=cblim[1])
             xxi, yyi = mytools.make_meshgrid_interface(xx, yy)
@@ -389,43 +402,39 @@ class Plotter:
         else:
             raise Exception("No such a mode for mapping: ", mode)
 
-        ticks = np.linspace(cblim[0], cblim[1], int(div)+1)
-        fmt = mpt.ScalarFormatter()#(useMathText=True)
-        #fmt = mpt.StrMethodFormatter()
-        #fmt = mpt.PercentFormatter(xmax=np.max(z))
-        #fmt._usetex = True
-        #fmt.set_locs([1])
+        #def ffmt(xarr):
+        #    index = np.max(xarr)
+        #    return
+
+        img.set_clim(cbar_levels[0], cbar_levels[-1])
         cbl = self.notNone(cbl, self.cbl)
-        cbar = self.fig.colorbar(img, ax=self.ax, ticks=ticks, extend='both', label=cbl, pad=0.02, format=fmt)
-        #cbar = self.fig.colorbar(img, ticks=ticks, extend='both', label=cbl, pad=0.02, format=fmt)
+        #fmt = mpt.ScalarFormatter(useMathText=True)
+        fmt = FormatScalarFormatter("%.2f")
+        #fmt.set_powerlimits(self, lims)
+        #fmt.format="$%10.1g$"
+        #print(vars(fmt))
+        #print("ticks is ", cbar_levels)
+        if cbar:
+            #sm = plt.cm.ScalarMappable(norm=mpc.Normalize(vmin=cblim[0], vmax=cblim[1]))
+            print("setting colorbar")
+            cbar = self.fig.colorbar(img, ticks=cbar_levels, extend='both', label=cbl, pad=0.02, format=fmt)
+            print("done")
+            #cbar = self.fig.colorbar(img, ticks=cbar_levels, extend='both', label=cbl, pad=0.02, format="%.2g")
+            cyax = cbar.ax.yaxis
+            cyax._update_ticks()
+            offset = cyax.get_major_formatter().get_offset()
+            cyax.offsetText.set_visible(False)
+            cyax.get_offset_text().set_position((5, 0))
 
-        #print(cbar.ax.xaxis.get_offset_text(), cbar.ax.yaxis.get_offset_text(), cbar.get_offset_text())
-        #print(vars(cbar.ax.yaxis.offsetText), cbar.ax.yaxis.offsetText.get_text(), cbar.ax.yaxis.get_minor_formatter().get_offset() )
-       # print(vars(self.ax),     cbar.ax.yaxis.get_offset_text() )
+            if ("[" in cbl) and (offset != ""):
+                cyax.set_label_text( cbl.replace("[", "["+offset.replace(r"\times","")+" " ))
 
-        cbar.ax.yaxis.get_offset_text().set_position((5, 0))
-        print(cbar.ax.yaxis.get_offset_text()._text )
+        if clabel:
+            self.ax.clabel(img, inline=True, fontsize=8, fmt="%.2g")
 
-        #bar.ax.yaxis.offsetText, vars(cbar.ax.yaxis))
-        #cbar.ax.yaxis.offsetText.set_visible(False)
-        offset = cbar.ax.yaxis.get_major_formatter().get_offset()
-        #cbar.ax.yaxis.offset_text_position = "right"
-
-        #print(cbar.ax.yaxis.get_label(), vars(cbar.ax.yaxis))
-#        cbar.ax.yaxis.set_label_text( cbl.replace("[", "["+offset+" " ))
-
-
-
-        if ("[" in cbl) and (offset != ""):
-            cbar.ax.yaxis.set_label_text( cbl.replace("[", "["+offset+"" ))
-  #      else:
-   #         cbar.ax.yaxis.set_label_text( cbl + offset)
 
         if mode == "contourfill":
             cbar.add_lines(lines)
-
-        if clabel:
-            self.ax.clabel(lines, inline=1, fontsize=5, fmt="%.2g")
 
         if fills is not None:
             for fill in fills:
@@ -452,11 +461,11 @@ class Plotter:
 
         # Horizontal lines
         for h in hl:
-            plt.axhline(y=h)
+            plt.axhline(y=h, alpha=1.0, lw=1, ls="--")
 
         # Vertical lines
         for v in vl:
-            plt.axvline(x=v, alpha=0.5)
+            plt.axvline(x=v, alpha=1.0, lw=1, ls="--")
 
         if title:
             self.ax.set_title(title)
@@ -496,6 +505,18 @@ class Plotter:
 
     def show(self, out):
         plt.show()
+
+
+class FormatScalarFormatter(mpt.ScalarFormatter):
+    ## After https://stackoverflow.com/questions/45815396/how-to-change-the-the-number-of-digits-of-the-mantissa-using-offset-notation-in
+    def __init__(self, fformat="%1.1f", offset=True, mathText=True):
+        self.fformat = fformat
+        mpt.ScalarFormatter.__init__(self,useOffset=offset,
+                                          useMathText=mathText)
+    def _set_format(self):
+        self.format = self.fformat
+        if self._useMathText:
+            self.format = '$%s$' % mpt._mathdefault(self.format)
 
 import itertools
 from cycler import cycler
@@ -552,3 +573,4 @@ mpl.rc('figure', figsize=golden_ratio_rev*5, dpi=160, edgecolor="k")
 mpl.rc('savefig', dpi=200, facecolor='none', edgecolor='none')
 mpl.rc('path', simplify=True, simplify_threshold=1)
 mpl.rc('pdf', compression=9, fonttype=3)
+

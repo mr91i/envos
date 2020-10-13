@@ -68,6 +68,12 @@ def find_roots(x, y1, y2):
                      for i in range(n)
                      if dy[i]*dy[i+1] <= 0])
 
+def isnan_values(values):
+    if np.isscalar(values):
+        return np.any(np.isnan(values))
+    else:
+        return np.any([np.any(np.isnan(v)) for v in values])
+
 class Message:
     def __init__(self, filename=None, debug=None):
         self.filename = os.path.basename(filename)

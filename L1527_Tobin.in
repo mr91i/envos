@@ -8,7 +8,7 @@ import mytools
 debug = 1
 object_name = "L1527"
 dpc = 140
-Tenv = 10
+Tenv = 20
 beam_scale = 1.0 #
 dr_100 = 3
 
@@ -19,8 +19,8 @@ model.ire_model = {1:"CM", 2:"Simple"}[1]
 model.submodel = {0:None, 1:"CM", 2:"Simple"}[0]
 # model.norot = 1
 model.disk = 0
-model.r_in = 1 * cst.au
-model.r_out = 1e4 * cst.au
+model.r_in = 42.75 * cst.au
+model.r_out = 15000 * cst.au
 model.nr = int(100/dr_100 * np.log10(model.r_out/model.r_in) * 2.3)
 model.theta_in = 0 #1e-6
 model.theta_out = np.pi/2
@@ -30,8 +30,8 @@ model.phi_out = +np.pi
 model.nphi = 1
 model.Tenv_K = Tenv
 #model.Mdot = 1e-5 * cst.Mpyr # free parameter
-model.rCR_au = 200 # free parameter
-model.Mstar_Msun = 0.2 # free parameter
+model.rCR_au = 125 # free parameter
+model.Mstar_Msun = 0.5 # free parameter
 model.t = None
 model.Omega = None
 model.j0 = None
@@ -98,21 +98,12 @@ sobs.omp = True
 sobs.n_thread = 12
 
 fitsa = mytools.Parameters()
-<<<<<<< HEAD
-fitsa.filename = {1:"sobs",2:"L1527_nc"}[2] # sobs.filename
-fitsa.dpc = dpc
-fitsa.posang_PV = sobs.posang
-fitsa.convolution_pvdiagram = 1  #True
-fitsa.convolution_mom0map = 0  #True
-fitsa.convolver = {1:"normal", 2:"fft"}[1]
-=======
 fitsa.filename = {1:"sobs",2:"Flare20_PV"}[1] # sobs.filename
 fitsa.dpc = dpc
 fitsa.posang_PV = sobs.posang
 fitsa.convolution_pvdiagram = 1
 fitsa.convolution_mom0map = 1
 fitsa.convolver = {1:"normal", 2:"fft"}[2]
->>>>>>> 3ff8c6d54b1db38f950e39fca74fec1454382be9
 fitsa.logcolor_PV = 0
 fitsa.oplot_KeplerRotation = 0
 fitsa.oplot_LocalPeak_Vax = 0
@@ -120,15 +111,9 @@ fitsa.oplot_LocalPeak_Pax = 0
 fitsa.oplot_LocalPeak_2D = 0
 fitsa.oplot_Maximums_2D = 1
 fitsa.normalize = {1:None, 2:"peak"}[2]
-<<<<<<< HEAD
-fitsa.Imax = 2e-4 * (radmc.mol_abun/1e-7)
-fitsa.Mstar = 0.18
-beam_scale = 1.0 #1e-10
-=======
 fitsa.Imax = 10e-4 * (radmc.mol_abun/1e-7)
 fitsa.Mstar = model.Mstar_Msun
 fitsa.f_crit = 0.2
->>>>>>> 3ff8c6d54b1db38f950e39fca74fec1454382be9
 fitsa.beama_au = 0.4 * fitsa.dpc * beam_scale
 fitsa.beamb_au = 0.4 * fitsa.dpc * beam_scale
 fitsa.beam_posang = 0.0 # -41
