@@ -248,7 +248,7 @@ class solve_TSC:
         x = r/self.cs/self.t
         P2 = 1 - 3/2*np.sin(theta)**2
         y = x * (1 + self.tau**2*self.Delta_Q*P2)
-        return 1/(4*cst.pi*cst.G)*(self.f_al0(y) + self.tau**2*(self.f_alM(y) + self.f_alQ(y)*P2))
+        return 1/(4*cst.pi*cst.G)*(self.f_al0(y) + self.tau**2*(self.f_al_M(y) + self.f_al_Q(y)*P2))
 
     def calc_velocity(self, r, theta):
         x = r/self.cs/self.t
