@@ -48,7 +48,7 @@ def main():
     if args.nohup:
         opt_line = " ".join([f"--{k} {'' if v is True else v}" for k, v in vars(args).items()
                             if (k not in ["targets","nohup"]) and (v is not False)])
-        cmd = f"{__file__} "+  opt_line + " "+" ".join(args.targets)
+        cmd = f"{__file__} "+  opt_line + " "+" ".join(targets)
         mytools.exe(f"nohup {PYCMD} {cmd} >> nohup.out &")
         exit()
 
@@ -75,15 +75,54 @@ def main():
                                             ])
             parameter_survey("all", params_list, INPUT_FILE)
 
-        elif target == "calctemp":
-            params_list = make_params_list([["model.ire_model", "", ["Simple", "CM"]],
-                                            ["radmc.temp_mode", "", ["const", "mctherm"]],
-                                            ["model.cavity_angle", "cav", [0, 45, 80]],
+        elif target == "test_temp":
+            params_list = make_params_list([["model.ire_model", "", ["CM"]],
+                                            ["radmc.temp_mode", "", ["lambda"]],
+                                            ["T0_lam", "T0", [100]],
+                                            ["qT_lam", "qT", [-.5]],
+                                            ["iline", "il", [3]],
                                            ])
-            subparam = make_params_list([["beam_scale", "bsc", [0.3, 1, 3]],
-                                         ["fitsa.normalize", "norm", ["None","peak"]],
-                                        ])
-            parameter_survey("all", params_list, INPUT_FILE, submodes="visualize", subparams=subparam)
+            parameter_survey("all", params_list, INPUT_FILE)
+
+            exit()
+
+            params_list = make_params_list([["model.ire_model", "", ["Simple", "CM"]],
+                                            ["radmc.temp_mode", "", ["lambda"]],
+                                            ["T0_lam", "T0", [3, 30, 100, 300]],
+                                            ["qT_lam", "qT", [-.5]],
+                                            ["iline", "il", [3]],
+                                           ])
+            parameter_survey("all", params_list, INPUT_FILE)
+            params_list = make_params_list([["model.ire_model", "", ["Simple", "CM"]],
+                                            ["radmc.temp_mode", "", ["lambda"]],
+                                            ["T0_lam", "T0", [30]],
+                                            ["qT_lam", "qT", [0, -.25, -.5, -1, -2]],
+                                            ["iline", "il", [3]],
+                                           ])
+            parameter_survey("all", params_list, INPUT_FILE)
+            params_list = make_params_list([["model.ire_model", "", ["Simple", "CM"]],
+                                            ["radmc.temp_mode", "", ["lambda"]],
+                                            ["T0_lam", "T0", [30]],
+                                            ["qT_lam", "qT", [-.5]],
+                                            ["iline", "il", [1, 3, 5, 7, 20]],
+                                           ])
+            parameter_survey("all", params_list, INPUT_FILE)
+
+        elif target == "PS_CM":
+            Tenv_K = [30]
+            rCR_au = round_sig_array(100 * 10**np.linspace(-0.5, 0.5, 6), 3)
+            Mstar_Msun = round_sig_array(1 * 10**np.linspace(-1, 0, 6), 3)
+            params_list = make_params_list([["radmc.temp_mode", "", ["mctherm"]],
+                                            ["model.ire_model", "", ["CM"]],
+                                            ["beam_scale", "bs", [0.125, 0.25, 0.5, 2]],
+                                            #["fitsa.vwidth_kms", "vw", [0.05, 0.1, 0.2, 0.8]],
+                                            ["model.Tenv_K", "T", Tenv_K],
+                                            ["model.rCR_au", "CR", rCR_au],
+                                            ["model.Mstar_Msun", "M", Mstar_Msun],
+                                            ["model.cavity_angle", "cav", [45]],
+                                           ])
+            parameter_survey("all", params_list, INPUT_FILE)
+
 
         elif target == "model_survey":
             #Tenv_K = 30 * 10**np.array([-0.5,-0.4,-0.3,-0.2,-0.1,0,0.1,0.2,0.3,0.4,0.5])
@@ -402,6 +441,11 @@ def clean(clean_target, rm_cmd=RMCMD, base_dir=BASEDIR, src_dir=SRCDIR, radmc_di
 
     def rm(target_list, option=""):
         targets = " ".join(target_list)
+        if targets in ["*", "/","/*"]:
+            raise Exception("Danger!!", targets)
+        if targets is "":
+            print("No targets")
+            return
         mytools.exe(f'{RMCMD} {option} {targets}')
 
     if clean_target == "cache":
@@ -420,7 +464,6 @@ def clean(clean_target, rm_cmd=RMCMD, base_dir=BASEDIR, src_dir=SRCDIR, radmc_di
         rm(getpaths(radmc_dir, ["*.pkl"]))
 
     elif clean_target == "tmpinp":
-        print("wow")
         rm(getpaths(base_dir, ["*.in.tmp*"]))
         rm(getpaths(base_dir, ["fig_*"]), option="-r")
 

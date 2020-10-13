@@ -67,7 +67,8 @@ fmt = MyFormatter()
 hdlr = logging.StreamHandler(sys.stdout)
 hdlr.setFormatter(fmt)
 logging.root.addHandler(hdlr)
-logging.root.setLevel(logging.DEBUG)
+logger.setLevel(logging.DEBUG)
+#logging.root.setLevel(logging.DEBUG)
 
 
 ## argparse
@@ -95,9 +96,22 @@ if args.edit:
     os.system("vim "+dn_home+"/"+args.input_file_name)
 
 ## Reading input file
-class read_inp:
-    def __init__(self, path):
-        with open(path) as f:
-            exec(f.read(), {}, self.__dict__)
+#class read_inp:
+#    def __init__(self, path):
+#        with open(path) as f:
+#            exec(f.read(), {}, self.__dict__)
 
-inp = read_inp(dn_home+"/"+args.input_file_name)
+#inp = read_inp(dn_home+"/"+args.input_file_name)
+
+
+import types
+import importlib.machinery
+loader = importlib.machinery.SourceFileLoader('inp',  dn_home+"/"+args.input_file_name)
+inp = types.ModuleType(loader.name)
+loader.exec_module(inp)
+
+
+
+
+
+

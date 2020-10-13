@@ -41,7 +41,7 @@ class FitsAnalyzer:
                  vwidth_kms=0.5, plotmode_PV='grid',
                  convolve_PV_p=True, convolve_PV_v=True,
                  convolver='normal', pointsource_test=False,
-                 P_offset_yau=0,
+                 P_offset_yau=0, f_crit=None,
                  logcolor_PV=False, normalize=None, oplot_ire_fit=False, Imax=None,
                  mass_estimation=True,
                  ):
@@ -138,6 +138,9 @@ class FitsAnalyzer:
             Ippv = self._convolution(Ippv, beam_a_au=self.beama_au, beam_b_au=self.beamb_au,
                                      v_width_kms=self.vwidth_kms, theta_deg=self.beam_posang)
         Ipp = integrate.simps(Ippv, axis=0)
+        if self.normalize == "peak":
+            Ipp /= np.max(Ipp)
+
         pltr = mp.Plotter(self.dn_fig, x=self.xau, y=self.yau)
         pltr.map(Ipp, out="mom0map",
                 xl="Position [au]", yl="Position [au]", cbl=r'Intensity [Jy pixel$^{-1}$ ]',
@@ -276,20 +279,22 @@ class FitsAnalyzer:
             draw_cross_pointer(xau_peak/self.dpc, vkms_peak, mp.c_def[1])
 
             x_vmax, I_vmax = np.array([[ get_maximum_position(self.xau, Iv), np.max(Iv) ] for Iv in Ipv.transpose(0, 1)]).T
-            if (np.min(I_vmax) < 0.1*cblim[1]) and (0.1*cblim[1] < np.max(I_vmax)):
-                print("Use 0.1*cblim")
-                v_10 = mytools.find_roots(self.vkms, I_vmax, 0.1*cblim[1])
+            if (np.min(I_vmax) < self.f_crit*cblim[1]) and (self.f_crit*cblim[1] < np.max(I_vmax)):
+                print("Use {self.f_crit}*cblim")
+                v_crit = mytools.find_roots(self.vkms, I_vmax, self.f_crit*cblim[1])
             else:
-                print("Use 0.1*max Ippv")
-                v_10 = mytools.find_roots(self.vkms, I_vmax, 0.1*np.max(Ippv) )
-            if len(v_10) == 0 :
-                v_10 = [self.vkms[0]]
+                print("Use {self.f_crit}*max Ippv")
+                v_crit = mytools.find_roots(self.vkms, I_vmax, self.f_crit*np.max(Ippv) )
+            if len(v_crit) == 0 :
+                v_crit = [self.vkms[0]]
 
-            x_10 = mytools.find_roots(x_vmax, self.vkms, v_10[0])
-            M_CB = (abs(x_10[0]) * cst.au * (v_10[0]*cst.kms)**2 )/(2*cst.G*cst.Msun)
-            draw_cross_pointer(x_10[0]/self.dpc, v_10[0], mp.c_def[0])
-
-            plt.text(0.95, 0.05,r"$M_{\rm CR}$=%.3f"%M_CR+"\n"+r"$M_{\rm CB,10\%%}$=%.3f"%M_CB,
+            x_crit = mytools.find_roots(x_vmax, self.vkms, v_crit[0])
+            M_CB = (abs(x_crit[0]) * cst.au * (v_crit[0]*cst.kms)**2 )/(2*cst.G*cst.Msun)
+            M_CR_vpeak = (abs(x_crit[0]) * cst.au * (v_crit[0]*cst.kms)**2 )/(np.sqrt(2)*cst.G*cst.Msun)
+            draw_cross_pointer(x_crit[0]/self.dpc, v_crit[0], mp.c_def[0])
+            txt = rf"$M_{{\rm ip}}$={M_CR:.3f}" + "\n"\
+                  +rf"$M_{{\rm vp,{self.f_crit*100}\%}}$={M_CB:.3f}"
+            plt.text(0.95, 0.05,txt,
                      transform=pltr.ax.transAxes, ha="right", va="bottom", bbox=dict(fc="white", ec="black", pad=5))
 
         self.show_beamsize(pltr, mode="PV")
@@ -420,7 +425,7 @@ def create_radmc3dImage(Image2d, x1_ax, x2_ax, filename="PVimage.fits", unitx1_c
     hdu.header['CUNIT1'] = 'au'
     hdu.header['NAXIS1'] = nx1
     hdu.header['CRVAL1'] = 0.0
-    hdu.header['CRPIX1'] = (nx1 + 1.)/2.
+    hdu.header['CRPIX1'] = (nx1 + 1.)/2.  # index of pixel of the referece point
     hdu.header['CDELT1'] = dx1
 
     hdu.header['CTYPE2'] = 'Velocity'
@@ -467,17 +472,6 @@ def create_radmc3dImage(Image2d, x1_ax, x2_ax, filename="PVimage.fits", unitx1_c
 # plt.ylim([0,None])
 # fig.savefig(dn_fig+"emsv_img_plf.pdf")
 
-
-# def calc_tau_surface():
-# common = "incl %d phi %d posang %d setthreads %d "%(incl,phi,posang,n_thread)
-# wl = "iline %d "%iline  #   "lambda %f "%wl
-# cmd = "radmc3d tausurf 1 npix 100 sizeau 500 " + common + wl
-# subprocess.call(cmd,shell=True)
-# a=readImage()
-# fig = plt.figure()
-# c   = plb.contourf( a.x/cst.au , a.y/cst.au , a.image[:,:,0].T.clip(0)/cst.au, levels=np.linspace(0.0, 30, 20+1) )
-# cb = plb.colorbar(c)
-# plt.savefig(dn_fig+"tausurf.pdf")
 
 if __name__ == '__main__':
     main()

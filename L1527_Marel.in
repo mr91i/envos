@@ -28,16 +28,16 @@ model.ntheta = mytools.get_square_ntheta([model.r_in, model.r_out], model.nr)
 model.phi_in = -np.pi
 model.phi_out = +np.pi
 model.nphi = 1
-model.Tenv_K = Tenv
-#model.Mdot = 1e-5 * cst.Mpyr # free parameter
-model.rCR_au = 200 # free parameter
-model.Mstar_Msun = 0.2 # free parameter
+model.Tenv_K = None #Tenv
+model.Mdot = 1e-5 * cst.Mpyr
+model.rCR_au = 125
+model.Mstar_Msun = 0.5
 model.t = None
 model.Omega = None
 model.j0 = None
 model.Tdisk = 0
 model.disk_star_fraction = 0.1 # not used now
-model.cavity_angle = 45 # degree from z-axis, disk_angle = 2*(90-cavity_angle)
+model.cavity_angle = 0 # degree from z-axis, disk_angle = 2*(90-cavity_angle)
 model.simple_density = 0 # True
 model.counterclockwise_rotation = False
 model.fn_model_pkl = "model_" + object_name + ".pkl"
