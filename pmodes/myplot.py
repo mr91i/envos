@@ -12,8 +12,8 @@ pyver = sys.version_info[0] + 0.1*sys.version_info[1]
 #print("Message from %s"% os.path.dirname(os.path.abspath(__file__)))
 debug_mode = 0
 import mytools
-from matplotlib.colors import BoundaryNorm, Normalize, LogNorm, TwoSlopeNorm
-from matplotlib.ticker import LogFormatter 
+from matplotlib.colors import BoundaryNorm, Normalize, LogNorm
+from matplotlib.ticker import LogFormatter
 
 import matplotlib.colors as mcol
 from cycler import cycler
@@ -58,19 +58,19 @@ class Params:
                     setattr(self, k, notNone(getattr(self,k), v))
                 else:
                     setattr(self, k, v)
-        return self 
+        return self
 
 class Plotter:
-    # input --> Plotter class --> default value 
-    #                                  v 
+    # input --> Plotter class --> default value
+    #                                  v
     # input --> plot function -------------------> used parameter
 
-    def __init__(self, dn_fig="F", fig_ext="pdf", 
+    def __init__(self, dn_fig="F", fig_ext="pdf",
                  x=None, y=None, xlim=None, ylim=None, ctlim=None, xl="", yl="", cbl="",
                  c=[], ls=[], lw=[], alp=[], pm=False,
-                 logx=False, logy=False, logxy=False, logcb=False, leg=False, 
+                 logx=False, logy=False, logxy=False, logcb=False, leg=False,
                  figsize=None, square=False, show=False, save=True, continu=False,
-                 fn_wrapper=lambda s:s, 
+                 fn_wrapper=lambda s:s,
                  decorator=lambda y:y,
                  args_leg={"loc": 'best'}, args_fig={}):
 
@@ -181,7 +181,7 @@ class Plotter:
 
                 elif jtype == 5:
                     return [[0, x, l]]
-    
+
             raise Exception("Unknown type", l)
 
     #
@@ -199,12 +199,12 @@ class Plotter:
              xl=None, yl=None, xlim=None, ylim=None,
              logx=None, logy=None, logxy=None, pm=None,
              hl=[], vl=[], fills=None, arrow=[], lbs=None,
-             datatype="", square=None, save=None, show=None, continu=None, 
+             datatype="", square=None, save=None, show=None, continu=None,
              dn_fig=None, fn_wrapper=None, fig_ext=None,
              result="fig",fillalpha=0.2, zorder0=0,fillmode="shade",
              *args, **kwargs):
 
-        #input_settings = locals()  
+        #input_settings = locals()
         #for k, v in input_settings.items():
         #    setattr(self, "inp_"+k, v)
         inp = Params(locals())
@@ -293,7 +293,7 @@ class Plotter:
 
         # Arrow
         for i, ar in enumerate(arrow):
-            self.ax.annotate('', xytext=(ar[0], ar[1]), xy=(ar[2], ar[3]), xycoords='data', 
+            self.ax.annotate('', xytext=(ar[0], ar[1]), xy=(ar[2], ar[3]), xycoords='data',
                            clip_on=True, annotation_clip=True, zorder=-i+zorder0,
                         arrowprops=dict(shrink=0, width=3, headwidth=8, headlength=8,lw=0,
                                         connectionstyle='arc3', facecolor=c[i], edgecolor=c[i])
@@ -346,26 +346,26 @@ class Plotter:
             c=[None], ls=[None], lw=[None], alp=[None],
             cmap=plt.get_cmap('inferno'),
             xl=None, yl=None, cbl=None,
-            xlim=None, ylim=None, 
+            xlim=None, ylim=None,
             ctlim=None, ctdelta=None, ctax=None, Nct=10,
             cllim=None, cldelta=None, clax=None, Ncl=None,
             cnlim=None,
             logx=None, logy=None, logcb=None, logxy=False,
             pm=False, leg=None, hl=[], vl=[], title=None,
             fills=None, data="", Vector=None,
-            n_sline=18, hist=False, 
+            n_sline=18, hist=False,
             square=None, seeds_angle=[0, np.pi/2],
             save=True, result="fig",
             **args):
 
-        inp = Params(locals())        
+        inp = Params(locals())
         use = Params.gen_with_priority(inp, self.df)
         self.use = use
 
         logger.debug("Plotting %s" % out)
         self.fig = plt.figure(**self.df.args_fig)
         self.ax = self.fig.add_subplot(111)
-        datatype = "points" if isinstance(points, np.ndarray) else "list" 
+        datatype = "points" if isinstance(points, np.ndarray) else "list"
 
         if datatype=="list":
             x = use.x
@@ -376,8 +376,8 @@ class Plotter:
             points_x = points[:,0]
             points_y = points[:,1]
             points_z = points[:,2]
-            x = [min(points_x), max(points_x)]  
-            y = [min(points_y), max(points_y)] 
+            x = [min(points_x), max(points_x)]
+            y = [min(points_y), max(points_y)]
             ctlim_z = [np.nanmin( np.where(points_z <= -1e100, +np.Inf, points_z) ),np.nanmax( np.where(points_z > 1e100, -np.Inf, points_z) )]
             if logcb:
                 logpz = np.log10(points_z)
@@ -385,7 +385,7 @@ class Plotter:
                 points_z = points_z.clip(ctlim_z[0])
                 print(ctlim_z[0] )
         else:
-            raise Exception 
+            raise Exception
 
         print(ctlim_z)
 
@@ -398,7 +398,7 @@ class Plotter:
         ## We need these information to make colorbar and map
         # 1. Ticks <-- ctax "color tick axis"
         # 2. Contour levels <-- clax "levels"
-        # 3. Nomalizing range <-- cnlim 
+        # 3. Nomalizing range <-- cnlim
 
         ## Set ctax
         ctlim = notNone(use.ctlim, ctlim_z)
@@ -431,17 +431,17 @@ class Plotter:
 
         # You can choose if the color range fit to the range of z.
 
-        #norm = BoundaryNorm(clax, ncolors=cmap.N) if not use.logcb else LogNorm(vmin=clax[0], vmax=clax[-1]) 
-        norm = Normalize(vmin=cnlim[0], vmax=cnlim[1]) if not use.logcb else LogNorm(vmin=cnlim[0], vmax=cnlim[1]) 
+        #norm = BoundaryNorm(clax, ncolors=cmap.N) if not use.logcb else LogNorm(vmin=clax[0], vmax=clax[-1])
+        norm = Normalize(vmin=cnlim[0], vmax=cnlim[1]) if not use.logcb else LogNorm(vmin=cnlim[0], vmax=cnlim[1])
         #norm = TwoSlopeNorm(0, clax[0], clax[-4])
 
 
-        ## Make meshgrid 
+        ## Make meshgrid
         if (xx is None) or (yy is None):
             xx, yy = np.meshgrid(x, y, indexing='xy')
 
         if mode == "grid" and datatype=="list":
-            # Note: 
+            # Note:
             # this guess of xi, yi relyies on the assumption where
             # grid space is equidistant.
             dx = x[1] - x[0] if len(x) != 1 else y[1] - y[0]
@@ -484,11 +484,11 @@ class Plotter:
         from matplotlib.ticker import ScalarFormatter, LogFormatterMathtext, LogFormatterSciNotation
         #norm = mpl.colors.Normalize(vmin=ctax[0],vmax=ctax[-1])
         #sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
-        self.cbar = self.fig.colorbar(img, ax=self.ax, ticks=ctax, format=ScalarFormatter(), 
-        #self.cbar = self.fig.colorbar(sm, ax=self.ax, ticks=ctax, format=ScalarFormatter(), 
+        self.cbar = self.fig.colorbar(img, ax=self.ax, ticks=ctax, format=ScalarFormatter(),
+        #self.cbar = self.fig.colorbar(sm, ax=self.ax, ticks=ctax, format=ScalarFormatter(),
                      label=use.cbl, pad=0.02)
-       
- 
+
+
         if fills is not None:
             for fill in fills:
                 i = fill[0]
@@ -539,7 +539,7 @@ class Plotter:
         if result=="fig":
             return self.fig
         elif result=="class":
-            return Struct(self) 
+            return Struct(self)
 
 
 
@@ -556,7 +556,7 @@ class Plotter:
         else:
             raise Exception("dn_fig is None")
 
-        if os.path.exists(dp_fig)==False: 
+        if os.path.exists(dp_fig)==False:
             logger.info("Make figure directory: ", dp_fig)
             self._mkdir(dp_fig)
 
@@ -573,13 +573,13 @@ class Plotter:
 ## easy plotting
 def plot(ylist, *args, **kwargs):
     import matplotlib
-    matplotlib.use('TkAgg')
+    #matplotlib.use('TkAgg')
     pl = Plotter(show=True, save=False)
     pl.plot(ylist, *args, **kwargs)
 
 def map(*args, **kwargs):
     import matplotlib
-    matplotlib.use('TkAgg')
+    #matplotlib.use('TkAgg')
     pl = Plotter(show=True, save=False)
     pl.map(*args, **kwargs)
 

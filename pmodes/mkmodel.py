@@ -36,7 +36,7 @@ class EnvelopeDiskModel:
         cavity_angle=0, Tdisk=70, disk_star_fraction=0.01,
         rho0=None, rho_index=None,
         simple_density=False, disk=True, counterclockwise_rotation=False,
-        fn_model_pkl=None, submodel=False,
+        fn_model_pkl=None, submodel=False, calc_TSC=True,
         **args):
 
         mytools.set_arguments(self, locals(), printer=msg)
@@ -54,6 +54,8 @@ class EnvelopeDiskModel:
             self.r_ax = np.logspace(np.log10(r_in), np.log10(r_out), nr)
             self.th_ax = np.linspace(theta_in, theta_out, ntheta)
             self.ph_ax = np.linspace(phi_in, phi_out, nphi) if nphi > 1 else [0]
+
+        self.rr, self.tt = np.meshgrid(self.r_ax, self.th_ax)
 
         self.mu = np.round(np.cos(self.th_ax), 15)
         self.sin = np.where(self.mu == 1, 1e-100, np.sqrt(1 - self.mu**2))
@@ -112,11 +114,14 @@ class EnvelopeDiskModel:
 
     def calc(self):
         vals_prt = {}
+        if self.calc_TSC and self.r_in_lim < self.r_out:
+            print(self.r_in_lim/cst.au, self.r_out/cst.au)
+            self.solve_TSC()
 
         for p in self.ph_ax:
             vals_rt = {}
             for r in self.r_ax:
-                vals = self.calc_physical_structure_for_theta2(r,p)
+                vals = self.calc_physical_structure_for_theta(r,p)
                 self._stack_dict(vals, vals_rt)
             self._stack_dict(vals_rt, vals_prt)
 
@@ -127,11 +132,21 @@ class EnvelopeDiskModel:
         #self.save_hdf5()
         return self
 
+    def solve_TSC(self):
+        import TSCsolution
+        self.tsc = TSCsolution.solve_TSC(self.t, self.cs, self.Omega, run=True)
+        print(vars(self.tsc))
 
-    def calc_physical_structure_for_theta2(self, r, phi):
+    def calc_physical_structure_for_theta(self, r, phi):
         RR, zz = r*self.sin, r*self.mu
         rho, ur, uth, uph, zeta, mu0, uR, uz = self.calc_Kinematics(
             r, model=self.model)
+
+        #if r > self.cs * self.Omega**3 * self.t**3:
+        if self.r_in_lim < r:
+            rho = self.tsc.calc_rho(r, self.th_ax)
+            vr, vth, vph = self.tsc.calc_velocity(r, self.th_ax)
+
         rho_disk = self.put_Disk_sph(r, mode='CM_visc')
         b_disk = rho_disk > np.nan_to_num(rho)
         v_Kep = np.sqrt(self.GM / RR)
@@ -141,10 +156,13 @@ class EnvelopeDiskModel:
         vth_tot = np.where(b_disk, 0, uth)
         rr = np.full_like(self.th_ax, r)
         tt = self.th_ax
-        zeta = np.full_like(RR,zeta)
+        zeta = np.full_like(RR, zeta)
         if self.submodel is not None:
             rho_sub, ur_sub, uth_sub, uph_sub, zeta_sub, mu0_sub, uR_sub, uz_sub = self.calc_Kinematics(
                 r, model=self.submodel)
+
+
+
         ret = locals()
         del ret["self"]
         return ret
