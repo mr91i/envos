@@ -51,8 +51,9 @@ class FitsAnalyzer:
         pic = iofits.open(self.fits_file_path)[0]
         self.Ippv_raw = pic.data
         header = pic.header
+        print(header)
 
-        self.datatype="pv"
+        self.datatype="ppv"
 
         if self.datatype=="ppv":
             self.Nx = header["NAXIS1"]
@@ -259,7 +260,7 @@ class FitsAnalyzer:
         sigma_over_FWHM = 2 * np.sqrt(2 * np.log(2))
         Ippv_conv = copy.copy(Ippv)
         convolver = {"normal": aconv.convolve, "fft":aconv.convolve_fft}[self.convolver]
-        option = {"allow_huge":True}
+        option = {}#{"allow_huge":False}
 
         if ver=="new":# super fast
             Kernel_2d = aconv.Gaussian2DKernel(x_stddev=abs(beam_a_au/self.dx)/sigma_over_FWHM,

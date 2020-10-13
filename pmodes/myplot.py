@@ -21,7 +21,7 @@ msg = mytools.Message(__file__, debug=False)
 msg("%s is used." % os.path.abspath(__file__), debug=1)
 msg("This is python %s" % pyver, debug=1)
 dn_this_file = os.path.dirname(os.path.abspath(__file__))
-
+plt.style.use(['seaborn-colorblind'])
 
 class Struct:
     def __init__(self, entries):
@@ -190,7 +190,8 @@ class Plotter:
 
             # Plot
             msg('Inputs to plot', xy_i, debug=1)
-            ax.plot(*xy_i, label=lb_i, c=c_i, ls=ls_i,
+            #print(*xy_i, lb_i, c_i, ls_i, lw_i, alp_i, -i)
+            ax.plot(*xy_i, label=lb_i, c=c_i, linestyle=ls_i,
                     lw=lw_i, alpha=alp_i, zorder=-i, **kwargs)
             if pm:
                 ax.plot(x, -y, label=lb_i, c=c_i, ls=ls_i,
@@ -220,11 +221,12 @@ class Plotter:
 
             if True:
                 c_i = c[i] if len(c) >= i+1 else None
-                ax.annotate('', xytext=(ar[0], ar[1]), xy=(ar[2], ar[3]),
-                            xycoords='data', annotation_clip=False,size=30,
-                            arrowprops=dict(shrink=0, width=3, headwidth=8, headlength=8, lw=0,
-                                            connectionstyle='arc3', fc=c_i, ec=c_i)
-                            )
+                if (ar[0] > x[0]) and (ar[0] < x[-1]) :
+                    ax.annotate('', xytext=(ar[0], ar[1]), xy=(ar[2], ar[3]),
+                                xycoords='data', annotation_clip=False,size=30,
+                                arrowprops=dict(shrink=0, width=3, headwidth=8, headlength=8, lw=0,
+                                                connectionstyle='arc3', fc=c_i, ec=c_i)
+                                )
             else:
                 ar_x = ar[0]
                 ar_y = ar[1]
