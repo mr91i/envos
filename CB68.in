@@ -30,25 +30,26 @@ model.phi_out = +np.pi
 model.nphi = 1
 model.Tenv_K = Tenv
 #model.Mdot = 1e-5 * cst.Mpyr # free parameter
-model.rCR_au = 0.001 # free parameter
+model.rCR_au = 1 # free parameter
 model.Mstar_Msun = 0.15 # free parameter
 model.t = None
 model.Omega = None
 model.j0 = None
 model.Tdisk = 0
 model.disk_star_fraction = 0.1 # not used now
-model.cavity_angle = 0 # degree from z-axis, disk_angle = 2*(90-cavity_angle)
+model.cavity_angle = 80 # degree from z-axis, disk_angle = 2*(90-cavity_angle)
 model.simple_density = 0 # True
-model.rho0 = 1e11 * cst.m_n
+model.rho0 = 3e11 * cst.m_n
 model.rho_index = -1.5
 model.counterclockwise_rotation = False
 model.fn_model_pkl = "model_"+object_name+".pkl"
+model.calc_TSC = False
 
 # radmc parameters
 radmc = mytools.Parameters()
 radmc.plot = 1
 radmc.nphot = 1000000
-radmc.r_in = 0.1 * cst.au
+radmc.r_in = 1 * cst.au
 radmc.r_out = 1e3 * cst.au
 radmc.nr =  int(100/dr_100 * np.log10(radmc.r_out/radmc.r_in) * 2.3) #128 # 128 #10 24 #128
 # dr(100au) ~ 100au * dlogr * 2.3 = 230 * 1/nr au

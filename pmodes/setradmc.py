@@ -21,7 +21,7 @@ msg = mytools.Message(__file__)
 def main():
     calc_temp = 1
     if calc_temp:
-        SetRadmc(dn_radmc, **vars(inp.radmc))
+        srmc = SetRadmc(dn_radmc, **vars(inp.radmc))
         # or you can input parmeters directly.
         if inp.radmc.temp_mode=="mctherm":
             exe_radmc_therm()
@@ -29,7 +29,7 @@ def main():
             del_mctherm_files()
 
     if inp.radmc.plot:
-        rdata = RadmcData(dn_radmc=dn_radmc, dn_fig=dn_fig, ispec=inp.radmc.mol_name, mol_abun=inp.radmc.mol_abun, opac=inp.radmc.opac)
+        rdata = RadmcData(dn_radmc=dn_radmc, dn_fig=dn_fig, ispec=inp.radmc.mol_name, mol_abun=inp.radmc.mol_abun, opac=inp.radmc.opac, fn_model=inp.radmc.fn_model_pkl)
 
 def exe_radmc_therm():
     mytools.exe('cd %s ; radmc3d mctherm setthreads 16 ' % dn_radmc )
@@ -155,6 +155,7 @@ class SetRadmc:
         self.vturb = np.zeros_like(self.vr)
 
         self.n_mol = self.rhog / (2.34*cst.amu) * self.mol_abun
+        self.n_mol = np.where(self.rr<1000*cst.au, self.n_mol, 0)
         if self.temp_mode == 'const':
             if self.Tenv is not None:
                 T = self.Tenv
@@ -454,7 +455,7 @@ def _interpolator3d_bu(value, xyz_ori, xyz_new, logx=False, logy=False, logz=Fal
 
 ##################################################################################################################
 def readRadmcData(dn_radmc=None, use_ddens=True, use_dtemp=True,
-                use_gdens=True, use_gtemp=True, use_gvel=True, ispec=None): # modified version of radmc3dPy.analyze.readData
+                use_gdens=True, use_gtemp=True, use_gvel=True, ispec=None, setting=None): # modified version of radmc3dPy.analyze.readData
 
     res = rmca.radmc3dData()
     res.grid = rmca.radmc3dGrid()
@@ -480,22 +481,25 @@ def readRadmcData(dn_radmc=None, use_ddens=True, use_dtemp=True,
             res.ndens_mol = res._scalarfieldReader(fname=dn_radmc+"/numberdens_"+ispec+".inp", binary=False)
     msg("RadmcData is created. Variables are : ", ", ".join([ k for k, v in res.__dict__.items() if not isinstance(v, int)]) )
 
+
     return res
 
 class RadmcData:
     def __init__(self, dn_radmc=None, dn_fig=None,
                  use_ddens=True, use_gdens=True, use_gtemp=True,
                  use_dtemp=True, use_gvel=True,
-                 ispec=None, mol_abun=0, opac="", autoplot=True, plot_tau=False):
+                 ispec=None, mol_abun=0, opac="", autoplot=True, plot_tau=False, fn_model=None):
 
         mytools.set_arguments(self, locals(), printer=msg)
+        D = pd.read_pickle(dn_radmc+"/"+fn_model)
+        self.D = namedtuple("Model", D.keys())(*D.values())
 
         data = self.readRadmcData()
         print(vars(data))
         self.r_ax = data.grid.x
         self.th_ax = data.grid.y
         self.xauc = data.grid.x/cst.au
-        self.rrc, self.ttc = np.meshgrid(self.xauc, data.grid.y, indexing='xy')
+        self.rrc, self.ttc = np.meshgrid(self.xauc, data.grid.y, indexing='ij')
         self.RR = self.rrc * np.sin(self.ttc)
         self.zz = self.rrc * np.cos(self.ttc)
 
@@ -526,7 +530,6 @@ class RadmcData:
             print(self.tau.shape,np.min(self.tau), np.max(self.tau))
 
         self.calc_gas_trajectries()
-        exit()
 
         if autoplot:
             self.plotall()
@@ -596,8 +599,8 @@ class RadmcData:
                        fn_wrapper=lambda s:'rmc_%s_2d'%s, square=True)
 
         def plot_plofs(d, fname, lim=None, log=True, lb=None):
-            pl1d.plot(d[-1,:], fname, ylim=lim, logy=log, yl=lb)
-            pl2d.map(d, fname, cblim=lim, logcb=log, cbl=lb)
+            pl1d.plot(d[:,-1], fname, ylim=lim, logy=log, yl=lb)
+            pl2d.map(d, fname, ctlim=lim, logcb=log, cbl=lb)
 
         if self.use_gdens:
             nmin = self.ndens_mol.min()
@@ -606,16 +609,17 @@ class RadmcData:
             plot_plofs(self.ndens_mol, "nden", lim=[maxlim*1e-3, maxlim], lb=r"Number density [cm$^{-3}$]")
 
         if self.use_gtemp:
-            pl1d.plot(self.gtemp[-1,:], "temp", ylim=[1,1000], logy=True, yl='Temperature [K]')
-            pl1d.plot(self.gtemp[0,:], "temp_pol", ylim=[1,1000], logy=True, yl='Temperature [K]')
-            pl2d.map(self.gtemp, "temp_in", cblim=[0,200], xlim=[0,100],ylim=[0,100], logcb=False, cbl='Temperature [K]')
-            pl2d.map(self.gtemp, "temp_out", cblim=[0,100], logcb=False, cbl='Temperature [K]')
+            pl1d.plot(self.gtemp[:,-1], "temp", ylim=[1,1000], logy=True, yl='Temperature [K]')
+            pl1d.plot(self.gtemp[:, 0], "temp_pol", ylim=[1,1000], logy=True, yl='Temperature [K]')
+            pl2d.map(self.gtemp, "temp_in", ctlim=[0,200], xlim=[0,100],ylim=[0,100], logcb=False, cbl='Temperature [K]')
+            pl2d.map(self.gtemp, "temp_out", ctlim=[0,100], logcb=False, cbl='Temperature [K]')
+            pl2d.map(self.gtemp, "temp_L", ctlim=[0,40], xlim=[0,7000],ylim=[0,7000], logcb=False, cbl='Temperature [K]')
             pl2d_log = mp.Plotter(self.dn_fig, x=self.RR, y=self.zz,
                        logx=True, logy=True, logcb=True, leg=False,
                        xl='log Radius [au]', yl='log Height [au]', xlim=[1, 1000], ylim=[1, 1000],
                        fn_wrapper=lambda s:'rmc_%s_2d'%s, square=True)
 
-            pl2d_log.map(self.gtemp, "temp_log", cblim=[10**0.5, 10**2.5], cbl='log Temperature [K]')
+            pl2d_log.map(self.gtemp, "temp_log", ctlim=[10**0.5, 10**2.5], cbl='log Temperature [K]')
 
         if self.use_gvel:
             lb_v = r"Velocity [km s$^{-1}$]"
@@ -624,7 +628,7 @@ class RadmcData:
             plot_plofs(np.abs(self.vp)/1e5, "gvelp", lim=[0,5], log=False, lb=lb_v)
 
         if self.use_gdens and self.use_gtemp:
-            plot_plofs( self.t_dest/self.t_dyn, "tche", lim=[1e-3,1e3], lb="CCH Lifetime/Dynamical Timescale")
+            plot_plofs(self.t_dest/self.t_dyn, "tche", lim=[1e-3,1e3], lb="CCH Lifetime/Dynamical Timescale")
 
         if self.opac!="":
             with open(f"{dn_radmc}/dustkappa_{self.opac}.inp", mode='r') as f:
@@ -640,6 +644,11 @@ class RadmcData:
                 xl=r'Wavelength [$\mu$m]', yl=r"Dust Extinction Opacity [cm$^2$ g$^{-1}$]",
                 ls=["--"], c=["k"], lw=[3,2,2])
 
+        exit()
+        if 1:
+            pl2d.map(D.rho, 'rho_L', ctlim=[1e-20, 1e-16], xlim=[0, 5000], ylim=[0, 5000], cbl=r'log Density [g/cm$^{3}$]', div=10, n_sl=40, Vector=Vec, save=False)
+            pl2d.ax.plot(self.pos_list[0].R/cst.au, self.pos_list[0].z/cst.au, c="orangered", lw=1.5, marker="o")
+            pl2d.save("rho_L_pt")
 
         if self.plot_tau:
             pl1d = mp.Plotter(self.dn_fig, x=self.imx/cst.au,
@@ -655,13 +664,18 @@ class RadmcData:
 
 
 
+
     def calc_gas_trajectries(self):
         from scipy import interpolate
         from mkmodel import trace_particle_2d_meridional
 
-        pos0_list = [(500*cst.au, np.pi/180*80), ]
-        pos_list = [trace_particle_2d_meridional(self.r_ax, self.th_ax, self.vr, self.vt, (0, 1e6*cst.yr), pos0)
+        r_ew = self.D.cs * self.D.t
+        print(f"r_ew is {r_ew/cst.au}")
+        pos0_list = [(r_ew, np.pi/180*80), (r_ew, np.pi/180*70), (r_ew, np.pi/180*60), (r_ew, np.pi/180*50)]
+
+        pos_list = [trace_particle_2d_meridional(self.r_ax, self.th_ax, self.vr, self.vt, (0.1*cst.yr, 1e7*cst.yr), pos0)
                      for pos0 in pos0_list]
+        self.pos_list = pos_list
 
         dens_func = interpolate.RegularGridInterpolator((self.r_ax, self.th_ax), self.rhogas, bounds_error=False, fill_value=None)
         temp_func = interpolate.RegularGridInterpolator((self.r_ax, self.th_ax), self.gtemp, bounds_error=False, fill_value=None)
@@ -670,9 +684,8 @@ class RadmcData:
             stream_pos = pos.y.T
             dens_stream = dens_func(stream_pos)
             temp_stream = temp_func(stream_pos)
-            stream_data = np.stack((pos.t, pos.R, pos.z, dens_stream/cst.m_n, temp_stream), axis=-1)
-            np.savetxt(f"stream_{i:d}", stream_data, header="t[s] R[cm] z[cm] n_gas[cm^-3] T[K]")
-
+            stream_data = np.stack((pos.t, pos.R, pos.z, dens_stream, temp_stream), axis=-1)
+            np.savetxt(f"{dn_fig}/stream_{i:d}.txt", stream_data, header="t[s] R[cm] z[cm] rho_gas[g cm^-3] T[K]")
 
 #def vertical_integrate(value_sph, rr, tt, zlim=None):
 #    x_new =

@@ -16,14 +16,19 @@ import mytools
 import logging
 logger = logging.getLogger(__name__)
 
+logger.setLevel(logging.DEBUG)
+
 #####################################
 
 def main():
     osim = ObsSimulator(dn_radmc, dn_fits=dn_radmc, **vars(inp.sobs))
+    osim.cont_observe(1249)
     osim.observe()
+    osim.save_instance()
 
 class ObsSimulator():  # This class returns observation data
-    def __init__(self, dn_radmc, dn_fits=None, filename="obs", dpc=None, iline=None,
+    def __init__(self, dn_radmc, dn_fits=None, obs_mode="line",
+                 filename="obs", dpc=None, iline=None,
                  sizex_au=None, sizey_au=None,
                  pixsize_au=None,
                  vwidth_kms=None, dv_kms=None,
@@ -94,13 +99,25 @@ class ObsSimulator():  # This class returns observation data
             sum_points += npoints
         return np.array(ans)
 
+    def cont_observe(self, lam):
+        common = f"incl {self.incl} phi {self.phi} posang {self.posang} "
+        option = "noscat nostar" #fluxcons doppcatch"
+        camera = f"npixx {self.npixx} npixy {self.npixy} "
+        camera += "zoomau {:g} {:g} {:g} {:g} ".format(*(self.zoomau_x+self.zoomau_y))
+        freq = f"lambda {lam} "
+        cmd="radmc3d image "+ freq+ camera+ common+ option
+        logger.info("Execute:"+ cmd)
+        os.chdir(dn_radmc)
+        subprocess.call(cmd, shell=True, cwd=dn_radmc)
+        self.data_cont = rmci.readImage()
+
     def observe(self):
-        common = "incl %d phi %d posang %d" % (
-            self.incl, self.phi, self.posang)
+        common = f"incl {self.incl} phi {self.phi} posang {self.posang} "
         option = "noscat nostar nodust" #fluxcons doppcatch"
-        camera = "npixx {} npixy {} ".format(self.npixx, self.npixy)
+        camera = f"npixx {self.npixx} npixy {self.npixy} "
         camera += "zoomau {:g} {:g} {:g} {:g} ".format(*(self.zoomau_x+self.zoomau_y))
         line = "iline {:d}".format(self.iline)
+
         v_calc_points = np.linspace( -self.vwidth_kms, self.vwidth_kms, self.linenlam )
         vseps = np.linspace( -self.vwidth_kms-self.dv_kms/2, self.vwidth_kms+self.dv_kms/2, self.linenlam+1   )
 
@@ -119,8 +136,10 @@ class ObsSimulator():  # This class returns observation data
                         v_center[p], v_width[p], n_points[p])
                 return " ".join(["radmc3d image", line, freq, camera, common, option])
 
+            print("Do")
             args = [ (self, (p, 'proc'+str(p), cmd(p)) ) for p in range(self.n_thread)]
             rets = Pool(self.n_thread).map(call_subcalc, args)
+            print("end")
 
             for i, r in enumerate(rets):
                 logger.debug(f"The{i}th return")
@@ -154,10 +173,9 @@ class ObsSimulator():  # This class returns observation data
         freq0 = (self.data.freq[0] + self.data.freq[-1])*0.5
         dfreq = self.data.freq[1] - self.data.freq[0]
         vkms = np.round(mytools.freq_to_vkms(freq0, self.data.freq-freq0), 8)
-
         logger.info("x_au is " + format_array(self.data.x/cst.au) )
         logger.info("v_kms is " + format_array(vkms) )
-        self.save_instance()
+        # self.save_instance()
         self.save_fits()
 
         return self.data
@@ -184,7 +202,7 @@ class ObsSimulator():  # This class returns observation data
         return rmci.readImage()
 
     def save_fits(self):
-        fp_fitsdata = self.dn_fits+'/'+self.filename+'.fits'
+        fp_fitsdata = f"{self.dn_fits}/{self.filename}.fits"
         if os.path.exists(fp_fitsdata):
             logger.info(f"remove old fits file: {fp_fitsdata}")
             os.remove(fp_fitsdata)
