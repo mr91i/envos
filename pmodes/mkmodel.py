@@ -66,6 +66,7 @@ class EnvelopeDiskModel:
         self.GM = cst.G * self.Mstar
         self.r_CB = self.r_CR * 0.5  # 50 * cst.au
         self.r_in_lim = self.cs * self.Omega**2 * self.t**3
+
         self.Req = self.r_CB * 2 * np.sin(cavity_angle / 180 * np.pi)**2
 
         self.Mdisk = disk_star_fraction * self.Mstar
@@ -77,6 +78,8 @@ class EnvelopeDiskModel:
 #            raise Exception("There is unused args :", args)
 
         self.print_params()
+        print(f"tau is {self.Omega*self.t}")
+        print(f"xin_TSC is {self.r_in_lim/self.cs/self.t}")
         self.calc()
 
 
@@ -133,9 +136,8 @@ class EnvelopeDiskModel:
         return self
 
     def solve_TSC(self):
-        import TSCsolution
-        self.tsc = TSCsolution.solve_TSC(self.t, self.cs, self.Omega, run=True)
-        print(vars(self.tsc))
+        import tsc
+        self.tsc = tsc.solve_TSC(self.t, self.cs, self.Omega, run=True)
 
     def calc_physical_structure_for_theta(self, r, phi):
         RR, zz = r*self.sin, r*self.mu
@@ -143,9 +145,9 @@ class EnvelopeDiskModel:
             r, model=self.model)
 
         #if r > self.cs * self.Omega**3 * self.t**3:
-        if self.r_in_lim < r:
+        if self.r_in_lim*0.2 < r and self.calc_TSC:
             rho = self.tsc.calc_rho(r, self.th_ax)
-            vr, vth, vph = self.tsc.calc_velocity(r, self.th_ax)
+            ur, uth, uph = self.tsc.calc_velocity(r, self.th_ax)
 
         rho_disk = self.put_Disk_sph(r, mode='CM_visc')
         b_disk = rho_disk > np.nan_to_num(rho)
@@ -161,8 +163,6 @@ class EnvelopeDiskModel:
             rho_sub, ur_sub, uth_sub, uph_sub, zeta_sub, mu0_sub, uR_sub, uz_sub = self.calc_Kinematics(
                 r, model=self.submodel)
 
-
-
         ret = locals()
         del ret["self"]
         return ret
@@ -176,7 +176,6 @@ class EnvelopeDiskModel:
                 v = [v]
             dict_stacked[k].append(v)
         dict_vals.clear()
-
 
     def calc_Kinematics(self, r, model='CM'):
         solver = {'CM': self.get_Kinematics_CM,
@@ -286,13 +285,12 @@ class EnvelopeDiskModel:
 
     def save_pickle(self):
         savefile = dn_radmc + '/' + self.fn_model_pkl
+        if self.calc_TSC:
+            del self.tsc
         pd.to_pickle(self.__dict__, savefile, protocol=2)
         msg('Saved : %s\n' % savefile)
 
     def save_hdf5(self):
-        #import h5py
-        #import V1sHdf5
-        #import evtk
         from evtk.hl import gridToVTK, pointsToVTK
         L = self.r_ax[-1]
         xi = np.linspace(-L/10,L/10,200)
@@ -306,15 +304,12 @@ class EnvelopeDiskModel:
         rr_cert = np.sqrt(xxc**2 + yyc**2 + zzc**2)
         tt_cert = np.arccos(zzc/rr_cert) #np.arctan(np.sqrt(xxc**2 + yyc**2)/zzc)#(zzc/rr_cert)
 
-        #pp_cert = np.arcsin(yyc/np.sqrt(xxc**2 + yyc**2)) + np.where( xxc >0 , 0,  ) #cos(xxc/np.sqrt(xxc**2 + yyc**2))
         pp_cert =  np.arctan2(yyc, xxc) #np.where(xxc>0, np.arcsin(yyc/np.sqrt(xxc**2 + yyc**2)) , -np.arcsin(yyc/np.sqrt(xxc**2 + yyc**2))) #cos(xxc/np.sqrt(xxc**2 + yyc**2))
-        print( rr_cert, tt_cert, pp_cert)
 
         #print(self.rho.transpose(0,1,2).shape, self.rho.shape, self.r_ax.shape, self.th_ax.shape, self.ph_ax.shape,  rr_cert.shape, tt_cert.shape, pp_cert.shape)
         def interper(val):
             return interpolator3d(val, self.r_ax, self.th_ax, self.ph_ax, rr_cert, tt_cert, pp_cert, logx=False, logy=False, logz=False, logv=False)
         den_cert = interper(self.rho)
-        #print(den_cert.shape)
         ur_cert = interper(self.ur)
         uth_cert = interper(self.uth)
         uph_cert = interper(self.uph)
@@ -323,46 +318,14 @@ class EnvelopeDiskModel:
         uuy = ur_cert * np.sin(tt_cert) * np.sin(pp_cert) + uth_cert * np.cos(tt_cert) * np.sin(pp_cert) + uph_cert * np.cos(pp_cert)
         uuz = ur_cert * np.cos(tt_cert) - uth_cert * np.sin(tt_cert)
 
-
         ri = mytools.make_array_interface(self.r_ax)
         ti = mytools.make_array_interface(self.th_ax)
         pi = mytools.make_array_interface(self.ph_ax)
-
-
         import itertools
-        #rtp = np.array(list(itertools.product(self.r_ax, self.th_ax, self.ph_ax)) ).T
         rr, tt, pp = np.meshgrid(self.r_ax,self.th_ax, self.ph_ax, indexing='ij')
         rri, tti, ppi = np.meshgrid(ri,ti,pi, indexing='ij')
-        print(self.rho.shape, rri.shape)
-        #pointsToVTK(dn_radmc + '/' +"model_sph.vtk", rr.ravel(), tt.ravel(), pp.ravel(), data = {"den" :self.rho.ravel() })
-        #gridToVTK(dn_radmc + '/' +"model_sph.vtk", rri, tti, ppi, cellData = {"den" :self.rho}) #, "ur" :self.ur, "uth" :self.uth,"uph" :self.uph})
-        #evtk.hl.imageToVTK(dn_radmc + '/' +"model.vtk", cellData = {"pressure" : pressure}, pointData = {"temp" : temp} )
-        print(den_cert)
         gridToVTK(dn_radmc + '/' +"model.vtk", xi/cst.au, yi/cst.au, zi/cst.au, cellData = {"den" :den_cert, "ux" :uux, "uy" :uuy, "uz" :uuz})
-        #gridToVTK(dn_radmc + '/' +"model.vtk", x_new, y_new, z_new, cellData = {"den" :den_cert})
 
-
-        exit()
-
-
-        with h5py.File( dn_radmc + '/' + 'model.h5', 'w') as f:
-            f["x"] = xx
-            f["y"] = yy
-            f["z"] = zz
-            f['x'].make_scale()
-            f['y'].make_scale("yy")
-            f['z'].make_scale("zz")
-            #f["den"] = den_cert
-            f.create_dataset("den", data=den_cert)
-            f["den"].dims[0].attach_scale(f['x'])
-            f["den"].dims[1].attach_scale(f['y'])
-            f["den"].dims[2].attach_scale(f['z'])
-
-#    def transform_to_cert():
-#        x = np.linspace
-
-
-        exit()
 
     def set_params(self, T=None, CR=None, M=None, t=None, Omega=None, j0=None, Mdot=None):  # choose 3
         #       eq1(cs,T),  eq2(Mdot,cs) ==> eq3(CR,M,j0), eq4(M,t), eq5(j0,Omega) : 5 vars 3 eqs
@@ -407,31 +370,6 @@ class EnvelopeDiskModel:
             dict_stacked[k].append(v)
         dict_vals.clear()
 
-def calc_particle_trajectry_2d(r_ax, th_ax, uu, vv, t_span, pos0):
-    from scipy import interpolate, integrate
-    u_field = interpolate.RegularGridInterpolator((r_ax, th_ax), uu)
-    v_field = interpolate.RegularGridInterpolator((r_ax, th_ax), vv)
-
-    def func(t, pos):
-        x, y = pos
-        r = (x**2 + y**2 )**0.5
-        th = np.arctan(x/y)
-        if th < 0:
-            th *= -1
-        u = u_field( (r, th))
-        v = v_field( (r, th) )
-        if th < 0:
-            v *= -1
-        return np.array([u, v])
-
-    def hit_midplane(t, pos):
-        return pos[1]
-    hit_midplane.terminal = True
-
-    pos = integrate.solve_ivp(func, t_span, pos0, method='RK45', events=hit_midplane)
-    print(pos)
-    return pos
-
 def trace_particle_2d_meridional(r_ax, th_ax, vr, vth, t_span, pos0):
     # There are some choice for coordination, but i gave up genelarixation for the code simplicity.
     # input axis : rth
@@ -451,17 +389,21 @@ def trace_particle_2d_meridional(r_ax, th_ax, vr, vth, t_span, pos0):
         r, th = pos[0], pos[1]
         vr = vr_field((r, th))
         vth = vth_field((r, th))
-        print(r, th, hit_midplane(t, pos), hit_flag, vr, vth)
         return np.array([vr, vth/r])
 
     def hit_midplane(t, pos):
         return np.pi/2 - pos[1]
     hit_midplane.terminal = True
 
-    pos = integrate.solve_ivp(func, t_span, pos0, method='RK45', events=hit_midplane)
+    t_trace = np.logspace(np.log10(t_span[0]), np.log10(t_span[-1]), 600)
+    if pos0[0] > r_ax[-1]:
+        print(f"Too large position:r0 = {pos0[0]/cst.au} au. r0 must be less than {r_ax[-1]/cst.au} au. I use r0 = {r_ax[-1]/cst.au} au instead of r0 = {pos0[0]/cst.au} au")
+        pos0 = [r_ax[-1], pos0[1]]
+
+    #pos = integrate.solve_ivp(func, t_span, pos0, method='BDF', events=hit_midplane, t_eval=t_trace[1:-1])
+    pos = integrate.solve_ivp(func, t_span, pos0, method='RK45', events=hit_midplane, rtol=1e-8)
     pos.R = pos.y[0] * np.sin(pos.y[1])
     pos.z = pos.y[0] * np.cos(pos.y[1])
-    print(pos)
     return pos
 
 
@@ -489,7 +431,10 @@ def Plots(D, r_lim=500, dn_fig=None):
     ux = D.ur * np.cos(ph_mg) - D.uph*np.sin(ph_mg)
     uy = D.ur * np.sin(ph_mg) + D.uph*np.cos(ph_mg)
 
-    pos = trace_particle_2d_meridional(D.r_ax, D.th_ax, D.ur[:,:,0], D.uth[:,:,0], (0, 1e4*cst.yr), (500*cst.au, np.pi/180*80))
+    r_ew = D.cs * D.t
+
+    pos0_list = [(r_ew, np.pi/180*80), (r_ew, np.pi/180*70), (r_ew, np.pi/180*60), (r_ew, np.pi/180*50)]
+    pos_list = [trace_particle_2d_meridional(D.r_ax, D.th_ax, D.ur[:,:,0], D.uth[:,:,0], (0.1*cst.yr, 1e7*cst.yr), pos0) for pos0 in pos0_list]
 
     plmap = mp.Plotter(dn_fig, x=R_mg.take(0, 2)/cst.au, y=z_mg.take(0, 2)/cst.au,
                        logx=False, logy=False, logcb=True, leg=False, square=True,
@@ -498,26 +443,26 @@ def Plots(D, r_lim=500, dn_fig=None):
                        decorator=lambda x: x.take(0,2))
     Vec = np.array([D.uR.take(0, 2), D.uz.take(0, 2)])
     # Density and velocity map
-    plmap.map(D.rho, 'rho', cblim=[1e-20, 1e-16], cbl=r'log Density [g/cm$^{3}$]', div=10, n_sl=40, Vector=Vec, save=False)
-    plmap.ax.plot(pos.R/cst.au, pos.z/cst.au, c="orangered", lw=1.5, marker="o")
+    plmap.map(D.rho, 'rho', ctlim=[1e-20, 1e-16], cbl=r'log Density [g/cm$^{3}$]', div=10, n_sl=40, Vector=Vec, save=False)
+    for pos in pos_list:
+        plmap.ax.plot(pos.R/cst.au, pos.z/cst.au, c="orangered", lw=1., marker="o")
     plmap.save("rho_pt")
-    exit()
-    plmap.map(D.rho, 'rho_L', cblim=[1e-20, 1e-16], xlim=[0, 10000], ylim=[0, 10000], cbl=r'log Density [g/cm$^{3}$]', div=10, n_sl=40, Vector=Vec, save=False)
-    print(pos.y[0], pos.y[1])
 
-
-
+    plmap.map(D.rho, 'rho_L', ctlim=[1e-20, 1e-16], xlim=[0, 7000], ylim=[0, 7000], cbl=r'log Density [g/cm$^{3}$]', div=10, n_sl=40, Vector=Vec, save=False)
+    for pos in pos_list:
+        plmap.ax.plot(pos.R/cst.au, pos.z/cst.au, c="orangered", lw=1., marker="o")
+    plmap.save("rho_L_pt")
 
     # Ratio between mu0 and mu : where these gas come from
-    plmap.map(np.arccos(D.mu0)*180/np.pi, 'theta0', cblim=[0, 90], cbl=r'$\theta_0$ [degree]', div=10, Vector=Vec, n_sl=40, logcb=False)
+    plmap.map(np.arccos(D.mu0)*180/np.pi, 'theta0', ctlim=[0, 90], cbl=r'$\theta_0$ [degree]', div=10, Vector=Vec, n_sl=40, logcb=False)
 
-    plmap.map(D.rho*r_mg**2, 'rhor2', cblim=[1e9, 1e14], cbl=r'log $\rho*r^2$ [g/cm]', div=10, n_sl=40)
+    plmap.map(D.rho*r_mg**2, 'rhor2', ctlim=[1e9, 1e14], cbl=r'log $\rho*r^2$ [g/cm]', div=10, n_sl=40)
 
     #from scipy.integrate import simps
     #integrated_value = np.where(r_mg < 300 * cst.au  , D.rho*r_mg**2*np.sin(th_mg), 0)
     #Mtot = 2*np.pi*simps( simps(integrated_value[:,:,0],D.th_ax, axis=1), D.r_ax)
     #print("Mtot is ", Mtot/cst.Msun)
-    #plmap.map(D.zeta, 'zeta', cblim=[1e-2, 1e2], cbl=r'log $\zeta$ [g/cm$^{3}$]', div=6, n_sl=40)
+    #plmap.map(D.zeta, 'zeta', ctlim=[1e-2, 1e2], cbl=r'log $\zeta$ [g/cm$^{3}$]', div=6, n_sl=40)
 
 
     def zdeco_plane(z):
@@ -540,17 +485,16 @@ def Plots(D, r_lim=500, dn_fig=None):
     # Slicing
     V_LS = x_mg/r_mg * D.uph - y_mg/r_mg*D.ur
 
-    print("Vls is ", V_LS/1e5)
-    plplane.map(V_LS/1e5, 'Vls', cblim=[-2.0, 2.0], cbl=r'$V_{\rm LS}$ [km s$^{-1}$]',
+    plplane.map(V_LS/1e5, 'Vls', ctlim=[-2.0, 2.0], cbl=r'$V_{\rm LS}$ [km s$^{-1}$]',
                    div=10, n_sl=20, logcb=False, cmap=cm.get_cmap('seismic'), Vector=Vec, seeds_angle=[0,2*np.pi])
 
-    plplane.map(D.rho, 'rho', cblim=[1e-18, 1e-16], cbl=r'log Density [g/cm$^{3}$]',
+    plplane.map(D.rho, 'rho', ctlim=[1e-18, 1e-16], cbl=r'log Density [g/cm$^{3}$]',
                    div=10, n_sl=20, logcb=True, cmap=cm.get_cmap('seismic'), Vector=Vec, seeds_angle=[0,2*np.pi])
 
     rho0, uR0, uph0, rho_tot0 = slice_at_midplane(
         th_mg, D.rho, D.uR, D.uph, D.rho_tot)
 
-    pl = mp.Plotter(dn_fig, x=D.r_ax/cst.au, leg=True, xlim=[0, 500], xl="Radius [au]")
+    pl = mp.Plotter(dn_fig, x=D.r_ax/cst.au, leg=True, xlim=[0, 5000], xl="Radius [au]")
 
     # Density as a function of distance from the center
     pl.plot([['nH2_env', rho0/cst.mn], ['nH2_disk', (rho_tot0-rho0)/cst.mn], ['nH2_tot', rho_tot0/cst.mn]],
@@ -574,7 +518,7 @@ def Plots(D, r_lim=500, dn_fig=None):
             lw=[2, 2, 4, 4], ls=['-', '-', '--', '--'])
 
     rhoint = vint(D.rho[:,:,0], R_mg[:,:,0], z_mg[:,:,0], R_mg[:,-1,0], R_mg[:,-1,0])
-    pl.plot( ["coldens", rhoint*2], 'coldens_%s' % stamp, ylim=[1e-3, 10], logy=True, xlim=[0, 500], yl=r"Vertical Column Density [g cm $^{-2}$]")
+    pl.plot( ["coldens", rhoint*2], 'coldens_%s' % stamp, ylim=[1e-2, 100], logy=True, xlim=[0, 500], yl=r"Vertical Column Density [g cm $^{-2}$]")
     # memo: int
 
 
@@ -616,9 +560,7 @@ def interpolator3d(value, x_ori, y_ori, z_ori, xx_new, yy_new, zz_new, logx=Fals
 #    vo = np.log10(np.abs(value)) if logv else value
 #    print(np.stack([xn, yn, zn], axis=-1), xo, yo, zo )
 #    print(np.stack([xx_new, yy_new, zz_new], axis=-1).shape)
-    print(value.shape)
     ret0 = interpn((x_ori, y_ori, z_ori), value, np.stack([xx_new, yy_new, zz_new], axis=-1), bounds_error=False, fill_value=np.nan )#( np.stack([xx_new, yy_new, zz_new], axis=-1))
-    print(ret0.shape)
     return ret0
     #ret0 = RegularGridInterpolator((xo, yo, zo), vo, bounds_error=False, fill_value=-1 )( np.stack([xn, yn, zn], axis=-1))
     #fv = np.vectorize(interp2d(xo, yo, value.T, fill_value=0))
@@ -650,51 +592,6 @@ def vint(value_rt, R_rt, z_rt, R_ax, z_ax, log=False):
         ret = interpolate.griddata(points, value_rt.flatten(), npoints, method='linear')
     s = np.array([ integrate.simps(r, z_ax) for r in np.nan_to_num(ret) ])
     return s
-
-
-
-
-    print(value_rt.shape, R_rt.shape, z_rt.shape)
-    #f = interpolate.interp2d( R_rt, z_rt, value_rt, kind="linear", bounds_error=False, fill_value=0)
-    f = interpolate.interp2d( R_rt, z_rt, value_rt, kind="linear", bounds_error=False, fill_value=0)
-    print(f( 100*cst.au, np.linspace(0, 500, 11)*cst.au)  )
-    exit()
-
-
-
-    logR = np.log10(R_rt)
-    logz = np.log10(z_rt)
-    logval = np.log10(value_rt)
-    fltr = np.logical_and.reduce(( np.isfinite(logR), np.isfinite(logz), np.isfinite(logval)))
-#    print(np.min(logval[fltr]), np.max(logval[fltr]) )
-#    print(logval[fltr])
-#    print(logR[fltr]-np.log10(cst.au))
-#    print(logz[fltr]-np.log10(cst.au))
-#    print(logz - np.log10(cst.au))
-    logf = interpolate.interp2d(logR[fltr], logz[fltr], logval[fltr], kind="linear", fill_value=-np.inf)
-    #print(logf( np.log10(100*cst.au) , np.log10(np.array([0, 0.1, 10, 50, 200])*cst.au)    ))
-    print(logf( np.log10(100*cst.au) , np.log10(np.linspace(0, 200, 11)*cst.au)    ))
-    exit()
-
-    #logf = interpolate.interp2d(logR, logz, logval, kind="linear", fill_value=-np.inf)
-    print(np.max(R_ax), np.min(R_ax), np.max(R_rt), np.min(R_rt), np.max(z_rt), np.min(z_rt),)
-    m = 10**logf(np.log10(R_ax[:-3]), np.log10(z_ax[:-3]))
-    x = logf(np.log10(R_ax[:-3]), np.log10(z_ax[:-3]))
-
-    #for xx in logval:
-    #    print(xx)
-    #print("-----------------------------------------")
-    #exit()
-    for xx in x:
-        print(xx)
-    print(np.max(x), np.min(x))
-    exit()
-    print(m.shape)
-    print(np.max(value_rt), np.min(value_rt))
-    print(np.max(m), np.min(m))
-
-    #return np.array([ integrate.simps( f(R, z_ax)[:,0] , z_ax ) for R in R_ax])
-    return np.array([ integrate.simps(m_, z_ax[:-3]) for m_ in m.T])
 
 ###########
 if __name__ == '__main__':

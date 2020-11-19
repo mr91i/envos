@@ -15,9 +15,7 @@ class solve_TSC:
         self.cs = cs
         self.figopt = {"logx":True, "logy" :True, "save":True, "leg":True, "show":False}
 
-        print(self.tau, self.cs)
-
-        self.x = np.logspace(np.log10(1/self.tau), np.log10(self.tau**2), 2000)
+        self.x = np.logspace(np.log10(1/self.tau)+1, np.log10(self.tau**2)-1, 2000)
         self.xout = self.x[self.x>1]
         self.xin = self.x[self.x<=1]
 
@@ -63,24 +61,23 @@ class solve_TSC:
 
         if solve_type==1:
             sol = integrate.solve_ivp(f_0thorder, (xin[0], xin[-1]), [0, 2], t_eval=self.xin,
-                                  method='BDF', rtol=1e-6, atol=[1e-6, 1e-6])
+                                  method='BDF', rtol=1e-8, atol=[1e-8, 1e-8])
             V_0  = np.hstack((np.zeros_like(self.xout), sol.y[0]))
             al_0 = np.hstack((2/self.xout**2, sol.y[1]))
             sol0x = self.x
         elif solve_type==2:
             sol = integrate.solve_ivp(f_0thorder, (self.x[0], self.x[-1]), [0, 2/self.x[0]**2], t_eval=self.x,
-                                      method='BDF', atol=1e-10, rtol=1e-10)
+                                      method='BDF', atol=1e-12, rtol=1e-12)
             V_0 = sol.y[0]
             al_0 = sol.y[1]
             sol0x = self.x
 
-        print(sol)
-        print(f"m0 is {sol0x[-1]**2 * al_0[-1]*(sol0x[-1]-V_0[-1])}")
+        logger.debug(sol)
+        logger.info(f"m0 is {sol0x[-1]**2 * al_0[-1]*(sol0x[-1]-V_0[-1])}")
 
         if plot:
-            print(V_0.shape, al_0.shape, sol0x.shape)
             myp.plot([[r"$-V_{0}$", -V_0], [r"$\alpha_{0}$", al_0]], 'TSC_test_f0_out', x=sol0x,
-                     xl=r'log y', yl=r'log $\rho$[$\Omega^2/2\pi G$]',xlim=[1e-3, 1e1], ylim=[1e-7, 1e7], **self.figopt)
+                     xl=r'log y', yl=r'log $\rho$[$\Omega^2/2\pi G$]', xlim=[1e-3, 1e1], ylim=[1e-7, 1e7], **self.figopt)
             m0 = 0.975
             rho = (m0/2/sol0x**3)**0.5/2/self.tau**2
             # x = r/at = rOmg/a/tau = ksi/tau ==> ksi = x*tau
@@ -154,7 +151,6 @@ class solve_TSC:
             Qin = sol_o.y[3][-1]
             Pin = sol_o.y[4][-1]
             cond_outerEW = sol_o.y[0][-1] + 2*sol_o.y[1][-1] - 6*sol_o.y[2][-1] + 3*sol_o.y[3][-1] - 2*sol_o.y[4][-1]
-            print(K, cond_outerEW, Delta_Q)
             sol_i = integrate.solve_ivp(f_QuadraPolar, (self.xin[0], self.xin[-1]), (alin, Vin, Win, Qin, Pin), t_eval=self.xin, **opt)
             soly = np.hstack((sol_o.y, sol_i.y))
             solx = np.hstack((sol_o.t, sol_i.t))
@@ -211,7 +207,6 @@ class solve_TSC:
         self.f_V_M = self.fnize(self.x, self.V_M)
 
     def plot_TSC_figs(self):
-        print(self.rho_eq, self.M_eq, self.ksi_eq)
 
         myp.plot([["rho", self.rho_eq], ["M", self.M_eq]], "TSC_fig1", x=self.ksi_eq,
                  xl=r'r [a/$\Omega$]', yl=r'$\rho$ [$\Omega^2/2\pi G$]', xlim=[1e-2, 1e2], ylim=[1e-2, 1e6], **self.figopt)
@@ -247,8 +242,8 @@ class solve_TSC:
     def calc_rho(self, r, theta):
         x = r/self.cs/self.t
         P2 = 1 - 3/2*np.sin(theta)**2
-        y = x * (1 + self.tau**2*self.Delta_Q*P2)
-        return 1/(4*cst.pi*cst.G)*(self.f_al0(y) + self.tau**2*(self.f_al_M(y) + self.f_al_Q(y)*P2))
+        y = x*(1 + self.tau**2*self.Delta_Q*P2)
+        return 1/(4*cst.pi*cst.G*self.t**2)*(self.f_al0(y) + self.tau**2*(self.f_al_M(y) + self.f_al_Q(y)*P2))
 
     def calc_velocity(self, r, theta):
         x = r/self.cs/self.t
@@ -256,10 +251,9 @@ class solve_TSC:
         y = x * (1 + self.tau**2*self.Delta_Q*P2)
         vr = self.cs * (self.f_V0(y) + self.tau**2*(self.f_V_M(y) + self.f_V_Q(y)*P2 ))
         vth = self.cs * self.tau**2*self.f_W_Q(y)*(-3*np.sin(theta)*np.cos(theta))
-        vph = self.cs**2/(self.Omega*r) * self.f_Gamma_mid0(y)*np.sin(theta)
+        vph = self.cs**2/(self.Omega*r) * self.f_Gamma_mid0(y) * np.sin(theta) * self.tau**2
         return vr, vth, vph
 
 if __name__=="__main__":
     sol = solve_TSC(tau=0.1)
-    print(vars(sol))
 

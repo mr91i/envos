@@ -9,7 +9,6 @@ import matplotlib.pyplot as plt
 from scipy.interpolate import interp2d, griddata
 plt.switch_backend('agg')
 pyver = sys.version_info[0] + 0.1*sys.version_info[1]
-#print("Message from %s"% os.path.dirname(os.path.abspath(__file__)))
 debug_mode = 0
 import mytools
 from matplotlib.colors import BoundaryNorm, Normalize, LogNorm
@@ -30,7 +29,6 @@ handler.setFormatter(logging.Formatter("[%(filename)s] %(levelname)s: %(message)
 logger.addHandler(handler)
 logger.propagate = False
 
-#msg = mytools.Message(__file__)
 #######################
 
 logger.debug("%s is used." % os.path.abspath(__file__))
@@ -45,7 +43,6 @@ class Struct:
 class Params:
     def __init__(self, locals_dict):
         for k, v in locals_dict.items():
-            #print(k,v)
             if k is not "self":
                 setattr(self, k, v)
 
@@ -208,19 +205,16 @@ class Plotter:
         #for k, v in input_settings.items():
         #    setattr(self, "inp_"+k, v)
         inp = Params(locals())
-        #print(vars(inp))
         use = Params.gen_with_priority(inp, self.df)
         self.use = use
 
         # Start Plotting
         logger.debug("Plotting %s", out)
-        #print(use.continu)
         if not use.continu:
             self.fig = plt.figure(figsize=use.figsize, **self.df.args_fig)
             self.ax = self.fig.add_subplot(111)
         else:
             pass
-
         # Preprocesing
         data = self.reform_ylist(use.x, y_list)
 
@@ -300,16 +294,8 @@ class Plotter:
                         )
 
 
-        #print("leg:",use.leg)
-        #if use.save:
-        #    self.ax.legend(**self.df.args_leg)
-
         if use.leg and frg_leg == 1:
             self.ax.legend(**self.df.args_leg)
-        #    if use.save:
-        #if use.leg:
-        #        plt.legend(**self.df.args_leg)
-            #pass
 
         if use.square:
             plt.gca().set_aspect('equal', adjustable='box')
@@ -370,7 +356,7 @@ class Plotter:
         if datatype=="list":
             x = use.x
             y = use.y
-            z = self.decorator(z)
+            z = use.decorator(z)
             ctlim_z = [np.nanmin( np.where(z < -1e100, +np.Inf, z) ),np.nanmax( np.where(z > 1e100, -np.Inf, z) )]
         elif datatype=="points":
             points_x = points[:,0]
@@ -383,17 +369,13 @@ class Plotter:
                 logpz = np.log10(points_z)
                 ctlim_z[0] = 10**( logpz[np.isfinite(logpz)].min())
                 points_z = points_z.clip(ctlim_z[0])
-                print(ctlim_z[0] )
         else:
             raise Exception
-
-        print(ctlim_z)
 
         self.ax.set_xlim(notNone(use.xlim, [x[0], x[-1]]))
         self.ax.set_ylim(notNone(use.ylim, [y[0], y[-1]]))
         self.ax.set_xlabel(use.xl)
         self.ax.set_ylabel(use.yl)
-
 
         ## We need these information to make colorbar and map
         # 1. Ticks <-- ctax "color tick axis"
@@ -409,6 +391,7 @@ class Plotter:
             ctax_data = np.range(ctlim[0], ctlim[-1]+ctdelta, ctdelta) if not use.logcb else\
                         10**np.range(np.log10(ctlim[0]), np.log10(ctlim[-1]*ctdelta), np.log10(ctdelta) )
         ctax = notNone(use.ctax, ctax_data)
+
 
         ## Set clax
         cllim = use.cllim
@@ -427,17 +410,16 @@ class Plotter:
         ## Set cnlim
         cnlim = notNone(use.cnlim, ctlim)
 
-
-
         # You can choose if the color range fit to the range of z.
-
-        #norm = BoundaryNorm(clax, ncolors=cmap.N) if not use.logcb else LogNorm(vmin=clax[0], vmax=clax[-1])
         norm = Normalize(vmin=cnlim[0], vmax=cnlim[1]) if not use.logcb else LogNorm(vmin=cnlim[0], vmax=cnlim[1])
-        #norm = TwoSlopeNorm(0, clax[0], clax[-4])
-
 
         ## Make meshgrid
-        if (xx is None) or (yy is None):
+        if (len(x.shape) == 2) and (len(y.shape) == 2):
+            xx = x
+            yy = y
+
+        if (len(x.shape) == 1) and (xx is None) and (yy is None):
+            print("use meshgrid", len(x.shape))
             xx, yy = np.meshgrid(x, y, indexing='xy')
 
         if mode == "grid" and datatype=="list":
@@ -456,12 +438,13 @@ class Plotter:
             # Note:
             # if len(x) or len(y) is 1, contourf returns an eroor.
             # Instead of this, use "grid" method.
-            img = self.ax.contourf(xx, yy, z, clax, extend='both', cmap=cmap)
+            # print(xx.shape, z.shape)
+            img = self.ax.contourf(xx, yy, z, clax, extend='both', cmap=cmap, norm=norm)
 
         elif mode == "contour" and datatype=="list":
             jM, iM = np.unravel_index(np.argmax(z), z.shape)
             plt.scatter(xx[jM, iM], yy[jM, iM], c='y', s=6, zorder=12)
-            img = plt.contour(xx, yy, z, cmap=cmap, levels=clax)
+            img = plt.contour(xx, yy, z, cmap=cmap, levels=clax, linewidths=lw)
 
         elif mode == "scatter":
             if points is None:
@@ -482,12 +465,8 @@ class Plotter:
             raise Exception(f"Do not support \"{mode}\" mode with \"{datatype}\" datatype")
 
         from matplotlib.ticker import ScalarFormatter, LogFormatterMathtext, LogFormatterSciNotation
-        #norm = mpl.colors.Normalize(vmin=ctax[0],vmax=ctax[-1])
-        #sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
         self.cbar = self.fig.colorbar(img, ax=self.ax, ticks=ctax, format=ScalarFormatter(),
-        #self.cbar = self.fig.colorbar(sm, ax=self.ax, ticks=ctax, format=ScalarFormatter(),
                      label=use.cbl, pad=0.02)
-
 
         if fills is not None:
             for fill in fills:

@@ -196,6 +196,19 @@ def main():
                                            ])
             parameter_survey("all", params_list, INPUT_FILE)
 
+        elif target == "fit_L1527":
+            Tenv_K = [20] # 30 * 10**np.linspace(-0.5, 0.5, 11)
+            rCR_au = [140, 150, 160]
+            Mstar_Msun = [0.20, 0.22, 0.24]  #0.2 * 10**np.linspace(-0.5, 0.5, 11)
+            params_list = make_params_list([["radmc.temp_mode", "", ["mctherm"]],
+                                            ["model.ire_model", "", ["Simple", "CM"]],
+                                            ["model.Tenv_K", "T", Tenv_K],
+                                            ["model.rCR_au", "CR", rCR_au],
+                                            ["model.Mstar_Msun", "M", Mstar_Msun],
+                                            ["model.cavity_angle", "cav", [0]],
+                                           ])
+            parameter_survey("all", params_list, INPUT_FILE)
+
 
 
         elif target == "model_survey_edon": # for edge-on

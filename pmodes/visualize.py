@@ -52,12 +52,7 @@ class FitsAnalyzer:
         pic = iofits.open(self.fits_file_path)[0]
         self.Ippv_raw = pic.data
         header = pic.header
-<<<<<<< HEAD
-        print(header)
-
-=======
         self.isconvolved = False
->>>>>>> 3ff8c6d54b1db38f950e39fca74fec1454382be9
         self.datatype="ppv"
 
         if self.datatype=="ppv":
@@ -134,7 +129,7 @@ class FitsAnalyzer:
                           cbl=r'Intensity [Jy pixel$^{-1}$ ]')
         for i in range(self.Nz):
             pltr.map(Ippv[i], out="chmap_{:0=4d}".format(i),
-                     n_lv=n_lv, cblim=[0, cbmax], mode='grid',
+                     n_lv=n_lv, ctlim=[0, cbmax], mode='grid',
                      title="v = {:.3f} km/s".format(self.vkms[i]) , square=True)
 
     def mom0map(self, n_lv=10):
@@ -149,7 +144,7 @@ class FitsAnalyzer:
         pltr = mp.Plotter(self.dn_fig, x=self.xau, y=self.yau)
         pltr.map(Ipp, out="mom0map",
                 xl="Position [au]", yl="Position [au]", cbl=r'Intensity [Jy pixel$^{-1}$ ]',
-                div=n_lv, mode='grid', cblim=[0,Ipp.max()], square=True, save=False)
+                div=n_lv, mode='grid', ctlim=[0,Ipp.max()], square=True, save=False)
 
         self.show_center_line(pltr.ax)
         pline0 = self.position_line()
@@ -191,17 +186,17 @@ class FitsAnalyzer:
         if self.normalize == "peak":
             if np.max(Ipv) > 0:
                 Ipv /= np.max(Ipv)
-                cblim = [1/n_lv, 1]
+                ctlim = [1/n_lv, 1]
                 n_lv -= 1
             else:
-                cblim = [0, 0.1]
+                ctlim = [0, 0.1]
             unit = r'[$I_{\rm max}$]'
         else:
-            cblim = [0, np.max(Ipv)]  if not self.Imax else [0, self.Imax]
+            ctlim = [0, np.max(Ipv)]  if not self.Imax else [0, self.Imax]
 
-        # Set cblim
+        # Set ctlim
         if self.logcolor_PV:
-            cblim[1] = cblim[0]*0.001
+            ctlim[1] = ctlim[0]*0.001
 
 #        if output_fits:
         if 1:
@@ -216,8 +211,8 @@ class FitsAnalyzer:
         xas = self.xau/self.dpc
         pltr = mp.Plotter(self.dn_fig, x=xas, y=self.vkms, xlim=[-5, 5], ylim=[-4, 4])
 
-#        logoption = {"logcb":True, "cblim":[np.max(Ipv)*1e-2,np.max(Ipv)]} if self.logcolor_PV else {"cblim":[0, np.max(Ipv) for not self.Imax in self.Imax ]}
-        pltr.map(z=Ipv, mode=self.plotmode_PV, logcb=self.logcolor_PV, cblim=cblim, #cblim=[np.max(Ipv)*1e-2,np.max(Ipv)],
+#        logoption = {"logcb":True, "ctlim":[np.max(Ipv)*1e-2,np.max(Ipv)]} if self.logcolor_PV else {"ctlim":[0, np.max(Ipv) for not self.Imax in self.Imax ]}
+        pltr.map(z=Ipv, mode=self.plotmode_PV, logcb=self.logcolor_PV, ctlim=ctlim, #ctlim=[np.max(Ipv)*1e-2,np.max(Ipv)],
                  xl="Angular Offset [arcsec]", yl=r"Velocity [km s$^{-1}$]",
                  cbl=r'Intensity '+unit,
                  lw=1.5, #logx=True, logy=True, xlim=[0.1, 100], ylim=[0.1, 10],
@@ -284,9 +279,9 @@ class FitsAnalyzer:
             draw_cross_pointer(xau_peak/self.dpc, vkms_peak, mp.c_def[1])
 
             x_vmax, I_vmax = np.array([[ get_maximum_position(self.xau, Iv), np.max(Iv) ] for Iv in Ipv.transpose(0, 1)]).T
-            if (np.min(I_vmax) < self.f_crit*cblim[1]) and (self.f_crit*cblim[1] < np.max(I_vmax)):
-                print("Use {self.f_crit}*cblim")
-                v_crit = mytools.find_roots(self.vkms, I_vmax, self.f_crit*cblim[1])
+            if (np.min(I_vmax) < self.f_crit*ctlim[1]) and (self.f_crit*ctlim[1] < np.max(I_vmax)):
+                print("Use {self.f_crit}*ctlim")
+                v_crit = mytools.find_roots(self.vkms, I_vmax, self.f_crit*ctlim[1])
             else:
                 print("Use {self.f_crit}*max Ippv")
                 v_crit = mytools.find_roots(self.vkms, I_vmax, self.f_crit*np.max(Ippv) )
@@ -310,16 +305,10 @@ class FitsAnalyzer:
         sigma_over_FWHM = 2 * np.sqrt(2 * np.log(2))
         Ippv_conv = copy.copy(Ippv)
         convolver = {"normal": aconv.convolve, "fft":aconv.convolve_fft}[self.convolver]
-<<<<<<< HEAD
-        option = {}#{"allow_huge":False}
-
-        if ver=="new":# super fast
-=======
-        option = {"allow_huge":True}
+        option = {"allow_huge": True}
         if self.isconvolved==True:
             return self.Ippv_conv
         if ver=="new" and self.isconvolved==False:# super fast
->>>>>>> 3ff8c6d54b1db38f950e39fca74fec1454382be9
             Kernel_2d = aconv.Gaussian2DKernel(x_stddev=abs(beam_a_au/self.dx)/sigma_over_FWHM,
                                                y_stddev=abs(beam_b_au/self.dy)/sigma_over_FWHM,
                                                theta=theta_deg/180*np.pi)._array
