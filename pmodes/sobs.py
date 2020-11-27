@@ -1,21 +1,20 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import os
-import sys
+
 import subprocess
-import radmc3dPy.analyze as rmca
 import radmc3dPy.image as rmci
 import numpy as np
 import pandas as pd
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from multiprocessing import Pool
-from header import inp, dn_home, dn_radmc, dn_fig
-import cst
-import mytools
+
+from pmodes.header import inp, dn_radmc #, dn_fig
+from pmodes import cst, mytools
+
 import logging
 logger = logging.getLogger(__name__)
-
 logger.setLevel(logging.DEBUG)
 
 #####################################
@@ -25,6 +24,17 @@ def main():
     osim.cont_observe(1249)
     osim.observe()
     osim.save_instance()
+
+def gen_radmc_cmd(mode="image", incl=0, phi=0, posang=0, npixx=32, npixy=32
+                  zoomau=None,
+                  noscat=True, ):
+    common = f"incl {incl} phi {phi} posang {posang} "
+    option = "noscat nostar" #fluxcons doppcatch"
+    camera = f"npixx {npixx} npixy {npixy} "
+    #camera += "zoomau {:g} {:g} {:g} {:g} ".format(*(self.zoomau_x+self.zoomau_y))
+    camera += "zoomau {:g} {:g} {:g} {:g} ".format(*(self.zoomau_x+self.zoomau_y))
+    freq = f"lambda {lam} "
+    cmd="radmc3d {mode} "+ freq+ camera+ common+ option
 
 class ObsSimulator():  # This class returns observation data
     def __init__(self, dn_radmc, dn_fits=None, obs_mode="line",
@@ -45,6 +55,14 @@ class ObsSimulator():  # This class returns observation data
         logger.debug("Total cell number is {} x {} x {} = {}".format(
               self.npixx, self.npixy,self.linenlam,
               self.npixx*self.npixy*self.linenlam))
+
+    def exe(self, cmd, wdir, log=False):
+        os.chdir(wdir)
+        logger.info("Execute:"+ cmd)
+        if log:
+            subprocess.call(cmd, shell=True)
+        else:
+            subprocess.call(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     def set_camera_info(self):
         if self.rect_camera and (self.sizex_au != self.sizey_au):
@@ -106,9 +124,7 @@ class ObsSimulator():  # This class returns observation data
         camera += "zoomau {:g} {:g} {:g} {:g} ".format(*(self.zoomau_x+self.zoomau_y))
         freq = f"lambda {lam} "
         cmd="radmc3d image "+ freq+ camera+ common+ option
-        logger.info("Execute:"+ cmd)
-        os.chdir(dn_radmc)
-        subprocess.call(cmd, shell=True, cwd=dn_radmc)
+        self.exe(cmd, self.dn_radmc)
         self.data_cont = rmci.readImage()
 
     def observe(self):
@@ -126,20 +142,17 @@ class ObsSimulator():  # This class returns observation data
             v_thread_seps = self.calc_thread_seps(v_calc_points, n_points)
             v_center = [ 0.5*(v_range[1] + v_range[0] ) for v_range in v_thread_seps ]
             v_width = [ 0.5*(v_range[1] - v_range[0] ) for v_range in v_thread_seps ]
+
             logger.info(f"All calc points: {format_array(v_calc_points)}")
             logger.info("Calc points in each thread:")
             for i, (vc, vw, ncp) in enumerate(zip(v_center, v_width, n_points)):
                 logger.info(f"    {i}th thread: {format_array(np.linspace(vc-vw, vc+vw, ncp))}")
 
             def cmd(p):
-                freq = "vkms {:g} widthkms {:g} linenlam {:d} ".format(
-                        v_center[p], v_width[p], n_points[p])
+                freq = f"vkms {v_center[p]:g} widthkms {v_width[p]:g} linenlam {n_points[p]:d} "
                 return " ".join(["radmc3d image", line, freq, camera, common, option])
 
-            print("Do")
-            args = [ (self, (p, 'proc'+str(p), cmd(p)) ) for p in range(self.n_thread)]
-            rets = Pool(self.n_thread).map(call_subcalc, args)
-            print("end")
+            rets = Pool(self.n_thread).starmap(self.subcalc, [(p, 'proc'+str(p), cmd(p))  for p in range(self.n_thread) ] )
 
             for i, r in enumerate(rets):
                 logger.debug(f"The{i}th return")
@@ -162,6 +175,7 @@ class ObsSimulator():  # This class returns observation data
             freq = f"widthkms {self.vwidth_kms} linenlam {self.linenlam:d} "
             cmd = " ".join(["radmc3d image", line, freq, camera, common, option])
             logger.info(f"command is {cmd}")
+
             os.chdir(self.dn_radmc)
             subprocess.call(cmd, shell=True)
             self.data = rmci.readImage()
@@ -180,25 +194,13 @@ class ObsSimulator():  # This class returns observation data
 
         return self.data
 
-    def subcalc(self, args):
-        p, dn, cmd = args
+    #def subcalc(self, args):
+    def subcalc(self, p, dn, cmd):
         logger.debug("execute: " + cmd)
-        dpath_sub = self.dn_radmc + '/' + dn
-        if not os.path.exists(dpath_sub):
-            os.makedirs(dpath_sub)
-        os.system("cp %s/{*.inp,*.dat} %s/" % (self.dn_radmc, dpath_sub))
-        os.chdir(dpath_sub)
-        if p == 1:
-            logger.info("Calculating ray-tracing with RADMC3d...")
-            if logger.isEnabledFor(logging.DEBUG):
-                logger.debug("Log from RADMC3d")
-                subprocess.call(cmd, shell=True)
-            else:
-                subprocess.call(cmd, shell=True,
-                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        else:
-            subprocess.call(cmd, shell=True,
-                            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        dpath_sub = f'{self.dn_radmc}/{dn}'
+        os.makedirs(dpath_sub, exist_ok=True)
+        os.system(f"cp {self.dn_radmc}/{{*.inp,*.dat}} {dpath_sub}/")
+        self.exe(cmd, dpath_sub, log=(logger.isEnabledFor(logging.DEBUG) and p==1) )
         return rmci.readImage()
 
     def save_fits(self):
@@ -216,11 +218,6 @@ class ObsSimulator():  # This class returns observation data
         instance = pd.read_pickle(self.dn_fits+'/'+self.filename+'.pkl')
         for k,v in instance.__dict__.items():
             setattr(self, k, v)
-
-def call_subcalc(args_list):
-    "This fucntion is implemented for fucking Python2."
-    instance, args = args_list
-    return getattr(instance, "subcalc")(args)
 
 def format_array(array):
     return f"[{min(array):.4g}:{max(array):.4g}] with delta = {abs(array[1]-array[0]):.4g} and N = {len(array)}"

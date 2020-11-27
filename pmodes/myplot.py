@@ -10,7 +10,7 @@ from scipy.interpolate import interp2d, griddata
 plt.switch_backend('agg')
 pyver = sys.version_info[0] + 0.1*sys.version_info[1]
 debug_mode = 0
-import mytools
+import pmodes.mytools
 from matplotlib.colors import BoundaryNorm, Normalize, LogNorm
 from matplotlib.ticker import LogFormatter
 

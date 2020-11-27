@@ -1,18 +1,19 @@
 import numpy as np
 from scipy import integrate, interpolate, optimize
-import cst
-import myplot as myp
+from pmodes import cst
+import pmodes.myplot as myp
 import logging
 logger = logging.getLogger(__name__)
 
 class solve_TSC:
-    def __init__(self, t, cs, Omega, run=True):
+    def __init__(self, t, cs, Omega, run=True, r_crit=None):
         self.t = t
         self.Omega = Omega
         self.tau = t * Omega
         self.f_rho0 = None
         eps = 1e-10
         self.cs = cs
+        self.r_crit = r_crit
         self.figopt = {"logx":True, "logy" :True, "save":True, "leg":True, "show":False}
 
         self.x = np.logspace(np.log10(1/self.tau)+1, np.log10(self.tau**2)-1, 2000)
@@ -233,6 +234,9 @@ class solve_TSC:
         f = interpolate.interp1d(X, Y, fill_value=fill_value)
 
         def fnized(x):
+            #print(x)
+            #if self.r_crit and x < self.r_crit:
+            #    return 0
             X = np.log(x) if logx else x
             sgn = np.sign(fsgn(X)) if logy else 1
             return sgn*np.exp(f(X)) if logy else f(X)

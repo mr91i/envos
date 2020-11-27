@@ -1,27 +1,34 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-from __future__ import print_function,  absolute_import, division
 import os
 import itertools
 import numpy as np
 import pandas as pd
 from collections import namedtuple
 from scipy.interpolate import interp2d, interp1d, griddata
-import cst
-from header import inp, dn_home, dn_radmc, dn_fig
-import mytools
 import radmc3dPy.image as rmci
 import radmc3dPy.analyze as rmca
-import myplot as mp
 import subprocess
+from scipy import interpolate
 
-msg = mytools.Message(__file__)
+from pmodes.header import inp, dn_home, dn_radmc, dn_fig
+from pmodes import cst, mytools
+import pmodes.myplot as mp
+from pmodes.mkmodel import trace_particle_2d_meridional
+# msg = mytools.Message(__file__)
+
+import logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
+
 #######################
 
 def main():
     calc_temp = 1
     if calc_temp:
-        srmc = SetRadmc(dn_radmc, **vars(inp.radmc))
+        #srmc = SetRadmc(dn_radmc, **vars(inp.radmc))
+        set_radmc_parameters(dn_radmc, **vars(inp.radmc))
         # or you can input parmeters directly.
         if inp.radmc.temp_mode=="mctherm":
             exe_radmc_therm()
@@ -29,14 +36,227 @@ def main():
             del_mctherm_files()
 
     if inp.radmc.plot:
-        rdata = RadmcData(dn_radmc=dn_radmc, dn_fig=dn_fig, ispec=inp.radmc.mol_name, mol_abun=inp.radmc.mol_abun, opac=inp.radmc.opac, fn_model=inp.radmc.fn_model_pkl)
+        rmc_data = RadmcData(dn_radmc=dn_radmc, dn_fig=dn_fig, ispec=inp.radmc.mol_name, mol_abun=inp.radmc.mol_abun, opac=inp.radmc.opac, fn_model=inp.radmc.fn_model_pkl)
+        plot_radmc_data(rmc_data)
+
+def remove_file(file_path):
+    if os.path.exists(file_path):
+        os.remove(file_path)
+        logger.info(f"Removed: {file_path}")
+
+def save_file(file_path, text_lines):
+    with open(file_path, 'w+') as f:
+        f.write("\n".join(text_lines))
+        logger.info(f"Saved:  {f.name}")
 
 def exe_radmc_therm():
     mytools.exe('cd %s ; radmc3d mctherm setthreads 16 ' % dn_radmc )
 
 def del_mctherm_files():
-    if os.path.exists(dn_radmc+"/radmc3d.out"):
-        mytools.exe('rm {}/radmc3d.out'.format(dn_radmc))
+    remove_file(dn_radmc+"/radmc3d.out")
+
+def set_radmc_parameters(dpath_radmc,
+                 nphot=1000000,
+                 r_in=1*cst.au, r_out=1000*cst.au, nr=128,
+                 theta_in=0, theta_out=0.5*np.pi, ntheta=64,
+                 phi_in=0, phi_out=0, nphi=1,
+                 fdg=0.01, mol_abun=1e-7, mol_name='c18o',
+                 m_mol=28*cst.amu, v_fwhm=0.5*cst.kms, Tenv=None,
+                 opac="silicate",
+                 temp_mode='mctherm', line=True, turb=True, lowreso=False, subgrid=True,
+                 autoset=True, fn_model_pkl=None, fn_radmcset_pkl=None,
+                 scattering_mode_max=0, temp_lambda=None,
+                 Mstar=cst.Msun, Rstar=cst.Rsun, Lstar=cst.Lsun, **kwargs):
+    cwd = os.getcwd()
+    os.chdir(dpath_radmc)
+
+    D = pd.read_pickle(dpath_radmc+"/"+fn_model_pkl)
+    D = namedtuple("Model", D.keys())(*D.values())
+
+    if subgrid:
+        ri = np.logspace(np.log10(r_in), np.log10(r_out), nr+1)
+        thetai = np.linspace(theta_in, theta_out, ntheta+1)
+        phii = np.linspace(phi_in, phi_out, nphi+1)
+        rc = 0.5 * (ri[0:nr] + ri[1:nr+1])
+        thetac = 0.5 * (thetai[0:ntheta] + thetai[1:ntheta+1])
+        phic = 0.5 * (phii[0:nphi] + phii[1:nphi+1])
+    else:
+        rc = D.r_ax
+        thetac = D.th_ax
+        phic = D.ph_ax
+        ri = rc
+
+    nr = rc.size
+    ntheta = thetac.size
+    nphi = phic.size
+
+    rr, tt, pp = np.meshgrid(rc, thetac, phic, indexing='ij')
+    ntot = rr.size
+
+    def interp_value(v):
+        return _interpolator2d(v, D.r_ax, D.th_ax, rr, tt, logx=True, logy=False, logv=True)
+
+    rhog = interp_value(D.rho_tot[:, :, 0])
+    if np.max(rhog) == 0:
+        print("!! WARNING !! : Zero density")
+        #raise Exception("Zero density")
+    rhod = rhog * fdg
+    vr = interp_value(D.ur[:, :, 0])
+    vth = interp_value(D.uth[:, :, 0])
+    vph = interp_value(D.uph[:, :, 0])
+    vturb = np.zeros_like(vr)
+
+    n_mol = rhog / (2.34*cst.amu) * mol_abun
+    n_mol = np.where(rr<1000*cst.au, n_mol, 0)
+    if temp_mode == 'const':
+        if Tenv is not None:
+            T = Tenv
+            v_fwhm = np.sqrt(T*(16*np.log(2)*cst.kB)/m_mol)
+        else:
+            v_fwhm = v_fwhm
+            T = m_mol * v_fwhm**2 /(16 * np.log( 2) * cst.kB )
+        logger.info(f"Constant temperature is  {T}")
+        logger.info(f"v_FWHM_kms is  {v_fwhm/cst.kms}")
+        tgas = T * np.ones_like(rhog)
+        tdust = tags
+
+    if temp_mode == 'lambda':
+        #rr, tt = np.meshgrid(D.r_ax, D.th_ax)
+        #print(rr.shape, rhog.shape)
+        tgas = temp_lambda(rr/cst.au)* (rr/(1000*cst.au))**(-1.5)
+        tgas = tgas.clip(min=0.1, max=10000)
+        tdust = tgas
+
+
+    lam1 = 0.1
+    lam2 = 7
+    lam3 = 25
+    lam4 = 1e4
+    n12 = 20
+    n23 = 100
+    n34 = 30
+    lam12 = np.logspace(np.log10(lam1), np.log10(lam2), n12, endpoint=False)
+    lam23 = np.logspace(np.log10(lam2), np.log10(lam3), n23, endpoint=False)
+    lam34 = np.logspace(np.log10(lam3), np.log10(lam4), n34, endpoint=True)
+    lam = np.concatenate([lam12, lam23, lam34])
+    nlam = lam.size
+
+    Tstar = (Lstar/cst.Lsun)**0.25 * cst.Tsun
+
+    ## Setting Radmc Parameters Below
+
+    def join_list(l):
+        return '\n'.join(map(lambda x: f'{x:13.6e}', l))
+
+    # set grid
+    save_file('amr_grid.inp',
+              ["1", # iformat: AMR grid style  (0=regular grid, no AMR)
+               "0",
+               "100", # Coordinate system: spherical
+               "0", # gridinfo
+               "1 1 0", # Include r,theta coordinates
+               f'{nr:d} {ntheta:d} {nphi:d}', # Size of grid
+               join_list(ri),
+               join_list(thetai),
+               join_list(phii)])
+
+    # set wavelength
+    save_file('wavelength_micron.inp',
+              [f'{nlam:d}',
+               join_list(lam)])
+
+    save_file('stars.inp',
+              ['2', f"1 {nlam}",
+               " ".join(map(lambda  x: f'{x:13.6e}', [Rstar, Mstar, 0, 0, 0])),
+               join_list(lam),
+               f"{-Tstar:13.6e}"])
+
+    # set dust density
+    save_file('dust_density.inp',
+              ['1',
+               f'{ntot:d}',
+               '1',
+               join_list(rhod.ravel(order='F')) ])
+
+
+    if line:
+        # set molcular number density
+        save_file(f'numberdens_{mol_name}.inp',
+                  ['1',
+                   f'{ntot:d}',
+                   join_list(n_mol.ravel(order='F')) ])
+
+        # set_mol_lines
+        save_file('lines.inp',
+                  ['2',
+                   '1', # number of molecules
+                    f'{mol_name}  leiden 0 0 0']) # molname1 inpstyle1 iduma1 idumb1 ncol1
+
+        # set_gas_velocity
+        save_file('gas_velocity.inp',
+                  ['1',  # Format number
+                   f'{ntot:d}', # Nr of cells
+                   *[f"{vr[ir, it, ip]:13.6e} {vr[ir, it, ip]:13.6e} {vr[ir, it, ip]:13.6e}\n"
+                     for ip, it, ir in itertools.product(range(nphi), range(ntheta), range(nr))]
+                   ])
+
+    if temp_mode == 'mctherm':
+        # remove gas_temperature.inp  6 dust_temperature.inp
+        remove_file('gas_temperature.inp')
+        remove_file('dust_temperature.dat')
+
+    elif (self.temp_mode == 'const') or (self.temp_mode == 'lambda'):
+        # set gas temperature:
+        #  Format_number, Nr of total cells, tgas
+        save_file('gas_temperature.inp',
+                  ['1', f'{ntot:d}', join_list(tgas.ravel(order='F')) ])
+
+        # set dust temperature:
+        #  Format_number, Nr of total cells, Format_number , tgas
+        save_file('dust_temperature.inp',
+                  ['1', f'{ntot:d}', '1', join_list(tdust.ravel(order='F')) ])
+    else:
+        raise Exception
+
+    # set_dust_opacity
+    opacs = opac if isinstance(opac,list) else [opac]
+    text_lines = ['2', # Format number of this file
+                  f'{len(opacs)}', # Number of dust species
+                  "==========="]
+    for op in opacs:
+        text_lines += ['1', # Way in which this dust species is read
+                       '0', # 0=Thermal grain
+                       f'{op}',
+                       "----------"] # Extension of name of dustkappa_***.inp file
+
+    save_file('dustopac.inp', text_lines)
+
+#    with open('dustopac.inp', 'w+') as f:
+#        opacs = opac if isinstance(opac,list) else [opac]
+#        f.write('2      Format number of this file\n')
+#        f.write(f'{len(opacs)}     Nr of dust species\n')
+#        f.write('========================================================\n')
+#        for op in opacs:
+#            f.write('1      Way in which this dust species is read\n')
+#            f.write('0      0=Thermal grain\n')
+#            f.write(f'{op}     Extension of name of dustkappa_***.inp file\n')
+#            f.write('--------------------------------------------------------\n')
+#        logger.info(f"Saved:  {f.name}")
+
+    # set_input
+    param_dict={"nphot": int(nphot),
+                "scattering_mode_max": scattering_mode_max,
+                "iranfreqmode": 1,
+                "mc_scat_maxtauabs": 5.0,
+                "tgas_eq_tdust": 1
+                }
+
+    with open('radmc3d.inp', 'w+') as f:
+        f.write("\n".join([f'{k} = {v}'for k,v in param_dict.items()]))
+        logger.info(f"Saved:  {f.name}")
+
+    os.chdir(cwd)
+#########################################################################################
 
 class SetRadmc:
     def __init__(self, dpath_radmc,
@@ -52,8 +272,8 @@ class SetRadmc:
                  scattering_mode_max=0, temp_lambda=None,
                  Mstar=cst.Msun, Rstar=cst.Rsun, Lstar=cst.Lsun, **kwargs):
 
-        msg("radmc directry is %s"%dpath_radmc)
-        mytools.set_arguments(self, locals(), printer=msg)
+        logger.info("radmc directry is %s"%dpath_radmc)
+        mytools.set_arguments(self, locals(), printer=logger.info)
 
         self.nlam = None
         self.lam = None
@@ -66,7 +286,7 @@ class SetRadmc:
         self.Tstar = None
 
         if kwargs != {}:
-            msg("There is unused args :", kwargs)
+            logger.info(f"There is unused args : {kwargs}")
 
         if autoset:
             self.set_all()
@@ -134,9 +354,20 @@ class SetRadmc:
             for value in phii:
                 f.write('%13.6e\n' % (value)) # Z coordinates (cell walls)
 
+        pstar = np.array([0., 0., 0.])
+        with open(self.dpath_radmc+'/stars.inp', 'w+') as f:
+            f.write('2\n')
+            f.write('1 %d\n\n' % (self.nlam))
+            f.write('%13.6e %13.6e %13.6e %13.6e %13.6e\n\n' % \
+                    (self.Rstar, self.Mstar, pstar[0], pstar[1], pstar[2]))
+            for value in self.lam:
+                f.write('%13.6e\n' % (value))
+            f.write('\n%13.6e\n' % (-self.Tstar))
+            logger.info(f"Saved:  {f.name}")
+
 
     def set_physical_values(self):
-        msg("Interpolating...")
+        logger.info("Interpolating...")
         def interp_value(v):
             return _interpolator2d(v, self.D.r_ax, self.D.th_ax, self.rr, self.tt, logx=True, logy=False, logv=True)
 
@@ -163,8 +394,8 @@ class SetRadmc:
             else:
                 v_fwhm = self.v_fwhm
                 T = self.m_mol * v_fwhm**2 /(16 * np.log( 2) * cst.kB )
-            msg("Constant temperature is ", T)
-            msg("v_FWHM_kms is ", v_fwhm/cst.kms)
+            logger.info(f"Constant temperature is  {T}")
+            logger.info(f"v_FWHM_kms is  {v_fwhm/cst.kms}")
             self.tgas = T * np.ones_like(self.rhog)
 
         if self.temp_mode == 'lambda':
@@ -195,7 +426,7 @@ class SetRadmc:
             f.write('%d\n' % (self.nlam))
             for value in self.lam:
                 f.write('%13.6e\n' % (value))
-            msg("Saved: ",f.name)
+            logger.info(f"Saved:  {f.name}")
 
     def set_stars(self):
         pstar = np.array([0., 0., 0.])
@@ -207,7 +438,7 @@ class SetRadmc:
             for value in self.lam:
                 f.write('%13.6e\n' % (value))
             f.write('\n%13.6e\n' % (-self.Tstar))
-            msg("Saved: ",f.name)
+            logger.info(f"Saved:  {f.name}")
 
     def set_mol_ndens(self):
         with open(self.dpath_radmc+'/numberdens_%s.inp' % (self.mol_name), 'w+') as f:
@@ -217,7 +448,7 @@ class SetRadmc:
             data = self.n_mol.ravel(order='F')
             data.tofile(f, sep='\n', format='%13.6e')
             f.write('\n')
-            msg("Saved: ",f.name)
+            logger.info(f"Saved:  {f.name}")
 
     # Write the lines.inp control file
     def set_mol_lines(self):
@@ -226,7 +457,7 @@ class SetRadmc:
             f.write('1\n')  # number of molecules
             # molname1 inpstyle1 iduma1 idumb1 ncol1
             f.write('%s  leiden 0 0 0\n' % (self.mol_name))
-            msg("Saved: ",f.name)
+            logger.info(f"Saved:  {f.name}")
 
     # Write the gas velocity field
     def set_gas_velocity(self):
@@ -237,7 +468,7 @@ class SetRadmc:
                 f.write('%13.6e %13.6e %13.6e\n' % (self.vr[ir, it, ip],
                                                     self.vth[ir, it, ip],
                                                     self.vph[ir, it, ip]))
-            msg("Saved: ",f.name)
+            logger.info(f"Saved:  {f.name}")
 
     def set_gas_turbulence(self):
         with open(self.dpath_radmc+'/microturbulence.inp', 'w+') as f:
@@ -247,7 +478,7 @@ class SetRadmc:
             data = self.vturb.ravel(order='F')
             data.tofile(f, sep='\n', format='%13.6e')
             #f.write('\n')
-            msg("Saved: ",f.name)
+            logger.info(f"Saved:  {f.name}")
 
 
     def set_gas_temperature(self):
@@ -258,12 +489,12 @@ class SetRadmc:
             data = self.tgas.ravel(order='F')
             data.tofile(f, sep='\n', format='%13.6e')
             #f.write('\n')
-            msg("Saved: ",f.name)
+            logger.info(f"Saved:  {f.name}")
 
     def remove_gas_temperature(self):
         fpath = self.dpath_radmc+'/gas_temperature.inp'
         if os.path.exists(fpath):
-            msg("remove gas_temperature.inp:", fpath)
+            logger.info(f"remove gas_temperature.inp: {fpath}")
             os.remove(fpath)
 
     def set_dust_temperature(self):
@@ -275,12 +506,12 @@ class SetRadmc:
             data = self.tgas.ravel(order='F')
             data.tofile(f, sep='\n', format='%13.6e')
             f.write('\n')
-            msg("Saved: ",f.name)
+            logger.info(f"Saved:  {f.name}")
 
     def remove_dust_temperature(self):
         fpath = self.dpath_radmc+'/dust_temperature.dat'
         if os.path.exists(fpath):
-            msg("remove dust_temperature.dat':", fpath)
+            logger.info(f"remove dust_temperature.dat': {fpath}")
             os.remove(fpath)
 
     def set_dust_density(self):
@@ -292,7 +523,7 @@ class SetRadmc:
             data = self.rhod.ravel(order='F')
             data.tofile(f, sep='\n', format='%13.6e')
             f.write('\n')
-            msg("Saved: ",f.name)
+            logger.info(f"Saved:  {f.name}")
 
     def set_dust_opacity(self):
         with open(self.dpath_radmc+'/dustopac.inp', 'w+') as f:
@@ -305,7 +536,7 @@ class SetRadmc:
                 f.write('0      0=Thermal grain\n')
                 f.write('{}     Extension of name of dustkappa_***.inp file\n'.format(op))
                 f.write('--------------------------------------------------------\n')
-            msg("Saved: ",f.name)
+            logger.info(f"Saved:  {f.name}")
 
     def set_input(self):
         params=[["nphot", int(self.nphot) ],
@@ -327,7 +558,7 @@ class SetRadmc:
             for k,v in params:
                  f.write(f'{k} = {v}\n')
 
-            msg("Saved: ",f.name)
+            logger.info(f"Saved:  {f.name}")
 
 
     def save_pickle(self):
@@ -338,7 +569,7 @@ class SetRadmc:
 
         savefile = self.dpath_radmc+'/'+self.fn_radmcset_pkl
         pd.to_pickle(self, savefile, protocol=2)
-        msg('Saved:  %s\n' % savefile)
+        logger.info('Saved:  %s\n' % savefile)
 
 
 def _interpolator2d(value, x_ori, y_ori, x_new, y_new, logx=False, logy=False, logv=False):
@@ -454,35 +685,35 @@ def _interpolator3d_bu(value, xyz_ori, xyz_new, logx=False, logy=False, logz=Fal
 
 
 ##################################################################################################################
-def readRadmcData(dn_radmc=None, use_ddens=True, use_dtemp=True,
-                use_gdens=True, use_gtemp=True, use_gvel=True, ispec=None, setting=None): # modified version of radmc3dPy.analyze.readData
-
-    res = rmca.radmc3dData()
-    res.grid = rmca.radmc3dGrid()
-    res.grid.readSpatialGrid(fname=dn_radmc+"/amr_grid.inp")
-
-    if use_ddens:
-        res.readDustDens(binary=False, fname=dn_radmc+"/dust_density.inp")
-
-    if use_dtemp:
-        res.readDustTemp(binary=False, fname=dn_radmc+"/dust_temperature.dat")
-
-    if use_gvel:
-        res.readGasVel(binary=False, fname=dn_radmc+"/gas_velocity.inp")
-
-    if use_gtemp:
-        res.readGasTemp(binary=False, fname=dn_radmc+"/gas_temperature.inp")
-
-    if use_gdens:
-        if not ispec:
-            print('ERROR\nNo gas species is specified!')
-            return 0
-        else:
-            res.ndens_mol = res._scalarfieldReader(fname=dn_radmc+"/numberdens_"+ispec+".inp", binary=False)
-    msg("RadmcData is created. Variables are : ", ", ".join([ k for k, v in res.__dict__.items() if not isinstance(v, int)]) )
-
-
-    return res
+#def readRadmcData(dn_radmc=None, use_ddens=True, use_dtemp=True,
+#                use_gdens=True, use_gtemp=True, use_gvel=True, ispec=None, setting=None): # modified version of radmc3dPy.analyze.readData
+#
+#    res = rmca.radmc3dData()
+#    res.grid = rmca.radmc3dGrid()
+#    res.grid.readSpatialGrid(fname=dn_radmc+"/amr_grid.inp")
+#
+#    if use_ddens:
+#        res.readDustDens(binary=False, fname=dn_radmc+"/dust_density.inp")
+#
+#    if use_dtemp:
+#        res.readDustTemp(binary=False, fname=dn_radmc+"/dust_temperature.dat")
+#
+#    if use_gvel:
+#        res.readGasVel(binary=False, fname=dn_radmc+"/gas_velocity.inp")
+#
+#    if use_gtemp:
+#        res.readGasTemp(binary=False, fname=dn_radmc+"/gas_temperature.inp")
+#
+#    if use_gdens:
+#        if not ispec:
+#            print('ERROR\nNo gas species is specified!')
+#            return 0
+#        else:
+#            res.ndens_mol = res._scalarfieldReader(fname=dn_radmc+"/numberdens_"+ispec+".inp", binary=False)
+#    logger.info(f"RadmcData is created. Variables are : ",  {".join([ k for k, v in res.__dict__.items() if not isinstance(v, int)]) }")
+#
+#
+#    return res
 
 class RadmcData:
     def __init__(self, dn_radmc=None, dn_fig=None,
@@ -490,12 +721,17 @@ class RadmcData:
                  use_dtemp=True, use_gvel=True,
                  ispec=None, mol_abun=0, opac="", autoplot=True, plot_tau=False, fn_model=None):
 
-        mytools.set_arguments(self, locals(), printer=msg)
+        mytools.set_arguments(self, locals() )
         D = pd.read_pickle(dn_radmc+"/"+fn_model)
         self.D = namedtuple("Model", D.keys())(*D.values())
 
-        data = self.readRadmcData()
-        print(vars(data))
+        ## getting data
+        cwd = os.getcwd()
+        os.chdir(dn_radmc)
+        data = rmca.readData(ddens=use_ddens, dtemp=use_dtemp, gdens=use_gdens, gtemp=use_gtemp, gvel=use_gvel, ispec=ispec)
+        os.chdir(cwd)
+
+        ## redefining variables
         self.r_ax = data.grid.x
         self.th_ax = data.grid.y
         self.xauc = data.grid.x/cst.au
@@ -507,6 +743,7 @@ class RadmcData:
         self.rhogas = self.rhodust/inp.radmc.fdg
 
         if use_gtemp:
+            print(data.dusttemp.shape)
             try:
                 self.gtemp = data.gastemp[:,:,0,0]
             except:
@@ -531,35 +768,35 @@ class RadmcData:
 
         self.calc_gas_trajectries()
 
-        if autoplot:
-            self.plotall()
+       # if autoplot:
+       #     self.plotall()
 
-    def readRadmcData(self): # modified version of radmc3dPy.analyze.readData
-        res = rmca.radmc3dData()
-        res.grid = rmca.radmc3dGrid()
-        res.grid.readSpatialGrid(fname=self.dn_radmc+"/amr_grid.inp")
-        if self.use_ddens:
-            res.readDustDens(binary=False, fname=self.dn_radmc+"/dust_density.inp")
-
-        if self.use_dtemp:
-            res.readDustTemp(binary=False, fname=self.dn_radmc+"/dust_temperature.dat")
-
-        if self.use_gvel:
-            res.readGasVel(binary=False, fname=self.dn_radmc+"/gas_velocity.inp")
-
-        if self.use_gtemp:
-            res.readGasTemp(binary=False, fname=self.dn_radmc+"/gas_temperature.inp")
-
-        if self.use_gdens:
-            if not self.ispec:
-                print('ERROR\nNo gas species is specified!')
-                return 0
-            else:
-                res.ndens_mol = res._scalarfieldReader(fname=self.dn_radmc+"/numberdens_"+self.ispec+".inp", binary=False)
-
-        msg("RadmcData is created. Variables are : ", ", ".join([ k for k, v in res.__dict__.items() if not isinstance(v, int)]) )
-
-        return res
+#    def readRadmcData(self): # modified version of radmc3dPy.analyze.readData
+#        grid = rmc.radmc3dGrid.readSpatialGrid(fname=self.dn_radmc+"/amr_grid.inp", old=False)
+#        res = rmca.radmc3dData()
+#        #res.grid = rmca.radmc3dGrid(grid=)
+#        if self.use_ddens:
+#            res.readDustDens(binary=False, fname=self.dn_radmc+"/dust_density.inp")
+#
+#        if self.use_dtemp:
+#            res.readDustTemp(binary=False, fname=self.dn_radmc+"/dust_temperature.dat")
+#
+#        if self.use_gvel:
+#            res.readGasVel(binary=False, fname=self.dn_radmc+"/gas_velocity.inp")
+#
+#        if self.use_gtemp:
+#            res.readGasTemp(binary=False, fname=self.dn_radmc+"/gas_temperature.inp")
+#
+#        if self.use_gdens:
+#            if not self.ispec:
+#                print('ERROR\nNo gas species is specified!')
+#                return 0
+#            else:
+#                res.ndens_mol = res._scalarfieldReader(fname=self.dn_radmc+"/numberdens_"+self.ispec+".inp", binary=False)
+#
+#        logger.info("RadmcData is created. Variables are : ", ", ".join([ k for k, v in res.__dict__.items() if not isinstance(v, int)]) )
+#
+#        return res
 
     @staticmethod
     def cch_lifetime(nmol, nabun, T):
@@ -584,90 +821,10 @@ class RadmcData:
 #        cb = plb.colorbar(c)
 #        plt.savefig(dn_fig+"tausurf.pdf")
 
-    def plotall(self):
-
-        xlim = [self.xauc[0], self.xauc[-1]]
-
-        pl1d = mp.Plotter(self.dn_fig, x=self.xauc,
-                       logx=True, leg=False,
-                       xl='Radius [au]', xlim=xlim,
-                       fn_wrapper=lambda s:'rmc_%s_1d'%s)
-
-        pl2d = mp.Plotter(self.dn_fig, x=self.RR, y=self.zz,
-                       logx=False, logy=False, logcb=True, leg=False,
-                       xl='Radius [au]', yl='Height [au]', xlim=[0, 500], ylim=[0, 500],
-                       fn_wrapper=lambda s:'rmc_%s_2d'%s, square=True)
-
-        def plot_plofs(d, fname, lim=None, log=True, lb=None):
-            pl1d.plot(d[:,-1], fname, ylim=lim, logy=log, yl=lb)
-            pl2d.map(d, fname, ctlim=lim, logcb=log, cbl=lb)
-
-        if self.use_gdens:
-            nmin = self.ndens_mol.min()
-            nmax = self.ndens_mol.max()
-            maxlim =  10**(0.5+round(np.log10(nmax)))
-            plot_plofs(self.ndens_mol, "nden", lim=[maxlim*1e-3, maxlim], lb=r"Number density [cm$^{-3}$]")
-
-        if self.use_gtemp:
-            pl1d.plot(self.gtemp[:,-1], "temp", ylim=[1,1000], logy=True, yl='Temperature [K]')
-            pl1d.plot(self.gtemp[:, 0], "temp_pol", ylim=[1,1000], logy=True, yl='Temperature [K]')
-            pl2d.map(self.gtemp, "temp_in", ctlim=[0,200], xlim=[0,100],ylim=[0,100], logcb=False, cbl='Temperature [K]')
-            pl2d.map(self.gtemp, "temp_out", ctlim=[0,100], logcb=False, cbl='Temperature [K]')
-            pl2d.map(self.gtemp, "temp_L", ctlim=[0,40], xlim=[0,7000],ylim=[0,7000], logcb=False, cbl='Temperature [K]')
-            pl2d_log = mp.Plotter(self.dn_fig, x=self.RR, y=self.zz,
-                       logx=True, logy=True, logcb=True, leg=False,
-                       xl='log Radius [au]', yl='log Height [au]', xlim=[1, 1000], ylim=[1, 1000],
-                       fn_wrapper=lambda s:'rmc_%s_2d'%s, square=True)
-
-            pl2d_log.map(self.gtemp, "temp_log", ctlim=[10**0.5, 10**2.5], cbl='log Temperature [K]')
-
-        if self.use_gvel:
-            lb_v = r"Velocity [km s$^{-1}$]"
-            plot_plofs(-self.vr/1e5, "gvelr", lim=[0,5], log=False, lb=lb_v)
-            plot_plofs(self.vt/1e5, "gvelt", lim=[-5,5], log=False, lb=lb_v)
-            plot_plofs(np.abs(self.vp)/1e5, "gvelp", lim=[0,5], log=False, lb=lb_v)
-
-        if self.use_gdens and self.use_gtemp:
-            plot_plofs(self.t_dest/self.t_dyn, "tche", lim=[1e-3,1e3], lb="CCH Lifetime/Dynamical Timescale")
-
-        if self.opac!="":
-            with open(f"{dn_radmc}/dustkappa_{self.opac}.inp", mode='r') as f:
-                read_data = f.readlines()
-                mode = int(read_data[0])
-            if mode==2:
-                lam, kappa_abs, kappa_sca = np.loadtxt(f"{dn_radmc}/dustkappa_{self.opac}.inp", skiprows=2).T
-            elif mode==3:
-                lam, kappa_abs, kappa_sca, _ = np.loadtxt(f"{dn_radmc}/dustkappa_{self.opac}.inp", skiprows=3).T
-
-            mp.Plotter(self.dn_fig).plot([["ext",kappa_abs+kappa_sca],["abs", kappa_abs],["sca",kappa_sca]], "dustopac",
-                x=lam, xlim=[0.03,3e4], ylim=[1e-4,1e6], logx=True, logy=True,
-                xl=r'Wavelength [$\mu$m]', yl=r"Dust Extinction Opacity [cm$^2$ g$^{-1}$]",
-                ls=["--"], c=["k"], lw=[3,2,2])
-
-        exit()
-        if 1:
-            pl2d.map(D.rho, 'rho_L', ctlim=[1e-20, 1e-16], xlim=[0, 5000], ylim=[0, 5000], cbl=r'log Density [g/cm$^{3}$]', div=10, n_sl=40, Vector=Vec, save=False)
-            pl2d.ax.plot(self.pos_list[0].R/cst.au, self.pos_list[0].z/cst.au, c="orangered", lw=1.5, marker="o")
-            pl2d.save("rho_L_pt")
-
-        if self.plot_tau:
-            pl1d = mp.Plotter(self.dn_fig, x=self.imx/cst.au,
-                           logx=True, leg=False,
-                           xl='Radius [au]', xlim=xlim,
-                           fn_wrapper=lambda s:'rmc_%s_1d'%s)
-
-            pl2d = mp.Plotter(self.dn_fig, x=self.imx/cst.au, y=self.imy/cst.au,
-                           logx=False, logy=False, logcb=True, leg=False,
-                           xl='Radius [au]', yl='Height [au]', xlim=[-500/2, 500/2], ylim=[-500/2, 500/2],
-                           fn_wrapper=lambda s:'rmc_%s_2d'%s, square=True)
-            plot_plofs(self.tau/cst.au, "tau", lim=[1e-2, 1000], lb=r"tau")
-
-
+#    def plotall(self):
 
 
     def calc_gas_trajectries(self):
-        from scipy import interpolate
-        from mkmodel import trace_particle_2d_meridional
 
         r_ew = self.D.cs * self.D.t
         print(f"r_ew is {r_ew/cst.au}")
@@ -687,14 +844,87 @@ class RadmcData:
             stream_data = np.stack((pos.t, pos.R, pos.z, dens_stream, temp_stream), axis=-1)
             np.savetxt(f"{dn_fig}/stream_{i:d}.txt", stream_data, header="t[s] R[cm] z[cm] rho_gas[g cm^-3] T[K]")
 
-#def vertical_integrate(value_sph, rr, tt, zlim=None):
-#    x_new =
-#    y_new =
-#    value_cyl = _interpolator2d(value, rr, tt, R, z, logx=False, logy=False, logv=False)
-#    print(value_cyl)
-    # _interpolator2d(value_sphe, x_ori, y_ori, x_new, y_new, logx=False, logy=False, logv=False)
-    #interpolate.interp2d(value_sph)
-    #integrate.simps(value_cyl, z)
+#def read_radmc_data():
+
+
+def plot_radmc_data(rmc_data):
+   xlim = [rmc_data.xauc[0], rmc_data.xauc[-1]]
+
+   pl1d = mp.Plotter(rmc_data.dn_fig, x=rmc_data.xauc,
+                  logx=True, leg=False,
+                  xl='Radius [au]', xlim=xlim,
+                  fn_wrapper=lambda s:'rmc_%s_1d'%s)
+
+   pl2d = mp.Plotter(rmc_data.dn_fig, x=rmc_data.RR, y=rmc_data.zz,
+                  logx=False, logy=False, logcb=True, leg=False,
+                  xl='Radius [au]', yl='Height [au]', xlim=[0, 500], ylim=[0, 500],
+                  fn_wrapper=lambda s:'rmc_%s_2d'%s, square=True)
+
+   def plot_plofs(d, fname, lim=None, log=True, lb=None):
+       pl1d.plot(d[:,-1], fname, ylim=lim, logy=log, yl=lb)
+       pl2d.map(d, fname, ctlim=lim, logcb=log, cbl=lb)
+
+   if rmc_data.use_gdens:
+       nmin = rmc_data.ndens_mol.min()
+       nmax = rmc_data.ndens_mol.max()
+       maxlim =  10**(0.5+round(np.log10(nmax)))
+       plot_plofs(rmc_data.ndens_mol, "nden", lim=[maxlim*1e-3, maxlim], lb=r"Number density [cm$^{-3}$]")
+
+   if rmc_data.use_gtemp:
+       pl1d.plot(rmc_data.gtemp[:,-1], "temp", ylim=[1,1000], logy=True, yl='Temperature [K]')
+       pl1d.plot(rmc_data.gtemp[:, 0], "temp_pol", ylim=[1,1000], logy=True, yl='Temperature [K]')
+       pl2d.map(rmc_data.gtemp, "temp_in", ctlim=[0,200], xlim=[0,100],ylim=[0,100], logcb=False, cbl='Temperature [K]')
+       pl2d.map(rmc_data.gtemp, "temp_out", ctlim=[0,100], logcb=False, cbl='Temperature [K]')
+       pl2d.map(rmc_data.gtemp, "temp_L", ctlim=[0,40], xlim=[0,7000],ylim=[0,7000], logcb=False, cbl='Temperature [K]')
+       pl2d_log = mp.Plotter(rmc_data.dn_fig, x=rmc_data.RR, y=rmc_data.zz,
+                  logx=True, logy=True, logcb=True, leg=False,
+                  xl='log Radius [au]', yl='log Height [au]', xlim=[1, 1000], ylim=[1, 1000],
+                  fn_wrapper=lambda s:'rmc_%s_2d'%s, square=True)
+
+       pl2d_log.map(rmc_data.gtemp, "temp_log", ctlim=[10**0.5, 10**2.5], cbl='log Temperature [K]')
+
+   if rmc_data.use_gvel:
+       lb_v = r"Velocity [km s$^{-1}$]"
+       plot_plofs(-rmc_data.vr/1e5, "gvelr", lim=[0,5], log=False, lb=lb_v)
+       plot_plofs(rmc_data.vt/1e5, "gvelt", lim=[-5,5], log=False, lb=lb_v)
+       plot_plofs(np.abs(rmc_data.vp)/1e5, "gvelp", lim=[0,5], log=False, lb=lb_v)
+
+   if rmc_data.use_gdens and rmc_data.use_gtemp:
+       plot_plofs(rmc_data.t_dest/rmc_data.t_dyn, "tche", lim=[1e-3,1e3], lb="CCH Lifetime/Dynamical Timescale")
+
+   if rmc_data.opac!="":
+       with open(f"{dn_radmc}/dustkappa_{rmc_data.opac}.inp", mode='r') as f:
+           read_data = f.readlines()
+           mode = int(read_data[0])
+       if mode==2:
+           lam, kappa_abs, kappa_sca = np.loadtxt(f"{dn_radmc}/dustkappa_{rmc_data.opac}.inp", skiprows=2).T
+       elif mode==3:
+           lam, kappa_abs, kappa_sca, _ = np.loadtxt(f"{dn_radmc}/dustkappa_{rmc_data.opac}.inp", skiprows=3).T
+
+       mp.Plotter(rmc_data.dn_fig).plot([["ext",kappa_abs+kappa_sca],["abs", kappa_abs],["sca",kappa_sca]], "dustopac",
+           x=lam, xlim=[0.03,3e4], ylim=[1e-4,1e6], logx=True, logy=True,
+           xl=r'Wavelength [$\mu$m]', yl=r"Dust Extinction Opacity [cm$^2$ g$^{-1}$]",
+           ls=["--"], c=["k"], lw=[3,2,2])
+
+   exit()
+   if 1:
+       pl2d.map(D.rho, 'rho_L', ctlim=[1e-20, 1e-16], xlim=[0, 5000], ylim=[0, 5000], cbl=r'log Density [g/cm$^{3}$]', div=10, n_sl=40, Vector=Vec, save=False)
+       pl2d.ax.plot(rmc_data.pos_list[0].R/cst.au, rmc_data.pos_list[0].z/cst.au, c="orangered", lw=1.5, marker="o")
+       pl2d.save("rho_L_pt")
+
+   if rmc_data.plot_tau:
+       pl1d = mp.Plotter(rmc_data.dn_fig, x=rmc_data.imx/cst.au,
+                      logx=True, leg=False,
+                      xl='Radius [au]', xlim=xlim,
+                      fn_wrapper=lambda s:'rmc_%s_1d'%s)
+
+       pl2d = mp.Plotter(rmc_data.dn_fig, x=rmc_data.imx/cst.au, y=rmc_data.imy/cst.au,
+                      logx=False, logy=False, logcb=True, leg=False,
+                      xl='Radius [au]', yl='Height [au]', xlim=[-500/2, 500/2], ylim=[-500/2, 500/2],
+                      fn_wrapper=lambda s:'rmc_%s_2d'%s, square=True)
+       plot_plofs(rmc_data.tau/cst.au, "tau", lim=[1e-2, 1000], lb=r"tau")
+
+
 
 
 if __name__ == '__main__':

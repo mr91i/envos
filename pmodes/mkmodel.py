@@ -1,25 +1,20 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-from __future__ import print_function, absolute_import, division
 import numpy as np
 import pandas as pd
 import matplotlib.cm as cm
 from scipy import optimize
+import itertools
 #
-from header import inp, dn_home, dn_radmc, dn_fig
-import myplot as mp
-import cst
-import mytools
-import cubicsolver
+from pmodes.header import inp, dn_home, dn_radmc, dn_fig
+import pmodes.myplot as mp
+from pmodes import cst, mytools, cubicsolver, tsc
 
-msg = mytools.Message(__file__, debug=False)
+#msg = mytools.Message(__file__, debug=False)
+import logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 #######################
-
-def main():
-    data = EnvelopeDiskModel(**vars(inp.model))
-
-    if inp.model.plot:
-        Plots(data, dn_fig=dn_fig)
 
 class EnvelopeDiskModel:
     '''
@@ -39,10 +34,11 @@ class EnvelopeDiskModel:
         fn_model_pkl=None, submodel=False, calc_TSC=True,
         **args):
 
-        mytools.set_arguments(self, locals(), printer=msg)
+        mytools.set_arguments(self, locals() )
 
         # Non Variable Paramters Through Calculation
-        self.model = self.read_inp_ire_model(ire_model)
+        self.model = ire_model
+
         if 0:
             ri = np.logspace(np.log10(r_in), np.log10(r_out), nr+1)
             thetai = np.linspace(theta_in, theta_out, ntheta+1)
@@ -55,196 +51,152 @@ class EnvelopeDiskModel:
             self.th_ax = np.linspace(theta_in, theta_out, ntheta)
             self.ph_ax = np.linspace(phi_in, phi_out, nphi) if nphi > 1 else [0]
 
-        self.rr, self.tt = np.meshgrid(self.r_ax, self.th_ax)
+        self.rr, self.tt, self.pp = np.meshgrid(self.r_ax, self.th_ax, self.ph_ax, indexing='ij')
+        self.RR = self.rr * np.sin(self.tt)
+        self.zz = self.rr * np.cos(self.tt)
 
-        self.mu = np.round(np.cos(self.th_ax), 15)
-        self.sin = np.where(self.mu == 1, 1e-100, np.sqrt(1 - self.mu**2))
-        self.Mfin = 0.7 * cst.Msun
+        self.mm = np.round(np.cos(self.tt), 15)
+        self.ss = np.where(self.mm == 1, 1e-100, np.sqrt(1 - self.mm**2))
 
         self.Tenv, self.cs, self.Mdot, self.r_CR, self.Mstar, self.t, self.Omega, self.j0 = self.set_params(
             T=Tenv_K, CR=rCR_au*cst.au, M=Mstar_Msun*cst.Msun, t=t, Omega=Omega, j0=j0, Mdot=Mdot)
-        self.GM = cst.G * self.Mstar
+
         self.r_CB = self.r_CR * 0.5  # 50 * cst.au
         self.r_in_lim = self.cs * self.Omega**2 * self.t**3
-
         self.Req = self.r_CB * 2 * np.sin(cavity_angle / 180 * np.pi)**2
-
-        self.Mdisk = disk_star_fraction * self.Mstar
-        self.cs_disk = np.sqrt(cst.kB * self.Tdisk / cst.mn)
         self.mu_cav = np.cos(self.cavity_angle/180*np.pi)
 
+        if self.disk:
+            self.Mfin = 0.7 * cst.Msun
+            self.Mdisk = disk_star_fraction * self.Mstar
+            self.cs_disk = np.sqrt(cst.kB * self.Tdisk / cst.mn)
+
         if args != {}:
-            msg("There is unused args :", args, debug=1)
-#            raise Exception("There is unused args :", args)
+            logger.debug("There is unused args : {args}")
 
         self.print_params()
-        print(f"tau is {self.Omega*self.t}")
-        print(f"xin_TSC is {self.r_in_lim/self.cs/self.t}")
-        self.calc()
+        logger.info(f"tau is {self.Omega*self.t}")
+        logger.info(f"xin_TSC is {self.r_in_lim/self.cs/self.t}")
 
-
-    @staticmethod
-    def read_inp_ire_model(inp_ire_model):
-        if isinstance(inp_ire_model, int):
-            return {1: "CM", 2: "Simple"}[inp_ire_model]
-        else:
-            return inp_ire_model
+        if self.calc_TSC and self.r_in_lim < self.r_out:
+            self.tsc = tsc.solve_TSC(self.t, self.cs, self.Omega, run=True)
+        self.rho, self.ur, self.uth, self.uph, self.zeta, self.mu0, self.uR, self.uz = self.calc_physical_structures()
+        self.save_pickle()
 
     def print_params(self):
-        def print_format(name, val, unit):
-            msg(name.ljust(10)+'is {:10.2g} '.format(val)+unit.ljust(10))
+        logger.info('Model Parameters:')
+        logger.info(f'Model {self.model}')
+        value_list=[['T', self.Tenv, 'K'],
+                    ['cs', self.cs/cst.kms, 'km/s'],
+                    ['t', self.t/cst.yr, 'yr'],
+                    ['M', self.Mstar/cst.Msun, 'Msun'],
+                    ['Omega', self.Omega, 's^-1'],
+                    ['dM/dt', self.Mdot/(cst.Msun/cst.yr), 'M/yr'],
+                    ['r_lim', self.r_in_lim/cst.au, 'au'],
+                    ['j0', self.j0/(cst.kms*cst.au), 'au*km/s'],
+                    ['j0', self.j0/(cst.kms*cst.pc), 'pc*km/s'],
+                    ['r_CB', self.r_CB/cst.au, 'au'],
+                    ['r_CR', self.r_CR/cst.au, 'au'],
+                    ['Req', self.Req/cst.au, 'au'],
+                    ['c.a.', self.cavity_angle, 'degree']]
+        for var, val, unit in value_list:
+            logger.info(var.ljust(10) + f'is {val:10.2g} ' + unit.ljust(10))
 
-        def print_str(name, s):
-            msg(name.ljust(10)+'is '+s.rjust(10))
+    def calc_physical_structures(self):
+        rho, ur, uth, uph, zeta, mu0, uR, uz = self.calc_Kinematics(model=self.model)
+        RR, zz = self.rr * np.sin(self.t), self.rr * np.cos(self.tt)
 
-        print("")
-        msg('Model Parameters:')
-        print_str('Model', self.model)
-        print_format('T', self.Tenv, 'K')
-        print_format('cs', self.cs/cst.kms, 'km/s')
-        print_format('t', self.t/cst.yr, 'yr')
-        print_format('M', self.Mstar/cst.Msun, 'Msun')
-        print_format('Omega', self.Omega, 's^-1')
-        print_format('dM/dt', self.Mdot/(cst.Msun/cst.yr), 'M/yr')
-        print_format('r_lim', self.r_in_lim/cst.au, 'au')
-        print_format('j0', self.j0/(cst.kms*cst.au), 'au*km/s')
-        print_format('j0', self.j0/(cst.kms*cst.pc), 'pc*km/s')
-        print_format('r_CB', self.r_CB/cst.au, 'au')
-        print_format('r_CR', self.r_CR/cst.au, 'au')
-        print_format('Req', self.Req/cst.au, 'au')
-        print_format('c.a.', self.cavity_angle, '')
-        print('')
+        if self.calc_TSC:
+            r_crit = self.r_in_lim*0.3
+            b_tsc = self.rr > r_crit
+            rho[b_tsc] = self.tsc.calc_rho(self.rr[b_tsc], self.tt[b_tsc])
+            ur[b_tsc], uth[b_tsc], uph[b_tsc] = self.tsc.calc_velocity(self.rr[b_tsc], self.tt[b_tsc])
 
-    def calc(self):
-        vals_prt = {}
-        if self.calc_TSC and self.r_in_lim < self.r_out:
-            print(self.r_in_lim/cst.au, self.r_out/cst.au)
-            self.solve_TSC()
+        if self.disk:
+            rho_disk = self.put_Disk_sph(mode='CM_visc')
+            b_disk = rho_disk > np.nan_to_num(rho)
+            v_Kep = np.sqrt(cst.G * self.Mstar / self.RR)
 
-        for p in self.ph_ax:
-            vals_rt = {}
-            for r in self.r_ax:
-                vals = self.calc_physical_structure_for_theta(r,p)
-                self._stack_dict(vals, vals_rt)
-            self._stack_dict(vals_rt, vals_prt)
+            rho += rho_disk
+            ur = np.where(b_disk, 0, ur)
+            uth = np.where(b_disk, 0, uth)
+            uphi = np.where(b_disk, v_Kep, uph)
 
-        for k, v_prt in vals_prt.items():
-            setattr(self, k, np.array(v_prt).transpose(1,2,0))
+        return rho, ur, uth, uph, zeta, mu0, uR, uz
 
-        self.save_pickle()
-        #self.save_hdf5()
-        return self
+    def calc_Kinematics(self, model='CM'):
+        if model=='CM':
+            rho, ur, uth, uph, zeta, mu0 = self.get_Kinematics_CM()
+        elif model=='Simple':
+            rho, ur, uth, uph, zeta, mu0 = self.get_Kinematics_SimpleBalistic()
+        else:
+            Exception
 
-    def solve_TSC(self):
-        import tsc
-        self.tsc = tsc.solve_TSC(self.t, self.cs, self.Omega, run=True)
-
-    def calc_physical_structure_for_theta(self, r, phi):
-        RR, zz = r*self.sin, r*self.mu
-        rho, ur, uth, uph, zeta, mu0, uR, uz = self.calc_Kinematics(
-            r, model=self.model)
-
-        #if r > self.cs * self.Omega**3 * self.t**3:
-        if self.r_in_lim*0.2 < r and self.calc_TSC:
-            rho = self.tsc.calc_rho(r, self.th_ax)
-            ur, uth, uph = self.tsc.calc_velocity(r, self.th_ax)
-
-        rho_disk = self.put_Disk_sph(r, mode='CM_visc')
-        b_disk = rho_disk > np.nan_to_num(rho)
-        v_Kep = np.sqrt(self.GM / RR)
-        rho_tot = rho + rho_disk
-        vr_tot = np.where(b_disk, 0, ur)
-        vphi_tot = np.where(b_disk, v_Kep, uph)
-        vth_tot = np.where(b_disk, 0, uth)
-        rr = np.full_like(self.th_ax, r)
-        tt = self.th_ax
-        zeta = np.full_like(RR, zeta)
-        if self.submodel is not None:
-            rho_sub, ur_sub, uth_sub, uph_sub, zeta_sub, mu0_sub, uR_sub, uz_sub = self.calc_Kinematics(
-                r, model=self.submodel)
-
-        ret = locals()
-        del ret["self"]
-        return ret
-
-    @staticmethod
-    def _stack_dict(dict_vals, dict_stacked):
-        for k, v in dict_vals.items():
-            if not k in dict_stacked:
-                dict_stacked[k] = []
-            if not isinstance(v, (list, np.ndarray)):
-                v = [v]
-            dict_stacked[k].append(v)
-        dict_vals.clear()
-
-    def calc_Kinematics(self, r, model='CM'):
-        solver = {'CM': self.get_Kinematics_CM,
-                  'Simple':self.get_Kinematics_SimpleBalistic}[model]
-        rho, ur, uth, uph, zeta, mu0 = solver(r)
         if mytools.isnan_values([rho, ur, uth, uph, zeta, mu0]):
             raise Exception("Bad values.", rho, ur, uth, uph, zeta, mu0)
 
         if self.simple_density:
-            rho = self.get_Kinematics_SimpleBalistic(r)[0]
+            rho = self.get_Kinematics_SimpleBalistic()[0]
 
         if self.counterclockwise_rotation:
             uph *= -1
 
-        uR = ur * self.sin + uth * self.mu
-        uz = ur * self.mu - uth * self.sin
+        uR = ur * self.ss + uth * self.mm
+        uz = ur * self.mm - uth * self.ss
         return rho, ur, uth, uph, zeta, mu0, uR, uz
 
-    def get_Kinematics_CM(self, r):
-        zeta = self.j0**2 / (self.GM * r)
+    def get_Kinematics_CM(self):
+        zeta = self.j0**2 / (cst.G*self.Mstar * self.rr)
         mu0 = self.get_mu0(zeta, method='cubic')
         sin0 = np.sqrt(1 - mu0**2)
-        v0 = np.sqrt(self.GM / r)
+        v0 = np.sqrt(cst.G*self.Mstar / self.rr)
         mu_over_mu0 = 1 - zeta*(1 - mu0**2)
         ur = - v0 * np.sqrt(1 + mu_over_mu0)
-        uth = v0 * zeta*sin0**2*mu0/self.sin * np.sqrt(1 + mu_over_mu0)
-        uph = v0 * sin0**2/self.sin * np.sqrt(zeta)
-        rho = - self.Mdot / (4 * np.pi * r**2 * ur * (1 + zeta*(3*mu0**2-1) ) )
+        uth = v0 * zeta*sin0**2*mu0/self.ss * np.sqrt(1 + mu_over_mu0)
+        uph = v0 * sin0**2/self.ss * np.sqrt(zeta)
+        rho = - self.Mdot / (4 * np.pi * self.rr**2 * ur * (1 + zeta*(3*mu0**2-1) ) )
         mask = 1.0
         if self.cavity_angle is not None:
             mask = np.where(mu0 < self.mu_cav, 1, 0)
         return rho*mask, ur, uth, uph, zeta, mu0
 
-    @staticmethod
-    def sol_with_roots(m,zeta):
-        sols = [ round(sol, 10) for sol in np.roots([zeta, 0, 1-zeta, -m]).real if 0 <= round(sol, 10) <= 1 ]
-        return sols[0]
-
-    @staticmethod
-    def sol_with_cubic(m,zeta):
-        sols = [ round(sol, 8) for sol in cubicsolver.solve(zeta, 0, 1-zeta, -m).real if 0 <= round(sol, 8) <= 1 ]
-        try:
-            return sols[0]
-        except:
-            sols_exc = cubicsolver.solve(zeta, 0, 1-zeta, -m).real
-            print("val is {:.20f}".format(sols_exc[0]))
-            raise Exception("No solution.", sols_exc, 0 <= round(sols_exc[0], 10) <= 1 )
-
     def get_mu0(self, zeta, method='roots'):
-        solver = {"roots":self.sol_with_roots, "cubic":self.sol_with_cubic}[method]
-        return np.array([solver(m, zeta) for m in self.mu])
+        def sol_with_roots(m,zeta):
+            sols = [ round(sol, 10) for sol in np.roots([zeta, 0, 1-zeta, -m]).real if 0 <= round(sol, 10) <= 1 ]
+            return sols[0]
 
-    def get_Kinematics_SimpleBalistic(self, r, fillv=0):
-        vff = np.sqrt(2 * self.GM / r)
-        x = r/self.r_CB
-        b_env = np.logical_and(x >= 1, self.mu <= self.mu_cav)
+        def sol_with_cubic(m,zeta):
+            sols = [ round(sol, 8) for sol in cubicsolver.solve(zeta, 0, 1-zeta, -m).real if 0 <= round(sol, 8) <= 1 ]
+            try:
+                return sols[0]
+            except:
+                sols_exc = cubicsolver.solve(zeta, 0, 1-zeta, -m).real
+                print("val is {:.20f}".format(sols_exc[0]))
+                raise Exception("No solution.", sols_exc, 0 <= round(sols_exc[0], 10) <= 1 )
+
+        csol = np.frompyfunc(sol_with_cubic, 2, 1)
+        sol = csol(self.mm, zeta)
+        return sol.astype(np.float64)
+
+
+    def get_Kinematics_SimpleBalistic(self, fillv=0):
+        vff = np.sqrt(2 * cst.G*self.Mstar / self.rr)
+        xx = self.rr/self.r_CB
+        b_env = np.logical_and(xx >= 1, self.mu <= self.mu_cav)
         def value_env(val):
             return np.where(b_env, val, fillv)
         rho_prof = self.Mdot/(4*np.pi*r**2 * vff) \
-            if (self.rho0 is None) or (self.rho_index is None) else self.rho0*(r/cst.au)**self.rho_index
+            if (self.rho0 is None) or (self.rho_index is None) else self.rho0*(self.rr/cst.au)**self.rho_index
         rho = np.where(b_env, rho_prof, rho_prof*0 )
-        ur = - vff * np.sqrt(value_env(1-1/x))
+        ur = - vff * np.sqrt(value_env(1-1/xx))
         uth = value_env(0)
-        uph = value_env(vff/np.sqrt(x))
+        uph = value_env(vff/np.sqrt(xx))
         zeta = 0
-        mu0 = self.mu
+        mu0 = self.mm
         return rho, ur, uth, uph, zeta, mu0
 
     def put_Disk_sph(self, r, CM=False, mode='exponential_cutoff', ind=-1):
+    ## Still constructing
         if not self.disk:
             return np.zeros_like(self.th_ax)
         R = r*self.sin
@@ -252,8 +204,8 @@ class EnvelopeDiskModel:
         if mode == 'CM_visc':
             # Viscous case
             u = R/self.r_CR
-#           P = self.Mfin / self.Mdot / ( self.r_CR**2 / (3*0.01*self.csd**2) * np.sqrt(self.GM /self.r_CR_fin**3) )
-            P = (3*0.01*self.cs_disk**2) / np.sqrt(self.GM / self.r_CR**3) * \
+#           P = self.Mfin / self.Mdot / ( self.r_CR**2 / (3*0.01*self.csd**2) * np.sqrt(cst.G*self.M /self.r_CR_fin**3) )
+            P = (3*0.01*self.cs_disk**2) / np.sqrt(cst.G*self.Mstar / self.r_CR**3) * \
                 self.Mstar**6/self.Mfin**5/self.Mdot/self.r_CR**2
             P_rd2 = 3 * 0.1 * self.Tdisk/self.Tenv * \
                 np.sqrt(self.Mfin/self.Mstar) * \
@@ -288,7 +240,7 @@ class EnvelopeDiskModel:
         if self.calc_TSC:
             del self.tsc
         pd.to_pickle(self.__dict__, savefile, protocol=2)
-        msg('Saved : %s\n' % savefile)
+        logger.info('Saved : %s\n' % savefile)
 
     def save_hdf5(self):
         from evtk.hl import gridToVTK, pointsToVTK
@@ -303,9 +255,7 @@ class EnvelopeDiskModel:
         xxc, yyc, zzc = np.meshgrid(xc, yc, zc, indexing='ij')
         rr_cert = np.sqrt(xxc**2 + yyc**2 + zzc**2)
         tt_cert = np.arccos(zzc/rr_cert) #np.arctan(np.sqrt(xxc**2 + yyc**2)/zzc)#(zzc/rr_cert)
-
         pp_cert =  np.arctan2(yyc, xxc) #np.where(xxc>0, np.arcsin(yyc/np.sqrt(xxc**2 + yyc**2)) , -np.arcsin(yyc/np.sqrt(xxc**2 + yyc**2))) #cos(xxc/np.sqrt(xxc**2 + yyc**2))
-
         #print(self.rho.transpose(0,1,2).shape, self.rho.shape, self.r_ax.shape, self.th_ax.shape, self.ph_ax.shape,  rr_cert.shape, tt_cert.shape, pp_cert.shape)
         def interper(val):
             return interpolator3d(val, self.r_ax, self.th_ax, self.ph_ax, rr_cert, tt_cert, pp_cert, logx=False, logy=False, logz=False, logv=False)
@@ -313,15 +263,12 @@ class EnvelopeDiskModel:
         ur_cert = interper(self.ur)
         uth_cert = interper(self.uth)
         uph_cert = interper(self.uph)
-
         uux = ur_cert * np.sin(tt_cert) * np.cos(pp_cert) + uth_cert * np.cos(tt_cert) * np.cos(pp_cert) - uph_cert  * np.sin(pp_cert)
         uuy = ur_cert * np.sin(tt_cert) * np.sin(pp_cert) + uth_cert * np.cos(tt_cert) * np.sin(pp_cert) + uph_cert * np.cos(pp_cert)
         uuz = ur_cert * np.cos(tt_cert) - uth_cert * np.sin(tt_cert)
-
         ri = mytools.make_array_interface(self.r_ax)
         ti = mytools.make_array_interface(self.th_ax)
         pi = mytools.make_array_interface(self.ph_ax)
-        import itertools
         rr, tt, pp = np.meshgrid(self.r_ax,self.th_ax, self.ph_ax, indexing='ij')
         rri, tti, ppi = np.meshgrid(ri,ti,pi, indexing='ij')
         gridToVTK(dn_radmc + '/' +"model.vtk", xi/cst.au, yi/cst.au, zi/cst.au, cellData = {"den" :den_cert, "ux" :uux, "uy" :uuy, "uz" :uuz})
@@ -413,7 +360,7 @@ def trace_particle_2d_meridional(r_ax, th_ax, vr, vth, t_span, pos0):
 #
 
 
-def Plots(D, r_lim=500, dn_fig=None):
+def plot_physical_model(D, r_lim=500, dn_fig=None):
 
     def slice_at_midplane(tt, *vals_rtp):
         iphi = 0
@@ -492,7 +439,7 @@ def Plots(D, r_lim=500, dn_fig=None):
                    div=10, n_sl=20, logcb=True, cmap=cm.get_cmap('seismic'), Vector=Vec, seeds_angle=[0,2*np.pi])
 
     rho0, uR0, uph0, rho_tot0 = slice_at_midplane(
-        th_mg, D.rho, D.uR, D.uph, D.rho_tot)
+        th_mg, D.rho, D.uR, D.uph, D.rho)
 
     pl = mp.Plotter(dn_fig, x=D.r_ax/cst.au, leg=True, xlim=[0, 5000], xl="Radius [au]")
 
@@ -595,12 +542,8 @@ def vint(value_rt, R_rt, z_rt, R_ax, z_ax, log=False):
 
 ###########
 if __name__ == '__main__':
-    main()
+
+    data = EnvelopeDiskModel(**vars(inp.model))
+    if inp.model.plot:
+        plot_physical_model(data, dn_fig=dn_fig)
 ###########
-
-
-
-
-
-
-

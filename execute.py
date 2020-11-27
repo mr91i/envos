@@ -453,13 +453,19 @@ def clean(clean_target, rm_cmd=RMCMD, base_dir=BASEDIR, src_dir=SRCDIR, radmc_di
         return answer
 
     def rm(target_list, option=""):
+        print(target_list)
         targets = " ".join(target_list)
+
         if targets in ["*", "/","/*"]:
             raise Exception("Danger!!", targets)
-        if targets is "":
+        if targets == "":
             print("No targets")
             return
-        mytools.exe(f'{RMCMD} {option} {targets}')
+
+        for target in target_list:
+            if os.path.isfile(target):
+                os.remove(target)
+        #mytools.exe(f'{RMCMD} {option} {targets}')
 
     if clean_target == "cache":
         rm(getpaths(src_dir, ["*.pyc", "__pycache__"]))

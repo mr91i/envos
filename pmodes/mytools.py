@@ -1,7 +1,11 @@
-from __future__ import print_function,  absolute_import, division
 import subprocess
 import os
 import numpy as np
+from pmodes import cst
+
+import logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 ## in input files
 def get_square_ntheta(r_range, nr):
@@ -17,14 +21,14 @@ class Parameters:
     class Subclass:
         pass
 
-def set_arguments(cls, locals_dict, printer=print):
+def set_arguments(cls, locals_dict):
     for k, v in locals_dict.items():
         if (k != 'self') and (k!="kwargs"):
             setattr(cls, k, v)
-            printer(f"{k:20} is {str(v):20}")
+            logger.debug(f"{k:20} is {str(v):20}")
+
 
 def freq_to_vkms(freq0, dfreq):
-    import cst
     return cst.c/1e5* dfreq/freq0
 
 def make_array_center( xi ):
