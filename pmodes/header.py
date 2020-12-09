@@ -1,8 +1,16 @@
 # Note:
 #  to supress cache files :
 #      write "PYTHONDONTWRITEBYTECODE = 1" to ~/.bashrc or ~/.bash_profile
+
+
+## Set directory paths
 import os
 import sys
+dpath_here = os.path.dirname(os.path.abspath(os.path.realpath(__file__)))
+dpath_home = os.path.abspath(dpath_here + '/../')
+dpath_radmc = dpath_home + "/radmc"
+dpath_fig = dpath_home + "/fig"
+
 
 ## Color
 class pycolor:
@@ -21,10 +29,10 @@ class pycolor:
     RED_FLASH = '\033[05;41m' #赤背景+点滅
     END = '\033[0m'
 
+
 ## logging
 import logging
 class MyFormatter(logging.Formatter):
-
     dbg_fmt  = pycolor.GRAY + "[%(filename)s] Debug: %(message)s" + pycolor.END
     info_fmt = "[%(filename)s] %(message)s"
     warn_fmt = pycolor.YELLOW + "\n[%(filename)s] Warning: %(message)s\n" + pycolor.END
@@ -33,24 +41,20 @@ class MyFormatter(logging.Formatter):
     def __init__(self):
         #super().__init__(fmt="%(levelno)d: %(msg)s", datefmt=None, style='%')
         super().__init__(fmt="[%(filename)s] %(levelname)s: %(message)s", datefmt=None, style='%')
+        self.propagate = False
 
     def format(self, record):
-
         # Save the original format configured by the user
         # when the logger formatter was instantiated
         format_orig = self._style._fmt
 
         # Replace the original format with one customized by logging level
-
         if record.levelno == logging.DEBUG:
             self._style._fmt = MyFormatter.dbg_fmt
-
         elif record.levelno == logging.INFO:
             self._style._fmt = MyFormatter.info_fmt
-
         elif record.levelno == logging.WARNING:
             self._style._fmt = MyFormatter.warn_fmt
-
         elif record.levelno == logging.ERROR:
             self._style._fmt = MyFormatter.err_fmt
 
@@ -71,47 +75,41 @@ logger.setLevel(logging.DEBUG)
 #logging.root.setLevel(logging.DEBUG)
 
 
-## argparse
-import argparse
-dn_here = os.path.dirname(os.path.abspath(os.path.realpath(__file__)))
-dn_home = os.path.abspath(dn_here + '/../')
-dn_radmc = dn_home + "/radmc"
-dn_fig = dn_home + "/fig"
+## Check Python version
 py_version = sys.version_info
-if py_version[0] == 2:
+if py_version[0] + py_version[1]*0.1 < 3.3:
     logging.error('''\n
-This module does not work with Python2.
+This module does not work with Python2 or <3.3 .
 At 1 Jan 2020, most packages stopped to support Python2 (see https://python3statement.org).
 Please use and update your Python3 to the newest version.
 At this writing, Python 3.8.1 is the newest.''')
     exit()
 
+
+## argparse
+import argparse
 parser = argparse.ArgumentParser(description='')
-parser.add_argument('input_file_name', nargs='?', default="L1527.in")
+#parser.add_argument('input_file_name', nargs='?', default="inp")
+parser.add_argument('input_file_path', nargs='?', default="./inp.py")
 parser.add_argument('-e','--edit', action='store_true')
 args = parser.parse_args()
-logger.info("Input file path is "+dn_home+"/"+args.input_file_name)
+logger.info("Input file path is "+args.input_file_path)
 if args.edit:
     print("Enter edit mode with vim...")
-    os.system("vim "+dn_home+"/"+args.input_file_name)
-
-## Reading input file
-#class read_inp:
-#    def __init__(self, path):
-#        with open(path) as f:
-#            exec(f.read(), {}, self.__dict__)
-
-#inp = read_inp(dn_home+"/"+args.input_file_name)
+    os.system(f"vim {args.input_file_path}")
 
 
-import types
-import importlib.machinery
-loader = importlib.machinery.SourceFileLoader('inp',  dn_home+"/"+args.input_file_name)
-inp = types.ModuleType(loader.name)
-loader.exec_module(inp)
+## Dynamically reading inputfile
+# ver. >= 3.5
+#import types
+#import importlib
+import importlib.util
+spec = importlib.util.spec_from_file_location("InputParams", args.input_file_path)
+inp = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(inp)
 
-
-
-
-
-
+#print(inp)
+#inp = importlib.import_module(args.input_file_path)
+#loader = importlib.machinery.SourceFileLoader('inp',  dpath_home+"/"+args.input_file_name)
+#inp = types.ModuleType(loader.name)
+#loader.exec_module(inp)

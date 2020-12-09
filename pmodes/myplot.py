@@ -10,7 +10,7 @@ from scipy.interpolate import interp2d, griddata
 plt.switch_backend('agg')
 pyver = sys.version_info[0] + 0.1*sys.version_info[1]
 debug_mode = 0
-import pmodes.mytools
+import pmodes.tools
 from matplotlib.colors import BoundaryNorm, Normalize, LogNorm
 from matplotlib.ticker import LogFormatter
 
@@ -33,7 +33,7 @@ logger.propagate = False
 
 logger.debug("%s is used." % os.path.abspath(__file__))
 logger.debug("This is python %s" % pyver)
-dn_this_file = os.path.dirname(os.path.abspath(__file__))
+dpath_this_file = os.path.dirname(os.path.abspath(__file__))
 
 
 class Struct:
@@ -62,7 +62,7 @@ class Plotter:
     #                                  v
     # input --> plot function -------------------> used parameter
 
-    def __init__(self, dn_fig="F", fig_ext="pdf",
+    def __init__(self, dpath_fig="F", fig_ext="pdf",
                  x=None, y=None, xlim=None, ylim=None, ctlim=None, xl="", yl="", cbl="",
                  c=[], ls=[], lw=[], alp=[], pm=False,
                  logx=False, logy=False, logxy=False, logcb=False, leg=False,
@@ -72,8 +72,8 @@ class Plotter:
                  args_leg={"loc": 'best'}, args_fig={}):
 
         self.df = Params(locals())
-#        if dn_fig is not None:
-#            self.dp_fig = os.path.abspath(dn_fig)
+#        if dpath_fig is not None:
+#            self.dp_fig = os.path.abspath(dpath_fig)
 #            self._mkdir(self.dp_fig)
 #        else:
 #            self.dp_fig = None
@@ -197,7 +197,7 @@ class Plotter:
              logx=None, logy=None, logxy=None, pm=None,
              hl=[], vl=[], fills=None, arrow=[], lbs=None,
              datatype="", square=None, save=None, show=None, continu=None,
-             dn_fig=None, fn_wrapper=None, fig_ext=None,
+             dpath_fig=None, fn_wrapper=None, fig_ext=None,
              result="fig",fillalpha=0.2, zorder0=0,fillmode="shade",
              *args, **kwargs):
 
@@ -306,7 +306,7 @@ class Plotter:
         # Saving
         if use.save:
             #self.use = use
-            self.save(out, dn_fig=use.dn_fig, fig_ext=use.fig_ext, fn_wrapper=use.fn_wrapper)
+            self.save(out, dpath_fig=use.dpath_fig, fig_ext=use.fig_ext, fn_wrapper=use.fn_wrapper)
             #self.save(out)
             #self.save(out)
         else:
@@ -384,6 +384,7 @@ class Plotter:
 
         ## Set ctax
         ctlim = notNone(use.ctlim, ctlim_z)
+        print(ctlim)
         if ctdelta is None:
             ctax_data = np.linspace(ctlim[0], ctlim[-1], Nct+1) if not use.logcb else\
                         np.logspace(np.log10(ctlim[0]), np.log10(ctlim[-1]), Nct+1)
@@ -508,8 +509,8 @@ class Plotter:
             plt.legend(**self.df.args_leg)
 
         if use.save:
-            #self.save(out, use.dn_fig, use.fig_ext, use.fn_wrapper)
-            self.save(out, dn_fig=use.dn_fig, fig_ext=use.fig_ext, fn_wrapper=use.fn_wrapper)
+            #self.save(out, use.dpath_fig, use.fig_ext, use.fn_wrapper)
+            self.save(out, dpath_fig=use.dpath_fig, fig_ext=use.fig_ext, fn_wrapper=use.fn_wrapper)
             #self.save(out)
 
         plt.close()
@@ -522,18 +523,18 @@ class Plotter:
 
 
 
-    #def save(self, out, dn_fig, fig_ext, fn_wrapper):
-    def save(self, out, dn_fig=None, fig_ext=None, fn_wrapper=None,):
-        if None in (dn_fig, fig_ext, fn_wrapper):
+    #def save(self, out, dpath_fig, fig_ext, fn_wrapper):
+    def save(self, out, dpath_fig=None, fig_ext=None, fn_wrapper=None,):
+        if None in (dpath_fig, fig_ext, fn_wrapper):
             logger.info("Use values in default values")
-            dn_fig = self.use.dn_fig
+            dpath_fig = self.use.dpath_fig
             fig_ext = self.use.fig_ext
             fn_wrapper = self.use.fn_wrapper
 
-        if dn_fig is not None:
-            dp_fig = os.path.abspath(dn_fig)
+        if dpath_fig is not None:
+            dp_fig = os.path.abspath(dpath_fig)
         else:
-            raise Exception("dn_fig is None")
+            raise Exception("dpath_fig is None")
 
         if os.path.exists(dp_fig)==False:
             logger.info("Make figure directory: ", dp_fig)

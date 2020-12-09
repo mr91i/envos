@@ -1,5 +1,5 @@
 import numpy as np
-from header import dn_radmc
+from header import dpath_radmc
 import cst
 
 class kappa:
@@ -19,8 +19,8 @@ class kappa:
         return np.full_like(self.lam_micron, 0.0)
 
     def save(self):
-        #print(f"{dn_radmc}/dustkappa_kappa0{self.kappa0_micron:.0e}_beta{self.beta}.inp")
-        np.savetxt(f"{dn_radmc}/dustkappa_kappa0{self.kappa0_micron:.0e}_beta{self.beta}.inp", self.table, header=f"2\n{self.N_lam}\n", comments="")
+        #print(f"{dpath_radmc}/dustkappa_kappa0{self.kappa0_micron:.0e}_beta{self.beta}.inp")
+        np.savetxt(f"{dpath_radmc}/dustkappa_kappa0{self.kappa0_micron:.0e}_beta{self.beta}.inp", self.table, header=f"2\n{self.N_lam}\n", comments="")
 
 for k0 in [1e4, 1e3]:
         for b in [0, -1, -2]:
