@@ -1,11 +1,11 @@
-    #### Constant Physical parameter ####
+#### Constant Physical parameter ####
 pi       = 3.141592653589793238462643383279502884197169399375105820974
 c        = 2.99792458e10
 h        = 6.62607004e-27
 G        = 6.67408e-8
 e        = 4.803205e-10
 m_e      = me = 9.10938291e-28
-m_n      = mn = 3.88549512e-24
+# m_n      = mn = 3.88549512e-24
 sigma_SB = 5.670367e-5
 a        = 4 * sigma_SB/c
 k_B      = kB = k = 1.38065e-16
@@ -30,10 +30,10 @@ year     = yr = 3.1454e7
 Myr      = 3.1454e13
 Mpyr     = Msun/year
 Mj_p_Myr = Mj/(1e6*year)
-gamma    = 7.0/5.0
-cV       = kB/mn/(gamma-1) # heat capacity per mass
-#R       = 8.31446261815324e7
-#CV      = 5/2*R
+# gamma    = 7.0/5.0
+# cV       = kB/mn/(gamma-1) # heat capacity per mass
+# R       = 8.31446261815324e7
+# CV      = 5/2*R
 kms      = 1e5
 
 

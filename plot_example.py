@@ -340,7 +340,7 @@ def plot_chmap(obsdata, dpath_fig=dpath_fig, n_lv=20):
                  title="v = {:.3f} km/s".format(obsdata.vkms[i]) , square=True)
 
 
-def plot_pvdiagram(PV, dpath_fig=dpath_fig, n_lv=5, Mstar_Msun=None, rCR_au=None, f_crit=None, mass_ip=False, mass_vp=False, mapmode='grid', oplot={}):
+def plot_pvdiagram(PV, dpath_fig=dpath_fig, out='pvd', n_lv=5, Mstar_Msun=None, rCR_au=None, f_crit=None, mass_ip=False, mass_vp=False, mapmode='grid', oplot={}):
 
     def find_local_peak_position(x, y, i):
         if (2 <= i <= len(x)-3):
@@ -473,6 +473,6 @@ def plot_pvdiagram(PV, dpath_fig=dpath_fig, n_lv=5, Mstar_Msun=None, rCR_au=None
     except:
         pass
 
-    pltr.save("pvd")
+    pltr.save(out)
 
 
