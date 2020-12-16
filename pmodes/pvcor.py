@@ -116,6 +116,9 @@ def get_param_from_inputfile(dirpath):
 
     return float(M), float(CR)
 
+
+########################################################################################
+
 def calc_correlation(im1, im2_original, method="ZNCC", threshold=0, with_noise=False):
     jmax1, imax1 = im1.shape
     jmax2, imax2 = im2_original.shape
@@ -127,8 +130,8 @@ def calc_correlation(im1, im2_original, method="ZNCC", threshold=0, with_noise=F
         im1 += np.random.uniform( -noise_level, noise_level, size=im1.shape)
     # Noise cut
     im1 = np.where(im1>threshold, im1, 0)
-    im1 = np.where(im1/np.max(im1)>0.1, im1, 0)
-    im2 = np.where(im2/np.max(im2)>0.1, im2, 0)
+    im1 = np.where(im1/np.max(im1)>0.00, im1, 0)
+    im2 = np.where(im2/np.max(im2)>0.00, im2, 0)
     return {"ZNCC":calc_ZNCC(im1, im2), "SSD":calc_SSD(im1, im2) }[method]
 
 def calc_SSD(im1,im2):
