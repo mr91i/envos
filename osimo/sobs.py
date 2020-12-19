@@ -16,7 +16,8 @@ import astropy.io.fits as iofits
 import astropy.convolution as aconv
 import radmc3dPy.image as rmci
 import radmc3dPy.analyze as rmca
-from pmodes import cst, tools
+from osimo import tools
+from osimo import nconst as nc
 #from header import inp, dpath_radmc
 
 
@@ -199,7 +200,7 @@ class ObsSimulator:
             zoomau=[self.zoomau_x[0], self.zoomau_x[1],self.zoomau_y[0],self.zoomau_y[1]], lam=lam, option="noscat nostar")
         self.exe(cmd, self.dpath_radmc, log=True)
         self.data_cont = rmci.readImage()
-        self.data_cont.freq0 = cst.c/(lam*1e4)
+        self.data_cont.freq0 = nc.c/(lam*1e4)
         odat = ObsData(radmcdata=self.data_cont, datatype=self.obs_mode)
         return odat
 
@@ -375,8 +376,8 @@ class ObsData:
         self.Nx = header["NAXIS1"]
         self.Ny = header["NAXIS2"]
         self.Nz = header["NAXIS3"]
-        self.dx = - header["CDELT1"]*np.pi/180.0*self.dpc*cst.pc/cst.au
-        self.dy = + header["CDELT2"]*np.pi/180.0*self.dpc*cst.pc/cst.au
+        self.dx = - header["CDELT1"]*np.pi/180.0*self.dpc*nc.pc/nc.au
+        self.dy = + header["CDELT2"]*np.pi/180.0*self.dpc*nc.pc/nc.au
         self.Lx = self.Nx*self.dx
         self.Ly = self.Ny*self.dy
         self.xau = -0.5*self.Lx + (np.arange(self.Nx)+0.5)*self.dx
@@ -386,7 +387,7 @@ class ObsData:
             nu_max = header["CRVAL3"] # freq: max --> min
             dnu = header["CDELT3"]
             nu0 = nu_max + 0.5*dnu*(self.Nz-1)
-            self.dv = - cst.c / 1e5 * dnu / nu0
+            self.dv = - nc.c / 1e5 * dnu / nu0
         else:
             self.dv = header["CDELT3"]/1e3
         self.vkms = self.dv*(-0.5*(self.Nz-1) + np.arange(self.Nz))
@@ -415,7 +416,7 @@ class ObsData:
 #
 #        self.Nx = header["NAXIS1"]
 #        self.Nz = header["NAXIS2"]
-#        self.dx = header["CDELT1"]*np.pi/180.0*self.dpc*cst.pc/cst.au
+#        self.dx = header["CDELT1"]*np.pi/180.0*self.dpc*nc.pc/nc.au
 #        Lx = self.Nx*self.dx
 #        self.xau = -0.5*Lx + (np.arange(self.Nx)+0.5)*self.dx
 #
@@ -423,7 +424,7 @@ class ObsData:
 #            nu_max = header["CRVAL2"] # freq: max --> min
 #            dnu = header["CDELT2"]
 #            nu0 = nu_max + 0.5*dnu*(self.Nz-1)
-#            self.dv = - cst.c / 1e5 * dnu / nu0
+#            self.dv = - nc.c / 1e5 * dnu / nu0
 #            self.vkms = (-0.5*(self.Nz-1)+np.arange(self.Nz)) * self.dv
 #        else:
 #            self.dv = header["CDELT2"]/1e3 # in m/s to in km/s
@@ -446,13 +447,13 @@ class ObsData:
         self.Ny = data.ny
         self.Nv = data.nfreq
         self.Nf = data.nfreq
-        self.xau = data.x/cst.au
-        self.yau = data.y/cst.au
+        self.xau = data.x/nc.au
+        self.yau = data.y/nc.au
         self.freq = data.freq
         self.freq0 = data.freq0
         self.vkms = tools.freq_to_vkms_array(self.freq, self.freq0)
-        self.dx = data.sizepix_x/cst.au
-        self.dy = data.sizepix_y/cst.au
+        self.dx = data.sizepix_x/nc.au
+        self.dy = data.sizepix_y/nc.au
         self.Lx = self.xau[-1] - self.xau[0]
         self.Ly = self.yau[-1] - self.yau[0]
         self.dv = self.vkms[1] - self.vkms[0] if len(self.vkms) > 1 else 0
@@ -594,7 +595,7 @@ class PVmap:
         dv = (self.vkms[1] - self.vkms[0])
         hdu = iofits.PrimaryHDU(self.Ipv)
         new_header = {'NAXIS':2,
-                       'CTYPE1':'ANGLE', 'CUNIT1':unitp, 'NAXIS1':Np, 'CRVAL1':0.0, 'CRPIX1':(Np + 1.)/2., 'CDELT1':dx*cst.au/self.dpc*180/np.pi, 'CUNIT1':'deg',
+                       'CTYPE1':'ANGLE', 'CUNIT1':unitp, 'NAXIS1':Np, 'CRVAL1':0.0, 'CRPIX1':(Np + 1.)/2., 'CDELT1':dx*nc.au/self.dpc*180/np.pi, 'CUNIT1':'deg',
                        'CTYPE2':'VRAD', 'CUNIT2':unitv, 'NAXIS1':Nv, 'CRVAL2':0.0, 'CRPIX2':(Nv + 1.)/2., 'CDELT2':dv*1e3, 'CUNIT2':'m/s',
                        'BTYPE': 'Intensity', 'BUNIT': 'Jy/pixel'}
         if self.beam_maj_au:
@@ -618,7 +619,7 @@ class PVmap:
             self.dx = header["CDELT1"]*unit1_in_au
         elif "ANGLE" in header["CYTYPE"] and unit1=="deg": # x in deg
             logger.info(f"   1st axis is interpreted as POSITION [deg].")
-            self.dx = header["CDELT1"]*np.pi/180.0*self.dpc*cst.pc/cst.au
+            self.dx = header["CDELT1"]*np.pi/180.0*self.dpc*nc.pc/nc.au
         else:
             raise Exception("Unknown datatype in 1st axis")
         self.xau = -0.5*self.Nx*self.dx + (np.arange(self.Nx)+0.5)*self.dx

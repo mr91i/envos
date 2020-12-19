@@ -1,7 +1,7 @@
 import numpy as np
 from scipy import integrate, interpolate, optimize
-from pmodes import cst
-import pmodes.myplot as myp
+from osimo import nconst as nc
+# import osimo.myplot as myp
 import logging
 logger = logging.getLogger(__name__)
 
@@ -18,7 +18,7 @@ class solve_TSC:
         self.x = np.logspace(np.log10(1/self.tau)+1, np.log10(self.tau**2)-1, 2000)
         self.xout = self.x[self.x>1]
         self.xin = self.x[self.x<=1]
-        logger.info(f"xin is {self.x[-1]*cs*t/cst.au} au")
+        logger.info(f"xin is {self.x[-1]*cs*t/nc.au} au")
         ## Run
         if run:
             logger.debug("Start all_run")
@@ -223,7 +223,7 @@ class solve_TSC:
         x = r/self.cs/self.t
         P2 = 1 - 3/2*np.sin(theta)**2
         y = x*(1 + self.tau**2*self.Delta_Q*P2)
-        return 1/(4*cst.pi*cst.G*self.t**2)*( self.f_al0(y) + self.tau**2*(self.f_al_M(y) + self.f_al_Q(y)*P2) )
+        return 1/(4*nc.pi*nc.G*self.t**2)*( self.f_al0(y) + self.tau**2*(self.f_al_M(y) + self.f_al_Q(y)*P2) )
 
     def calc_velocity(self, r, theta):
         if r < self.r_crit :
@@ -241,32 +241,6 @@ class solve_TSC:
         fvelo_0 = np.frompyfunc(self.calc_velocity, 2, 3)
         self.frho = lambda r, th : frho_0(r, th).astype(np.float64)
         self.fvelo = lambda r, th : [v.astype(np.float64) for v in fvelo_0(r, th)]
-
-def plot_TSC_figs(cls):
-    figopt = {"logx":True, "logy" :True, "save":True, "leg":True, "show":False}
-
-    myp.plot([[r"$-V_{0}$", -cls.V_0], [r"$\alpha_{0}$", cls.al_0]], 'TSC_test_f0_out', x=cls.x,
-             xl=r'log y', yl=r'log $\rho$[$\Omega^2/2\pi G$]', xlim=[1e-3, 1e1], ylim=[1e-7, 1e7], **figopt)
-
-    m0 = 0.975
-    rho = (m0/2/cls.x**3)**0.5/2/cls.tau**2
-    # x = r/at = rOmg/a/tau = ksi/tau ==> ksi = x*tau
-    myp.plot([["Shu's 0th order sol.", cls.al_0/2/cls.tau**2], ["Unpertubed state", cls.f_rho0(cls.x*cls.tau)], ["Inner expansion-wave sol.", rho]],
-             'TSC_rho', x=cls.x, xl=r'log($y$)',yl=r'$\rho$ [$\Omega^2/(2\pi G)$]', ls=["-",":","--"], lw=[2,4,4], **figopt)
-
-    myp.plot([["rho", cls.rho_eq], ["M", cls.M_eq]], "TSC_fig1", x=cls.ksi_eq,
-             xl=r'r [a/$\Omega$]', yl=r'$\rho$ [$\Omega^2/2\pi G$]', xlim=[1e-2, 1e2], ylim=[1e-2, 1e6], **figopt)
-
-    myp.plot(0.25*(cls.x**2*cls.al_0*(cls.x-cls.V_0))**2, 'TSC_fig2', x=cls.x, xl=r'log y', yl=r'$(m_0/2)^2$', xlim=[1e-3, 1e1], ylim=[1e-1, 1e2], **figopt)
-
-    myp.plot([["alpha_0", cls.al_0], ["-alpha_Q", -cls.al_Q], ["alpha_M", cls.al_M]],
-              f"TSC_fig3", x=cls.x, xlim=[1e-3, 1e1], ylim=[3e-6, 1e7], **figopt)
-
-    myp.plot([["-V_0", -cls.V_0], ["V_M", cls.V_M]],
-              f"TSC_fig4a", x=cls.x, xlim=[1e-3, 1e1], ylim=[3e-4, 1e3], **figopt)
-
-    myp.plot([["V_Q", cls.V_Q], ["-V_Q", -cls.V_Q], ["-W_Q", -cls.W_Q]],
-              f"TSC_fig4b", x=cls.x, xlim=[1e-3, 1e1], ylim=[1e-8, 1e3], **figopt)
 
 if __name__=="__main__":
     sol = solve_TSC(tau=0.1)

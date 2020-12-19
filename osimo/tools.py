@@ -1,7 +1,7 @@
 import subprocess
 import os
 import numpy as np
-from pmodes import cst
+from osimo import nconst as nc
 
 import logging
 logger = logging.getLogger(__name__)
@@ -27,10 +27,10 @@ logger.setLevel(logging.DEBUG)
             # logger.debug(f"{k:20} is {str(v):20}")
 
 def freq_to_vkms_array(freq, freq0):
-    return cst.c/1e5* (freq0 - freq)/freq0
+    return nc.c/1e5* (freq0 - freq)/freq0
 
 def freq_to_vkms(freq0, dfreq):
-    return cst.c/1e5* dfreq/freq0
+    return nc.c/1e5* dfreq/freq0
 
 def make_array_center( xi ):
     return 0.5 * ( xi[0:-1] + xi[1:] )

@@ -1,6 +1,8 @@
 import numpy as np
 from header import dpath_radmc
-import cst
+import nconst as nc
+
+# this module will be merged into radmccontoroller
 
 class kappa:
     def __init__(self, kappa0_micron, beta):
@@ -22,8 +24,8 @@ class kappa:
         #print(f"{dpath_radmc}/dustkappa_kappa0{self.kappa0_micron:.0e}_beta{self.beta}.inp")
         np.savetxt(f"{dpath_radmc}/dustkappa_kappa0{self.kappa0_micron:.0e}_beta{self.beta}.inp", self.table, header=f"2\n{self.N_lam}\n", comments="")
 
-for k0 in [1e4, 1e3]:
+if __name__=="__main__":
+    for k0 in [1e4, 1e3]:
         for b in [0, -1, -2]:
             kappa(k0, b).save()
-
 

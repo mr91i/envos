@@ -5,9 +5,9 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 from scipy import interpolate, integrate
 #
-from pmodes.header import inp, dpath_radmc, dpath_fig
-import pmodes.myplot as mp
-from pmodes import cst, tools
+from osimo.header import inp, dpath_radmc, dpath_fig
+import myplot as mp
+from osimo import cst, tools
 
 #msg = tools.Message(__file__, debug=False)
 import logging
@@ -45,9 +45,9 @@ def plot_physical_model(D, r_lim=500, dpath_fig=dpath_fig):
     r_ew = D.cs * D.t
 
     pos0_list = [(r_ew, np.pi/180*80), (r_ew, np.pi/180*70), (r_ew, np.pi/180*60), (r_ew, np.pi/180*50)]
-    pos_list = [trace_particle_2d_meridional(D.r_ax, D.th_ax, D.ur[:,:,0], D.uth[:,:,0], (0.1*cst.yr, 1e7*cst.yr), pos0) for pos0 in pos0_list]
+    pos_list = [trace_particle_2d_meridional(D.r_ax, D.th_ax, D.ur[:,:,0], D.uth[:,:,0], (0.1*nc.yr, 1e7*nc.yr), pos0) for pos0 in pos0_list]
 
-    plmap = mp.Plotter(dpath_fig, x=R_mg.take(0, 2)/cst.au, y=z_mg.take(0, 2)/cst.au,
+    plmap = mp.Plotter(dpath_fig, x=R_mg.take(0, 2)/nc.au, y=z_mg.take(0, 2)/nc.au,
                        logx=False, logy=False, logcb=True, leg=False, square=True,
                        xl='Radius [au]', yl='Height [au]', xlim=[0, r_lim], ylim=[0, r_lim],
                        fn_wrapper=lambda s:'map_%s_%s'%(s, stamp),
@@ -57,12 +57,12 @@ def plot_physical_model(D, r_lim=500, dpath_fig=dpath_fig):
     print(D.rho)
     plmap.map(D.rho, 'rho', ctlim=[1e-20, 1e-16], cbl=r'log Density [g/cm$^{3}$]', div=10, n_sl=40, Vector=Vec, save=False)
     for pos in pos_list:
-        plmap.ax.plot(pos.R/cst.au, pos.z/cst.au, c="orangered", lw=1., marker="o")
+        plmap.ax.plot(pos.R/nc.au, pos.z/nc.au, c="orangered", lw=1., marker="o")
     plmap.save("rho_pt")
 
     plmap.map(D.rho, 'rho_L', ctlim=[1e-20, 1e-16], xlim=[0, 7000], ylim=[0, 7000], cbl=r'log Density [g/cm$^{3}$]', div=10, n_sl=40, Vector=Vec, save=False)
     for pos in pos_list:
-        plmap.ax.plot(pos.R/cst.au, pos.z/cst.au, c="orangered", lw=1., marker="o")
+        plmap.ax.plot(pos.R/nc.au, pos.z/nc.au, c="orangered", lw=1., marker="o")
     plmap.save("rho_L_pt")
 
     # Ratio between mu0 and mu : where these gas come from
@@ -71,9 +71,9 @@ def plot_physical_model(D, r_lim=500, dpath_fig=dpath_fig):
     plmap.map(D.rho*r_mg**2, 'rhor2', ctlim=[1e9, 1e14], cbl=r'log $\rho*r^2$ [g/cm]', div=10, n_sl=40)
 
     #from scipy.integrate import simps
-    #integrated_value = np.where(r_mg < 300 * cst.au  , D.rho*r_mg**2*np.sin(th_mg), 0)
+    #integrated_value = np.where(r_mg < 300 * nc.au  , D.rho*r_mg**2*np.sin(th_mg), 0)
     #Mtot = 2*np.pi*simps( simps(integrated_value[:,:,0],D.th_ax, axis=1), D.r_ax)
-    #print("Mtot is ", Mtot/cst.Msun)
+    #print("Mtot is ", Mtot/nc.Msun)
     #plmap.map(D.zeta, 'zeta', ctlim=[1e-2, 1e2], cbl=r'log $\zeta$ [g/cm$^{3}$]', div=6, n_sl=40)
 
 
@@ -85,7 +85,7 @@ def plot_physical_model(D, r_lim=500, dpath_fig=dpath_fig):
 
     Vec = np.array([ux.take(-1, 1), uy.take(-1, 1)])
 
-    plplane = mp.Plotter(dpath_fig, x=x_mg.take(-1, 1)/cst.au, y=y_mg.take(-1, 1)/cst.au,
+    plplane = mp.Plotter(dpath_fig, x=x_mg.take(-1, 1)/nc.au, y=y_mg.take(-1, 1)/nc.au,
                        logx=False, logy=False, leg=False, square=True,
                        xl='x [au]', yl='y [au] (observer →)',
                        #xlim=[-1000, 1000], ylim=[-1000, 1000],
@@ -106,23 +106,23 @@ def plot_physical_model(D, r_lim=500, dpath_fig=dpath_fig):
     rho0, uR0, uph0, rho_tot0 = slice_at_midplane(
         th_mg, D.rho, D.uR, D.uph, D.rho)
 
-    pl = mp.Plotter(dpath_fig, x=D.r_ax/cst.au, leg=True, xlim=[0, 5000], xl="Radius [au]")
+    pl = mp.Plotter(dpath_fig, x=D.r_ax/nc.au, leg=True, xlim=[0, 5000], xl="Radius [au]")
 
     # Density as a function of distance from the center
-    pl.plot([['nH2_env', rho0/cst.mn], ['nH2_disk', (rho_tot0-rho0)/cst.mn], ['nH2_tot', rho_tot0/cst.mn]],
+    pl.plot([['nH2_env', rho0/nc.mn], ['nH2_disk', (rho_tot0-rho0)/nc.mn], ['nH2_tot', rho_tot0/nc.mn]],
             'rhos_%s' % stamp, ylim=[1e3, 1e9],  xlim=[10, 10000],
             lw=[3, 3, 6], c=[None, None, 'k'], ls=['--', ':', '-'],
-            logxy=True, vl=[2*D.r_CB/cst.au])
+            logxy=True, vl=[2*D.r_CB/nc.au])
 
-    pl.plot(['nH2_env', rho0/cst.mn], #['nH2_disk', (rho_tot0-rho0)/cst.mn], ['nH2_tot', rho_tot0/cst.mn]],
+    pl.plot(['nH2_env', rho0/nc.mn], #['nH2_disk', (rho_tot0-rho0)/nc.mn], ['nH2_tot', rho_tot0/nc.mn]],
             'nenv_%s' % stamp, ylim=[1e3, 1e9],  xlim=[10, 10000],
-            lw=[3], logxy=True, vl=[2*D.r_CB/cst.au])
-    pl.plot(['nH2_env', rho0/cst.mn], #['nH2_disk', (rho_tot0-rho0)/cst.mn], ['nH2_tot', rho_tot0/cst.mn]],
+            lw=[3], logxy=True, vl=[2*D.r_CB/nc.au])
+    pl.plot(['nH2_env', rho0/nc.mn], #['nH2_disk', (rho_tot0-rho0)/nc.mn], ['nH2_tot', rho_tot0/nc.mn]],
             'nenv_%s_lin' % stamp, ylim=[1e3, 1e9],  xlim=[0, 500],
-            lw=[3], logy=True, vl=[2*D.r_CB/cst.au])
+            lw=[3], logy=True, vl=[2*D.r_CB/nc.au])
 
     # Make a 'balistic' orbit similar procedure to Oya+2014
-    pl.plot([['-uR', -uR0/cst.kms], ['uph', uph0/cst.kms]],
+    pl.plot([['-uR', -uR0/nc.kms], ['uph', uph0/nc.kms]],
             'v_%s' % stamp, ylim=[-1, 3], xlim=[0, 500], yl=r"Velocities [km s$^{-1}$]",
             lw=[2, 2, 4, 4], ls=['-', '-', '--', '--'])
     pl.plot([['-uR', -uR0/max(np.abs(uph0))], ['uph', uph0/max(np.abs(uph0))]],
@@ -135,6 +135,32 @@ def plot_physical_model(D, r_lim=500, dpath_fig=dpath_fig):
 
 
 ####################################################################################################
+
+def plot_TSC_figs(cls):
+    figopt = {"logx":True, "logy" :True, "save":True, "leg":True, "show":False}
+
+    myp.plot([[r"$-V_{0}$", -cls.V_0], [r"$\alpha_{0}$", cls.al_0]], 'TSC_test_f0_out', x=cls.x,
+             xl=r'log y', yl=r'log $\rho$[$\Omega^2/2\pi G$]', xlim=[1e-3, 1e1], ylim=[1e-7, 1e7], **figopt)
+
+    m0 = 0.975
+    rho = (m0/2/cls.x**3)**0.5/2/cls.tau**2
+    # x = r/at = rOmg/a/tau = ksi/tau ==> ksi = x*tau
+    myp.plot([["Shu's 0th order sol.", cls.al_0/2/cls.tau**2], ["Unpertubed state", cls.f_rho0(cls.x*cls.tau)], ["Inner expansion-wave sol.", rho]],
+             'TSC_rho', x=cls.x, xl=r'log($y$)',yl=r'$\rho$ [$\Omega^2/(2\pi G)$]', ls=["-",":","--"], lw=[2,4,4], **figopt)
+
+    myp.plot([["rho", cls.rho_eq], ["M", cls.M_eq]], "TSC_fig1", x=cls.ksi_eq,
+             xl=r'r [a/$\Omega$]', yl=r'$\rho$ [$\Omega^2/2\pi G$]', xlim=[1e-2, 1e2], ylim=[1e-2, 1e6], **figopt)
+
+    myp.plot(0.25*(cls.x**2*cls.al_0*(cls.x-cls.V_0))**2, 'TSC_fig2', x=cls.x, xl=r'log y', yl=r'$(m_0/2)^2$', xlim=[1e-3, 1e1], ylim=[1e-1, 1e2], **figopt)
+
+    myp.plot([["alpha_0", cls.al_0], ["-alpha_Q", -cls.al_Q], ["alpha_M", cls.al_M]],
+              f"TSC_fig3", x=cls.x, xlim=[1e-3, 1e1], ylim=[3e-6, 1e7], **figopt)
+
+    myp.plot([["-V_0", -cls.V_0], ["V_M", cls.V_M]],
+              f"TSC_fig4a", x=cls.x, xlim=[1e-3, 1e1], ylim=[3e-4, 1e3], **figopt)
+
+    myp.plot([["V_Q", cls.V_Q], ["-V_Q", -cls.V_Q], ["-W_Q", -cls.W_Q]],
+              f"TSC_fig4b", x=cls.x, xlim=[1e-3, 1e1], ylim=[1e-8, 1e3], **figopt)
 
 
 
@@ -200,20 +226,20 @@ def plot_radmc_data(rmc_data):
 
 #   if 1:
 #       pl2d.map(D.rho, 'rho_L', ctlim=[1e-20, 1e-16], xlim=[0, 5000], ylim=[0, 5000], cbl=r'log Density [g/cm$^{3}$]', div=10, n_sl=40, Vector=Vec, save=False)
-#       pl2d.ax.plot(rmc_data.pos_list[0].R/cst.au, rmc_data.pos_list[0].z/cst.au, c="orangered", lw=1.5, marker="o")
+#       pl2d.ax.plot(rmc_data.pos_list[0].R/nc.au, rmc_data.pos_list[0].z/nc.au, c="orangered", lw=1.5, marker="o")
 #       pl2d.save("rho_L_pt")
 
    if rmc_data.plot_tau:
-       pl1d = mp.Plotter(rmc_data.dpath_fig, x=rmc_data.imx/cst.au,
+       pl1d = mp.Plotter(rmc_data.dpath_fig, x=rmc_data.imx/nc.au,
                       logx=True, leg=False,
                       xl='Radius [au]', xlim=xlim,
                       fn_wrapper=lambda s:'rmc_%s_1d'%s)
 
-       pl2d = mp.Plotter(rmc_data.dpath_fig, x=rmc_data.imx/cst.au, y=rmc_data.imy/cst.au,
+       pl2d = mp.Plotter(rmc_data.dpath_fig, x=rmc_data.imx/nc.au, y=rmc_data.imy/nc.au,
                       logx=False, logy=False, logcb=True, leg=False,
                       xl='Radius [au]', yl='Height [au]', xlim=[-500/2, 500/2], ylim=[-500/2, 500/2],
                       fn_wrapper=lambda s:'rmc_%s_2d'%s, square=True)
-       plot_plofs(rmc_data.tau/cst.au, "tau", lim=[1e-2, 1000], lb=r"tau")
+       plot_plofs(rmc_data.tau/nc.au, "tau", lim=[1e-2, 1000], lb=r"tau")
 
 def vint(value_rt, R_rt, z_rt, R_ax, z_ax, log=False):
     points = np.stack((R_rt.flatten(), z_rt.flatten()),axis=-1)
@@ -239,7 +265,7 @@ def trace_particle_2d_meridional(r_ax, th_ax, vr, vth, t_span, pos0):
 
     def func(t, pos, hit_flag=0):
         if pos[0] > r_ax[-1]:
-            raise Exception(f"Too large position. r must be less than {r_ax[-1]/cst.au} au.")
+            raise Exception(f"Too large position. r must be less than {r_ax[-1]/nc.au} au.")
 
         if hit_midplane(t, pos) < 0:
             hit_flag = 1
@@ -254,7 +280,7 @@ def trace_particle_2d_meridional(r_ax, th_ax, vr, vth, t_span, pos0):
 
     t_trace = np.logspace(np.log10(t_span[0]), np.log10(t_span[-1]), 600)
     if pos0[0] > r_ax[-1]:
-        print(f"Too large position:r0 = {pos0[0]/cst.au} au. r0 must be less than {r_ax[-1]/cst.au} au. I use r0 = {r_ax[-1]/cst.au} au instead of r0 = {pos0[0]/cst.au} au")
+        print(f"Too large position:r0 = {pos0[0]/nc.au} au. r0 must be less than {r_ax[-1]/nc.au} au. I use r0 = {r_ax[-1]/nc.au} au instead of r0 = {pos0[0]/nc.au} au")
         pos0 = [r_ax[-1], pos0[1]]
 
     #pos = integrate.solve_ivp(func, t_span, pos0, method='BDF', events=hit_midplane, t_eval=t_trace[1:-1])
@@ -394,16 +420,16 @@ def plot_pvdiagram(PV, dpath_fig=dpath_fig, out='pvd', n_lv=5, Mstar_Msun=None, 
     pltr.ax2.set_xlabel("Angular Offset [arcsec]")
     pltr.ax2.set_xlim(np.array(pltr.ax.get_xlim())/dpc)
 
-    l = np.sqrt(cst.G*Mstar_Msun*cst.Msun*rCR_au*cst.au)
+    l = np.sqrt(nc.G*Mstar_Msun*nc.Msun*rCR_au*nc.au)
     a = (2*xau/rCR_au)
 
     overplot = {"KeplerRotation":False, "ire_fit":False, "LocalPeak_Pax": False, "LocalPeak_Vax":False, "LocalPeak_2D":False}
     overplot.update(oplot)
     if overplot['ire_fit']:
-        pltr.ax.plot(xau, 2*l/rCR_au*(2*xau.clip(0)/rCR_au)**(-2/3) * 1/cst.kms, c="hotpink", ls=":", lw=1)
+        pltr.ax.plot(xau, 2*l/rCR_au*(2*xau.clip(0)/rCR_au)**(-2/3) * 1/nc.kms, c="hotpink", ls=":", lw=1)
 
     if overplot['KeplerRotation']:
-        vKep = np.sqrt(cst.G*Mstar_Msun*cst.Msun/(xau*cst.au)) * 1/cst.kms
+        vKep = np.sqrt(nc.G*Mstar_Msun*nc.Msun/(xau*nc.au)) * 1/nc.kms
         pltr.ax.plot(xau, vKep, c="cyan", ls=":", lw=1)
 
     if overplot['LocalPeak_Pax']:
@@ -424,7 +450,7 @@ def plot_pvdiagram(PV, dpath_fig=dpath_fig, out='pvd', n_lv=5, Mstar_Msun=None, 
         del jM, iM
 
     def calc_M(xau, vkms, fac=1):
-        # calc xau*cst.au * (vkms*cst.kms)**2 / (cst.G*cst.Msun)
+        # calc xau*nc.au * (vkms*nc.kms)**2 / (nc.G*nc.Msun)
         return 0.001127 * xau * vkms**2 * fac
 
     if mass_ip:

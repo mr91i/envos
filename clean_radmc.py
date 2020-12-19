@@ -4,7 +4,7 @@ import glob
 import shutil
 
 DIR_BASE = os.path.dirname(os.path.abspath(__file__))
-DIR_SRC = DIR_BASE + "/pmodes"
+DIR_SRC = DIR_BASE + "/osimo"
 DIR_RADMC = DIR_BASE + "/radmc"
 
 def remove_glob_re(pattern, pathname, recursive=False, exclude=[]):

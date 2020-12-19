@@ -7,7 +7,7 @@ import re
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy import ndimage, optimize, interpolate
-import cst
+import nconst as nc
 
 #########################################################################
 plabel_PV1 = "CM_T30_CR31.7_M0.2_cav45_incl30"
@@ -207,9 +207,9 @@ def calc_Mass(pvd, threshold=0, f_crit=0.2, method="vpeak"):
             v_crit = [pvd.vkms[0]]
 
         x_crit = tools.find_roots(x_vmax, pvd.vkms, v_crit[0])
-        #M_CB = (abs(x_crit[0]) * cst.au * (v_crit[0]*cst.kms)**2 )/(np.sqrt(2)*cst.G*cst.Msun)
-        M_CB = (abs(x_crit[0]) * cst.au * (v_crit[0]*cst.kms)**2 )/(2*cst.G*cst.Msun)
-        #M_CR_vpeak = (abs(x_crit[0]) * cst.au * (v_crit[0]*cst.kms)**2 )/(np.sqrt(2)*cst.G*cst.Msun)
+        #M_CB = (abs(x_crit[0]) * nc.au * (v_crit[0]*nc.kms)**2 )/(np.sqrt(2)*nc.G*nc.Msun)
+        M_CB = (abs(x_crit[0]) * nc.au * (v_crit[0]*nc.kms)**2 )/(2*nc.G*nc.Msun)
+        #M_CR_vpeak = (abs(x_crit[0]) * nc.au * (v_crit[0]*nc.kms)**2 )/(np.sqrt(2)*nc.G*nc.Msun)
         if pvd.M == 0.2 and pvd.CR==200:
             print(x_crit, v_crit, M_CB)
         return M_CB
@@ -218,7 +218,7 @@ def calc_Mass(pvd, threshold=0, f_crit=0.2, method="vpeak"):
         jpeak, ipeak = peak_local_max( im[jmax//2:, imax//2:], num_peaks=1)[0]
         vkms_peak = pvd.vkms[jmax//2 + jpeak]
         xau_peak = pvd.xau[imax//2 + ipeak]
-        M_CR = (abs(xau_peak) * cst.au * (vkms_peak*cst.kms)**2 )/(cst.G*cst.Msun)
+        M_CR = (abs(xau_peak) * nc.au * (vkms_peak*nc.kms)**2 )/(nc.G*nc.Msun)
         return M_CR
 
 
