@@ -23,3 +23,4 @@ fig_*
 nohup.out
 
 */__pycache__
+run/
