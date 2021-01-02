@@ -35,12 +35,12 @@ def set_radmc_with_inp(inp):
 ####################################################################################################
 ## Class                                                                                           #
 ####################################################################################################
-class Molecule:
-    def __init__(self, name, abundance):
-        self.name = name
-        self.abun = abundance
-        self.mass = rmca.readMol(fname=f"{dpath_radmc}/molecule_{name}.inp")
-        self.region =
+#class Molecule:
+#    def __init__(self, name, abundance):
+#        self.name = name
+#        self.abun = abundance
+#        self.mass = rmca.readMol(fname=f"{dpath_radmc}/molecule_{name}.inp")
+#        self.region =
 
 class RadmcController:
     #def __init__(self, inp):
@@ -76,7 +76,7 @@ class RadmcController:
             raise Exception
 
     def set_parameters(self, nphoto=1e6, n_thread=1, scattering_mode_max=0, f_dg=0.01,
-        opac="silicate", Lstar=nc.Lsun, mfrac_H2=0.74, T_const=10, Rstar=nc.Rsun)
+        opac="silicate", Lstar=nc.Lsun, mfrac_H2=0.74, T_const=10, Rstar=nc.Rsun):
         for k,v in locals().__dict__.items():
             if k != "self":
                 setattr(self, k, v)
@@ -335,7 +335,7 @@ class Streamline:
         self.vunits.append(unit)
 
     def calc_streamline(self, pos0):
-       if pos0[0] > self.r_ax[-1]:
+        if pos0[0] > self.r_ax[-1]:
             looger.info(f'Too large position:r0 = {pos0[0]/nc.au} au. r0 must be less than {r_ax[-1]/nc.au} au. I use r0 = {r_ax[-1]/nc.au} au instead of r0 = {pos0[0]/nc.au} au')
             pos0 = [self.r_ax[-1], pos0[1]]
 

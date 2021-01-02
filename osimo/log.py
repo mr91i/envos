@@ -26,8 +26,8 @@ class MyFormatter(logging.Formatter):
         super().__init__(fmt="[%(filename)s] %(levelname)s: %(message)s", datefmt=None, style='%')
         self.dbg_fmt  = "[%(filename)s] Debug: %(message)s"
         self.info_fmt = "[%(filename)s] %(message)s"
-        self.warn_fmt = "\n[%(filename)s] Warning!: %(message)s\n"
-        self.err_fmt =  "\n[%(filename)s] Error!!: %(message)s\n"
+        self.warn_fmt = "[%(filename)s] Warning!: %(message)s"
+        self.err_fmt =  "[%(filename)s] Error!!: %(message)s"
 
         if color:
             self.dbg_fmt  = pycolor.GRAY + self.dbg_fmt + pycolor.END
@@ -61,7 +61,6 @@ def set_logger(name, logpath=None, ini=False):
     print("Setting logger with ",name)
     logger = logging.getLogger(name)
     if logger.hasHandlers():
-        print(vars(logger))
         return logger
 
     logger.setLevel(logging.DEBUG)
@@ -84,7 +83,6 @@ def set_logger(name, logpath=None, ini=False):
         if logpath is not None:
             print("Add FileHandler ", logpath)
             logger.addHandler(fil_hdlr)
-    print(vars(logger))
     return logger
 
 

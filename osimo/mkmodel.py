@@ -10,164 +10,165 @@ logger = log.set_logger(__name__, ini=True)
 
 ###############################################################################################
 ###############################################################################################
+#  """
+#  def build_with_inp(inp):
+#      global logger
+#      logger = log.set_logger(__name__)
+#      grid = Grid(inp.ri_ax, inp.ti_ax, inp.pi_ax)
+#      ppar = PhysicalParameters(T=inp.Tenv, CR_au=inp.CR_au, M_Msun=inp.M_Msun, t_yr=inp.t_yr,
+#                   Omega=inp.Omega, j0=inp.j0, Mdot_Msyr=inp.Mdot_Msyr, meanmolw=inp.meanmolw)
+#
+#      builder = KinematicModelBuilder()
+#      builder.set_grid(grid)
+#      builder.set_physpar(ppar)
+#      builder.build(inenv=inp.inenv, disk=inp.disk, outenv=inp.outenv)
+#      model = builder.get_model()
+#      return model
+#  """
+#
+#  '''
+#  class KinematicModelBuilder:
+#      def __init__(self):
+#          self.kmodel = ModelBase
+#          self.inenv = None
+#          self.outenv = None
+#          self.disk = None
+#
+#      def set_grid(self, Grid):
+#          self.grid = Grid
+#
+#      def set_ppar(self, PhysicalParameters):
+#          self.ppar = PhysicalParameters
+#
+#      def add_inenv(self, Inenv):
+#          self.inenv = Inenv
+#
+#      def add_outenv(self, Outenv):
+#          self.outenv = Outenv
+#
+#      def add_disk(self, Disk):
+#          self.disk = Disk
+#
+#      def make_model(self):
+#          region_index = np.zeros_like(self.rr)
+#          if self.disk is not None:
+#              region_index[ self.disk.rho > self.inenv.rho ] += 1
+#          if self.outenv is not None:
+#              region_index[ self.rr > self.outenv.rho ] += 10
+#          def _put_value_with_index(i, key):
+#              return {0:getattr(self.inenv, key), 1:getattr(self.disk, key), 10:getattr(self.outenv, key)}[i]
+#          put_value_with_index = np.frompyfunc( _put_value_with_index, 2, 1)
+#          self.kmodel.rho = put_value_with_index(region_index, "rho")
+#          self.kmodel.vr = put_value_with_index(region_index, "vr")
+#          self.kmodel.vt = put_value_with_index(region_index, "vt")
+#          self.kmodel.vp = put_value_with_index(region_index, "vp")
+#
+#      def build(self, grid=None, ppar=None, inenv="CM", disk="", outenv=""):
+#          ### Set grid
+#          if (self.grid is None) and (grid is None):
+#              raise Exception("grid is not set.")
+#          grid = grid if grid is not None else self.grid
+#
+#          ### Set ppar
+#          if (self.ppar is None) and (ppar is None):
+#              raise Exception("grid is not set.")
+#          ppar = self.ppar
+#
+#          ### Set models
+#          # Set inenv
+#          if not isinstance(inenv, str):
+#              self.add_inenv(inenv)
+#          elif inenv_model == "CM":
+#              cm = CassenMoosmanInnerEnvelope(grid, ppar.Mdot, ppar.CR, ppar.M)
+#              self.add_inenv(cm)
+#          elif inenv_model == "Simple":
+#              sb = SimpleBalisticInnerEnvelope(grid, ppar.Mdot, ppar.CR, ppar.M)
+#              self.add_inenv(sb)
+#          else:
+#              raise Exception("No Envelope.")
+#
+#          # Set outenv
+#          if self.grid.rc_ax[-1] > self.ppar.rinlim_tsc:
+#              if not isinstance(outenv, str):
+#                  self.add_outenv(inenv)
+#              if outenv_model == "TSC":
+#                  tsc = TerebeyOuterEnvelope(ppar.t, ppar.cs, ppar.Omega)
+#                  self.add_outenv(tsc)
+#
+#          # set disk
+#          if not isinstance(disk, str):
+#              self.add_outenv(disk)
+#          elif disk == "exptail":
+#              disk = ExptailDisk(grid, ppar.Ms, ppar.CR, Td=30, fracMd=0.1, meanmolw=2.3, index=-1.5)
+#              self.add_outenv(disk)
+#
+#          ### Make kmodel
+#          self.make_model()
+#
+#      def get_model(self):
+#          return self.kmodel
+#
+#      def save_model_pickle(self, save_path=None):
+#          save_path = save_path if save_path is not None else "./kmodel.pkl"
+#          os.mkedirs(os.path.dirname(os.path.abspath(save_path)), exist_ok=True)
+#          pd.to_pickle(self, save_path)
+#          logger.info(f'Saved : {save_path}\n')
+#  '''
 
-def build_with_inp(inp):
-    global logger
-    logger = log.set_logger(__name__)
-    grid = Grid(inp.ri_ax, inp.ti_ax, inp.pi_ax)
-    ppar = PhysicalParameters(T=inp.Tenv, CR_au=inp.CR_au, M_Msun=inp.M_Msun, t_yr=inp.t_yr,
-                 Omega=inp.Omega, j0=inp.j0, Mdot_Msyr=inp.Mdot_Msyr, meanmolw=inp.meanmolw)
 
-    builder = KinematicModelBuilder()
-    builder.set_grid(grid)
-    builder.set_physpar(ppar)
-    builder.build(inenv=inp.inenv, disk=inp.disk, outenv=inp.outenv)
-    model = builder.get_model()
-    return model
-
-
-class KinematicModelBuilder:
-    def __init__(self):
-        self.kmodel = ModelBase
+class KinematicModel:
+    def __init__(self, grid=None):
         self.inenv = None
         self.outenv = None
         self.disk = None
+        self.grid = grid
 
-    def set_grid(self, Grid):
-        self.grid = Grid
+    def set_grid(self, grid):
+        self.grid = grid
 
-    def set_ppar(self, PhysicalParameters):
-        self.ppar = PhysicalParameters
-
-    def add_inenv(self, Inenv):
-        self.inenv = Inenv
-
-    def add_outenv(self, Outenv):
-        self.outenv = Outenv
-
-    def add_disk(self, Disk):
-        self.disk = Disk
-
-    def make_model(self):
-        region_index = np.zeros_like(self.rr)
-        if self.disk is not None:
-            region_index[ self.disk.rho > self.inenv.rho ] += 1
-        if self.outenv is not None:
-            region_index[ self.rr > self.outenv.rho ] += 10
-        def _put_value_with_index(i, key):
-            return {0:getattr(self.inenv, key), 1:getattr(self.disk, key), 10:getattr(self.outenv, key)}[i]
-        put_value_with_index = np.frompyfunc( _put_value_with_index, 2, 1)
-        self.kmodel.rho = put_value_with_index(region_index, "rho")
-        self.kmodel.vr = put_value_with_index(region_index, "vr")
-        self.kmodel.vt = put_value_with_index(region_index, "vt")
-        self.kmodel.vp = put_value_with_index(region_index, "vp")
-
-    def build(self, grid=None, ppar=None, inenv="CM", disk="", outenv=""):
-        ### Set grid
-        if (self.grid is None) and (grid is None):
-            raise Exception("grid is not set.")
-        grid = grid if grid is not None else self.grid
-
-        ### Set ppar
-        if (self.ppar is None) and (ppar is None):
-            raise Exception("grid is not set.")
-        ppar = self.ppar
-
-        ### Set models
-        # Set inenv
-        if not isinstance(inenv, str):
-            self.add_inenv(inenv)
-        elif inenv_model == "CM":
-            cm = CassenMoosmanInnerEnvelope(grid, ppar.Mdot, ppar.CR, ppar.M)
-            self.add_inenv(cm)
-        elif inenv_model == "Simple":
-            sb = SimpleBalisticInnerEnvelope(grid, ppar.Mdot, ppar.CR, ppar.M)
-            self.add_inenv(sb)
-        else:
-            raise Exception("No Envelope.")
-
-        # Set outenv
-        if self.grid.rc_ax[-1] > self.ppar.rinlim_tsc:
-            if not isinstance(outenv, str):
-                self.add_outenv(inenv)
-            if outenv_model == "TSC":
-                tsc = TerebeyOuterEnvelope(ppar.t, ppar.cs, ppar.Omega)
-                self.add_outenv(tsc)
-        # set disk
-        if not isinstance(disk, str):
-            self.add_outenv(disk)
-        elif disk == "exptail":
-            disk = ExptailDisk(grid, ppar.Ms, ppar.CR, Td=30, fracMd=0.1, meanmolw=2.3, index=-1.5)
-            self.add_outenv(disk)
-
-        ### Make kmodel
-        self.make_model()
-
-    def get_model(self):
-        return self.kmodel
-
-    def save_model_pickle(self, save_path=None):
-        save_path = save_path if save_path is not None else "./kmodel.pkl"
-        os.mkedirs(os.path.dirname(os.path.abspath(save_path)), exist_ok=True)
-        pd.to_pickle(self, save_path)
-        logger.info(f'Saved : {save_path}\n')
-
-####################################################################################################
-
-class PhysicalParameters:
-    def __init__(self, T=None, CR_au=None, M_Msun=None, t_yr=None, Omega=None, j0=None, Mdot_Msyr=None, meanmolw=None):
-        self.Tenv = None
-        self.cs = None
-        self.Mdot = None
-        self.CR = None
-        self.Ms = None
-        self.t = None
-        self.Omega = None
-        self.maxangmom = None
-        self.meanmolw =  None
-
-        self.set_param_set(T, CR, Ms, t, Omega, j0, Mdot, meanmolw)
-        self.log_param_set()
-
-    #def set_param_set(self, T, CR_au, M_Msun, t_yr, Omega, j0, Mdot_Msyr, meanmolw):  # choose 3
-    def set_param_set(self, T, CR, Ms, t, Omega, j0, Mdot, meanmolw):  # choose 3
-        if sum((a is not None) for a in (T, CR_au, M_Msun, t_yr, Omega, j0, Mdot_Msyr)) != 3:
+    def set_physical_params(self, *, T=None, CR_au=None, M_Msun=None, t_yr=None,
+                            Omega=None, j0=None, Mdot_Msyr=None, meanmolw=2.3):
+        lst = (T, CR_au, M_Msun, t_yr, Omega, j0, Mdot_Msyr)
+        if sum(a is not None for a in lst) != 3:
             raise Exception("Too many given parameters.")
+
         m0 = 0.975
-        try:
-            if T is not None:
-                self.T = T
-                self.cs = np.sqrt(nc.kB*self.T/(self.meanmolw * nc.amu))
-                self.Mdot = cs**3 * m0 / nc.G
-            elif Mdot is not None:
-                self.Mdot = Mdot
-                self.T = (Mdot*nc.G/m0)**(2/3) * meanmolw * nc.amu / nc.kB
-                self.cs = np.sqrt(nc.kB*T/(meanmolw * nc.amu))
+        self.meanmolw=meanmolw
 
-            if Ms is not None:
-                self.Ms = Ms
-                self.t = M / Mdot
-            elif t is not None:
-                self.t = t
-                self.Ms = Mdot * t
+        if T is not None:
+            cs = np.sqrt(nc.kB*T/(meanmolw * nc.amu))
+            Mdot = cs**3 * m0 / nc.G
+        elif Mdot_Msyr is not None:
+            Mdot = Mdot_Msyr * nc.Msun / nc.year
+            T = (Mdot*nc.G/m0)**(2/3) * meanmolw * nc.amu / nc.kB
+            cs = np.sqrt(nc.kB*T/(meanmolw * nc.amu))
 
-            if CR is not None:
-                self.CR = CR
-                self.maxangmom = np.sqrt(CR * nc.G * self.Ms)
-                self.Omega = self.maxangmom / (0.5*self.cs*m0*self.t)**2
-            elif j0 is not None:
-                self.maxangmom = j0
-                self.CR = j0**2 / (nc.G * self.Ms)
-                self.Omega = j0 / (0.5*self.cs*m0*self.t)**2
-            elif Omega is not None:
-                self.Omega = Omega
-                self.maxangmom = (0.5*self.cs*m0*self.t)**2 * Omega
-                self.CR = self.maxangmom**2 / (nc.G * self.Ms)
-        except Exception as e:
-            raise Exception(e, "Something wrong in parameter equations.")
+        if M_Msun is not None:
+            M = M_Msun * nc.Msun
+            t = M / Mdot
+        elif t_yr is not None:
+            t = t_yr * nc.yr
+            M = Mdot * t
+
+        if CR_au is not None:
+            CR = CR_au * nc.au
+            maxangmom = np.sqrt(CR * nc.G * M)
+            Omega = maxangmom / (0.5*cs*m0*t)**2
+        elif j0 is not None:
+            maxangmom = j0
+            CR = j0**2 / (nc.G * M)
+            Omega = j0 / (0.5*cs*m0*t)**2
+        elif Omega is not None:
+            Omega = Omega
+            maxangmom = (0.5*cs*m0*t)**2 * Omega
+            CR = maxangmom**2 / (nc.G * M)
+
+        pars = {"T":T, "CR":CR, "M":M, "t":t, "Omega":Omega, "maxangmom":maxangmom, "Mdot":Mdot}
+        for k, v in pars.items():
+            setattr(self, k, v)
 
         rinlim_tsc = cs*Omega**2*t**3
-
+        self.log_param_set()
 
     def log_param_set(self):
         def logp(valname, unit_name, val, unit_val=1):
@@ -191,13 +192,182 @@ class PhysicalParameters:
         logp('rinlim_tsc', 'au', self.cs*Omega**2*t**3, nc.au)
         logp('rinlim_tsc', 'cs*t', Omega**2*t**2)
 
+    def make_model(self):
+        def _put_value_with_index(i, key):
+            return {0:getattr(self.inenv, key), 1:getattr(self.disk, key), 10:getattr(self.outenv, key)}[i]
+        put_value_with_index = np.frompyfunc(_put_value_with_index, 2, 1)
+
+        region_index = np.zeros_like(self.rr)
+        if self.disk is not None:
+            region_index[ self.disk.rho > self.inenv.rho ] += 1
+        if self.outenv is not None:
+            region_index[ self.rr > self.outenv.rho ] += 10
+        self.kmodel.rho = put_value_with_index(region_index, "rho")
+        self.kmodel.vr = put_value_with_index(region_index, "vr")
+        self.kmodel.vt = put_value_with_index(region_index, "vt")
+        self.kmodel.vp = put_value_with_index(region_index, "vp")
+
+    def build(self, grid=None, inenv="CM", disk="", outenv=""):
+        ### Set grid
+        if (self.grid is None) and (grid is None):
+            raise Exception("grid is not set.")
+        grid = grid if grid is not None else self.grid
+
+        ### Set ppar
+        #if (self.ppar is None) and (ppar is None):
+        #    raise Exception("grid is not set.")
+        #ppar = self.ppar
+
+        ### Set models
+        # Set inenv
+        if not isinstance(inenv, str):
+            self.inenv = inenv
+        elif inenv == "CM":
+            self.inenv = CassenMoosmanInnerEnvelope(grid, self.Mdot, self.CR, self.M)
+        elif inenv == "Simple":
+            self.inenv = SimpleBalisticInnerEnvelope(grid, self.Mdot, self.CR, self.M)
+        else:
+            raise Exception("No Envelope.")
+
+        # Set outenv
+        if self.grid.rc_ax[-1] > self.ppar.rinlim_tsc:
+            if not isinstance(outenv, str):
+                self.outenv = outenv
+            if outenv_model == "TSC":
+                self.outenv = TerebeyOuterEnvelope(self.t, self.cs, self.Omega)
+
+        # set disk
+        if not isinstance(disk, str):
+            self.disk = disk
+        elif disk == "exptail":
+            self.disk = ExptailDisk(grid, self.Ms, self.CR, Td=30, fracMd=0.1, meanmolw=self.meanmolw, index=-1.5)
+
+        ### Make kmodel
+        self.make_model()
+
+    def save_model_pickle(self, save_path=None):
+        if save_path is None:
+            save_path = "./kmodel.pkl"
+        dirpath = os.path.dirname(os.path.abspath(save_path))
+        os.mkedirs(dirpath, exist_ok=True)
+        pd.to_pickle(self, save_path)
+        logger.info(f'Saved : {save_path}\n')
+
+
+####################################################################################################
+#  '''
+#  class PhysicalParameters:
+#      def __init__(self, T=None, CR_au=None, M_Msun=None, t_yr=None, Omega=None, j0=None, Mdot_Msyr=None, meanmolw=None):
+#          self.Tenv = None
+#          self.cs = None
+#          self.Mdot = None
+#          self.CR = None
+#          self.Ms = None
+#          self.t = None
+#          self.Omega = None
+#          self.maxangmom = None
+#          self.meanmolw =  None
+#
+#          self.set_param_set(T, CR, Ms, t, Omega, j0, Mdot, meanmolw)
+#          self.log_param_set()
+#
+#      #def set_param_set(self, T, CR_au, M_Msun, t_yr, Omega, j0, Mdot_Msyr, meanmolw):  # choose 3
+#      def set_param_set(self, T, CR, Ms, t, Omega, j0, Mdot, meanmolw):  # choose 3
+#          if sum((a is not None) for a in (T, CR_au, M_Msun, t_yr, Omega, j0, Mdot_Msyr)) != 3:
+#              raise Exception("Too many given parameters.")
+#          m0 = 0.975
+#          try:
+#              if T is not None:
+#                  self.T = T
+#                  self.cs = np.sqrt(nc.kB*self.T/(self.meanmolw * nc.amu))
+#                  self.Mdot = cs**3 * m0 / nc.G
+#              elif Mdot is not None:
+#                  self.Mdot = Mdot
+#                  self.T = (Mdot*nc.G/m0)**(2/3) * meanmolw * nc.amu / nc.kB
+#                  self.cs = np.sqrt(nc.kB*T/(meanmolw * nc.amu))
+#
+#              if Ms is not None:
+#                  self.Ms = Ms
+#                  self.t = M / Mdot
+#              elif t is not None:
+#                  self.t = t
+#                  self.Ms = Mdot * t
+#
+#              if CR is not None:
+#                  self.CR = CR
+#                  self.maxangmom = np.sqrt(CR * nc.G * self.Ms)
+#                  self.Omega = self.maxangmom / (0.5*self.cs*m0*self.t)**2
+#              elif j0 is not None:
+#                  self.maxangmom = j0
+#                  self.CR = j0**2 / (nc.G * self.Ms)
+#                  self.Omega = j0 / (0.5*self.cs*m0*self.t)**2
+#              elif Omega is not None:
+#                  self.Omega = Omega
+#                  self.maxangmom = (0.5*self.cs*m0*self.t)**2 * Omega
+#                  self.CR = self.maxangmom**2 / (nc.G * self.Ms)
+#          except Exception as e:
+#              raise Exception(e, "Something wrong in parameter equations.")
+#
+#          rinlim_tsc = cs*Omega**2*t**3
+#
+#
+#      def log_param_set(self):
+#          def logp(valname, unit_name, val, unit_val=1):
+#              val = paramset[key]/unit_val
+#              logger.info(key.ljust(10)+f'is {val:10.2g} '+unit_name.ljust(10))
+#
+#          logger.info('Model Parameters:')
+#          logp("Tenv", 'K', self.T)
+#          logp("cs", 'km/s', self.cs, nc.kms)
+#          logp('t', 'yr', self.t, nc.yr)
+#          logp('Ms', 'Msun', self.Ms, nc.Msun)
+#          logp('Omega', 's^-1', self.Omega)
+#          logp('Mdot', "Msun/yr", self.Mdot, nc.Msun/nc.yr)
+#          logp('j0', 'au*km/s', self.maxangmom, nc.kms*nc.au)
+#          logp('j0', 'pc*km/s', self.maxangmom, nc.kms*nc.pc)
+#          logp('CR', "au", self.CR, nc.au)
+#          logp('CB', "au", self.CR/2, nc.au)
+#          logp('meanmolw', "", self.meanmolw)
+#          logp('cavangle', self.cavangle_deg, 'deg')
+#          logp('Omega*t', '', self.Omega*self.t)
+#          logp('rinlim_tsc', 'au', self.cs*Omega**2*t**3, nc.au)
+#          logp('rinlim_tsc', 'cs*t', Omega**2*t**2)
+#  '''
 ####################################################################################################
 
+#class GridBase:
+#
+#class UserdefinedGrid(GridBase):
+#    def __init__(self, ri_ax=None, ri_ax=None, pi_ax=None):
+#        self.ri_ax = ri_ax
+#        self.ti_ax = i_ax
+#        self.pi_ax = pi_ax
+#        self.set_params()
+
 class Grid:
-    def __init__(self, ri_ax, ti_ax, pi_ax):
-        self.ri_ax = ri_ax
-        self.ti_ax = ti_ax
-        self.pi_ax = pi_ax
+    def __init__(self, rau_lim=None, theta_lim=None, phi_lim=(0, 2*np.pi),
+                 axes=None, nr=60, ntheta=180, nphi=1,
+                 dr_to_r0=None, aspect=None, logr=True):
+        if axes is not None:
+            self.ri_ax = axes[0]
+            self.ti_ax = axes[1]
+            self.pi_ax = axes[2]
+        else:
+            if dr_to_r0 is not None:
+                nr = int(2.3/dr_to_r0 * np.log10(rau_lim[1]/rau_lim[0]) )
+            if aspect is not None:
+                ntheta = self._get_square_ntheta(rau_lim, nr, assratio=aspect)
+
+            if logr:
+                self.ri_ax = np.logspace(*np.log10(rau_lim), nr+1) * nc.au
+            else:
+                self.ri_ax = np.linspace(*rau_lim, nr+1) * nc.au
+            self.ti_ax = np.linspace(*theta_lim, ntheta+1)
+            self.pi_ax = np.linspace(*phi_lim, nphi+1)
+
+        self.set_params()
+
+    def set_params(self):
         self.rc_ax = 0.5*(self.ri_ax[0:-1] + self.ri_ax[1:])
         self.tc_ax = 0.5*(self.ti_ax[0:-1] + self.ti_ax[1:])
         self.pc_ax = 0.5*(self.pi_ax[0:-1] + self.pi_ax[1:])
@@ -206,6 +376,12 @@ class Grid:
         self.zz = self.rr * np.cos(self.tt)
         self.mm = np.round(np.cos(self.tt), 15)
         self.ss = np.where(self.mm == 1, 1e-100, np.sqrt(1-self.mm**2))
+
+    @staticmethod
+    def _get_square_ntheta(r_range, nr, assratio=1):
+        dlogr = np.log10(r_range[1]/r_range[0])/nr
+        dr_over_r = 10**dlogr -1
+        return int(round(0.5*np.pi/dr_over_r /assratio ))
 
 ####################################################################################################
 
@@ -254,7 +430,7 @@ class CassenMoosmanInnerEnvelope(ModelBase):
         self.rho = rho * self.cav_mask()
 
     def cav_mask(self):
-        return np.where(mu0 <= np.cos(np.radians(self.cavangle_deg))))
+        return np.where(mu0 <= np.cos(np.radians(self.cavangle_deg)))
 
     @staticmethod
     def _sol_with_cubic(m, zeta):
@@ -381,7 +557,8 @@ class ExptailDisk(Disk):
 ####################################################################################################
 ## Functions                                                                                       #
 ####################################################################################################
-
+def read_kinematic_model():
+    pass
 
 def read_model_pkl(read_path):
     return pd.read_pickle(read_path)

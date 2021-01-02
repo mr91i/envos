@@ -11,21 +11,20 @@ import os
 from osimo import log
 logger = log.set_logger(__name__, ini=True)
 
-def gen_input(**kwargs):
+def gen_input(log=False, **kwargs):
     ginp = GeneralInput()
     minp = ModelInput()
     rinp = RadmcInput()
     oinp = ObsInput()
 
-    ginp.set_params(**kwargs, log=False)
-    minp.set_params(**kwargs, log=False)
-    rinp.set_params(**kwargs, log=False)
-    oinp.set_params(**kwargs, log=False)
+    ginp.set_params(**kwargs, log=log)
+    minp.set_params(**kwargs, log=log)
+    rinp.set_params(**kwargs, log=log)
+    oinp.set_params(**kwargs, log=log)
 
     builder = InputBuilder(ginp, minp, rinp, oinp)
     inp = builder.build()
     return inp
-
 
 
 class InputBuilder:
@@ -67,49 +66,49 @@ class InputBuilder:
 
 class Input:
     def set_params(self, **kwargs):
-        for k, v in kwargw.items():
+        for k, v in kwargs.items():
             if hasattr(self, k):
                 setattr(self, k, v)
-            else:
-                logger.warning(f"Setting: {self.__name__} does not have {k} and so skipped to set it.")
+            #else:
+            #     logger.debug(f"Setting: {self.__class__.__name__} does not have {k} and so skipped to set it.")
 
     def add_params(self, **kwargs):
-        for k, v in kwargw.items():
+        for k, v in kwargs.items():
             if hasattr(self, k):
-                logger.warning(f"Adding: {self.__name__} have already had {k} and so skipped to set it.")
+                logger.warning(f"Adding: {self.__class__.__name__} have already had {k} and so skipped to set it.")
             else:
                 setattr(self, k, v)
 
     def combine_input(self, inputclass):
-        for k, v in inputclass.items():
+        for k, v in inputclass.__dict__.items():
             if hasattr(self, k):
-                logger.warning(f"Combining: {self.__name__} have already had {k}. Please note that.")
+                logger.warning(f"Combining: {self.__class__.__name__} have already had {k}. Please note that.")
             setattr(self, k, v)
 
     def update_common_variable(self, inputclass):
-        for k, v in inputclass.items():
+        for k, v in inputclass.__dict__.items():
             if hasattr(self, k):
                 setattr(self, k, v)
-                logger.info(f"Common-update: {k} in {self.__name__} is updated to {k} in {inputclass.__name__}.")
+                logger.info(f"Common-update: {k} in {self.__class__.__name__} is updated to {k} in {inputclass.__class__.__name__}.")
 
     def show_all_input_parameters(self):
-        print(vars(logger))
         for  k, v in self.__dict__.items():
-            logger.info(f"{k} input parameters:")
-            for kk, vv in v.__dict__.items():
-                if np.isscalar(vv):
-                    logger.info(f"{kk: <20} = {vv: <10}")
-                elif vv is None:
-                    logger.info(f"{kk: <20} = None ")
-                elif hasattr(vv, "__len__"):
-                    logger.info(f"{kk: <20} = [{vv[0]:.3g}:{vv[-1]:.3g}]")
-                else:
-                    pass
-            else:
-                logger.info("")
+            #logger.info(f"{k} input parameters:")
+            #for kk, vv in v.items():
+           if np.isscalar(v):
+               logger.info(f"{k: <20} = {v: <10}")
+           elif v is None:
+               logger.info(f"{k: <20} = None ")
+           elif hasattr(v, "__len__"):
+               logger.info(f"{k: <20} = [{v[0]:.3g}:{v[-1]:.3g}]")
+           else:
+               pass
+        else:
+           logger.info("")
+
+home_dir = os.path.normpath(os.path.join(os.path.dirname(__file__), '..'))
 
 class GeneralInput(Input):
-    home_dir = os.path.normpath(os.path.join(os.path.dirname(__file__), '..'))
     def __init__(self,
                  object_name="model",
                  debug=False,
@@ -130,9 +129,9 @@ class GeneralInput(Input):
         self.n_thread = n_thread
         self.kmodel_pkl =  kmodel_pkl
         self.dpath_run = os.path.abspath(dpath_run)
-        self.dpath_radmc = dpath_radmc if dpath_radmc is not None
+        self.dpath_radmc = dpath_radmc if dpath_radmc is not None\
                            else os.path.abspath(os.path.join(dpath_run, dname_radmc))
-        self.dpath_radmc_storage = dpath_radmc_storage if dpath_radmc_storage is not None
+        self.dpath_radmc_storage = dpath_radmc_storage if dpath_radmc_storage is not None\
                                   else os.path.abspath(os.path.join(home_dir, dname_radmc_storage))
         self.fpath_log = os.path.join(self.dpath_run, logname)
         logger = log.set_logger(__name__, self.fpath_log)
@@ -182,7 +181,7 @@ class RadmcInput(Input):
         self.f_dg = 0.01
         self.temp_mode = "mctherm"
         self.nphot = 1000000
-        self.mean_mol_weight =
+        self.mean_mol_weight = 2.3
         self.opac = "silicate"
         self.scattering_mode_max = 0
         self.T_const = None

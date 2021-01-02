@@ -11,51 +11,56 @@
 #p = importlib.import_module('plot_example')
 
 import numpy as np
-from osimo.inp import InputSet
-from osimo.mkmodel import KinematicModel
+from osimo.inp import gen_input
+# from osimo.mkmodel import KinematicModel
+from osimo import mkmodel
 from osimo.setradmc import RadmcController
 from osimo.sobs import ObsSimulator
 
-object_name   = "L1527"
-r_lim_au      = [1, 10000]
-theta_lim_rad = [0, np.pi/2]
-dr_au_100     = 20
-CR_au         = 130
-M_Msun        = 0.2
-Mdot_Msyr     = 4.5e-6
-cavangle_deg  = 85
-Lstar_Lsun    = 2.75
-f_dg          = 0.01
-opac_filename = "MRN20"
-mol_abun      = 1e-17
-mol_name      = "c18o"
-mol_iline     = 3
-dpc           = 140
-incl_deg      = 85     # angle between direction to us , 0: face-on
-sizex_au      = 100
-sizey_au      = 100
-pixsize_au    = 10    # def: 0.08pc = 11au
-vwidth_kms    = 6     # def : 3
-dv_kms        = 0.04  # def : 0.08 km/s
-beam_maj_asec = 0.7    # FWHM of beam, beam size
-beam_min_asec = 0.7
-beam_pa_deg   = 0.0    # -41
-v_reso_kms    = 0.1
-
+inp = gen_input(object_name   = "L1527",
+                r_lim_au      = [1, 10000],
+                theta_lim_rad = [0, np.pi/2],
+                dr_au_100     = 20,
+                CR_au         = 130,
+                M_Msun        = 0.2,
+                Mdot_Msyr     = 4.5e-6,
+                cavangle_deg  = 85,
+                Lstar_Lsun    = 2.75,
+                f_dg          = 0.01,
+                opac_filename = "MRN20",
+                mol_abun      = 1e-17,
+                mol_name      = "c18o",
+                mol_iline     = 3,
+                dpc           = 140,
+                incl_deg      = 85,   # angle between direction to us , 0: face-on
+                sizex_au      = 100,
+                sizey_au      = 100,
+                pixsize_au    = 10,    # def: 0.08pc = 11au
+                vwidth_kms    = 6,     # def : 3
+                dv_kms        = 0.04,  # def : 0.08 km/s
+                beam_maj_asec = 0.7,    # FWHM of beam, beam size
+                beam_min_asec = 0.7,
+                beam_pa_deg   = 0.0,    # -41
+                v_reso_kms    = 0.1,
+                log=True
+               )
 ##############################################
-inp = InputSet(object_name, debug=True, omp=True, n_thread=12) # oreyou
-inp.set_log_square_grid_2d(r_lim_au[0], r_lim_au[1], theta_lim_rad[0], theta_lim_rad[1], dr_au_100=dr_au_100)
-inp.set_model_params(cavangle_deg=cavangle_deg, CR_au=CR_au, M_Msun=M_Msun, Mdot_Msyr=Mdot_Msyr,
-                     ccw_rotation=True, add_outenv=False, add_disk=False)
 
-inp.set_radmc(Lstar_Lsun=Lstar_Lsun, f_dg=f_dg, opac_filename=opac_filename)
-inp.set_molecule(mol_abun, mol_name, mol_iline, mol_rlim_au=1000)
+#inp = InputSet(object_name, debug=True, omp=True, n_thread=12) # oreyou
+#inp.set_log_square_grid_2d(r_lim_au[0], r_lim_au[1], theta_lim_rad[0], theta_lim_rad[1], dr_au_100=dr_au_100)
+#inp.set_model_params(cavangle_deg=cavangle_deg, CR_au=CR_au, M_Msun=M_Msun, Mdot_Msyr=Mdot_Msyr,
+#                     ccw_rotation=True, add_outenv=False, add_disk=False)
+#
+#inp.set_radmc(Lstar_Lsun=Lstar_Lsun, f_dg=f_dg, opac_filename=opac_filename)
+#inp.set_molecule(mol_abun, mol_name, mol_iline, mol_rlim_au=1000)
+#
+#inp.set_view(dpc=dpc, incl_deg=incl_deg)
+#inp.set_observation_grid(sizex_au, sizey_au, pixsize_au, vwidth_kms, dv_kms)
+#inp.set_convolution_info(beam_maj_asec, beam_min_asec, beam_pa_deg, v_reso_kms)
+#
+#inp.show_all_input_parameters()
 
-inp.set_view(dpc=dpc, incl_deg=incl_deg)
-inp.set_observation_grid(sizex_au, sizey_au, pixsize_au, vwidth_kms, dv_kms)
-inp.set_convolution_info(beam_maj_asec, beam_min_asec, beam_pa_deg, v_reso_kms)
-
-inp.show_all_input_parameters()
+km =  mkmodel.build_with_inp(inp)
 
 ###############################################
 km = KinematicModel(inp=inp.mod)
