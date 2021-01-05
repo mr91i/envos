@@ -11,7 +11,10 @@ import radmc3dPy.data as rmcd
 from scipy import interpolate, integrate
 from osimo import tools, log
 from osimo import nconst as nc
+from osimo import config
 logger = log.set_logger(__name__, ini=True)
+
+
 
 ####################################################################################################
 ## Wrapper                                                                                         #
@@ -27,7 +30,7 @@ def set_radmc_with_inp(inp):
     logger = log.set_logger(__name__, inp.fpath_log)
     rc = RadmcController()
     rc.set_radmc_dir(inp.dpath_eadmc)
-    rc.set_KinematicModel(inp.kmodel_pkl)
+    rc.set_model(inp.kmodel_pkl)
     rc.set_radmc_input()
     TKmodel = rc.get_model()
     return TKmodel
@@ -44,10 +47,12 @@ def set_radmc_with_inp(inp):
 
 class RadmcController:
     #def __init__(self, inp):
-    def __init__(self, dpath_radmc, dpath_radmc_storage):
-        self.dpath_radmc = dpath_radmc
-        self.dpath_radmc_storage = dpath_radmc_storage
-        self.kmo = None
+    def __init__(self, model=None, dpath_run=None, dpath_radmc=None, dpath_storage=None):
+        self.dpath_run = dpath_run or config.dp_run # global?
+        self.dpath_radmc = dpath_radmc or config.dp_radmc # local
+        self.dpath_storage = dpath_storage or config.dp_storage # local
+
+        self.model = None
         self.nphot = None
         self.n_thread = None
         self.scattering_mode_max = None
@@ -60,48 +65,60 @@ class RadmcController:
         self.T_const = None
         self.Rstar = None
 
-    def set_radmc_dir(self, dpath):
-        self.dpath_radmc = dpath
-        if os.path.isdir(dpath):
-            logger.info(f"Already exist {self.dpath_radmc}. Reuse this directory.")
-        else:
-            os.makedirs(dpath, exist_ok=True)
+        if model is not None:
+            self.set_model(model)
 
-    def set_KinematicModel(self, kmodel):
-        if isinstance(kmodel, str) and os.path.isfile(kmodel):
-            self.kmo = pd.read_pickle(self.kmodel_pkl)
-        if Kmodel is not None:
-            self.kmo = kmodel
+    def set_dir(self, radmc=None, run=None, storage=None):
+        if radmc is not None:
+            self.dpath_radmc = radmc
+            os.makedirs(radmc, exist_ok=True)
+        if run is not None:
+            self.dpath_run = run
+            os.makedirs(run, exist_ok=True)
+        if storage is not None:
+            self.dpath_storage = storage
+            os.makedirs(storage, exist_ok=True)
+
+
+    def set_model(self, model):
+        if isinstance(model, str) and os.path.isfile(model):
+            self.model = pd.read_pickle(self.model_pkl)
+        if model is not None:
+            self.model = model
         else:
             raise Exception
 
-    def set_parameters(self, nphoto=1e6, n_thread=1, scattering_mode_max=0, f_dg=0.01,
-        opac="silicate", Lstar=nc.Lsun, mfrac_H2=0.74, T_const=10, Rstar=nc.Rsun):
-        for k,v in locals().__dict__.items():
-            if k != "self":
-                setattr(self, k, v)
+    def set_parameters(self, nphoto=1e6, n_thread=1, scattering_mode_max=0,
+        f_dg=0.01, opac="silicate", Lstar_Lsun=1, mfrac_H2=0.74, T_const=10,
+        Rstar_Rsun=1, temp_mode="mctherm", molname=None, molabun=None, iline=None,
+        mol_rlim=1000):
 
-    def set_line(self, molname, molabun, iline):
-        self.calc_line = True
-        self.mol_name = molname
-        self.mol_abun = molabun
-        self.mol_iline = iline
+        args = locals()
+        args.pop("self")
+        for k,v in args.items():
+            setattr(self, k, v)
+
+#    def set_line(self, molname, molabun, iline):
+#        self.calc_line = True
+#        self.mol_name = molname
+#        self.mol_abun = molabun
+#        self.mol_iline = iline
 
     def set_radmc_input(self):
         cwd = os.getcwd()
         os.chdir(self.dpath_radmc)
 
-        kmo = self.kmo
-        rc, tc, pc = kmo.rc_ax, kmo.tc_ax, kmo.pc_ax
-        ri, ti, pi = kmo.ri_ax, kmo.ti_ax, kmo.pi_ax
+        md = self.model
+        rc, tc, pc = md.rc_ax, md.tc_ax, md.pc_ax
+        ri, ti, pi = md.ri_ax, md.ti_ax, md.pi_ax
         rr, tt, pp = np.meshgrid(rc, tc, pc, indexing='ij')
         Nr, Nt, Np = rc.size, tc.size, pc.size
         ntot = rr.size
-        rhog, vr, vt, vp = kmo.rho, kmo.vr, kmo.vt, kmo.vp
+        rhog, vr, vt, vp = md.rho, md.vr, md.vt, md.vp
         if np.max(rhog) == 0:
             raise Exception('Zero density')
         rhod = rhog * self.f_dg
-        n_mol = rhog / (2*nc.amu/self.mfrac_H2) * self.mol_abun
+        n_mol = rhog / (2*nc.amu/self.mfrac_H2) * self.molabun
         n_mol = np.where(rr < self.mol_rlim, n_mol, 0)
 
         lam1, lam2, lam3, lam4 = 0.1, 7, 25, 1e4
@@ -111,7 +128,7 @@ class RadmcController:
         lam34 = np.logspace(np.log10(lam3), np.log10(lam4), n34, endpoint=True)
         lam = np.concatenate([lam12, lam23, lam34])
         nlam = lam.size
-        Tstar = (self.Rstar/nc.Rsun)**(-0.5) * (self.Lstar/nc.Lsun)**0.25 * nc.Tsun
+        Tstar = (self.Rstar_Rsun)**(-0.5) * (self.Lstar_Lsun)**0.25 * nc.Tsun
 
         ## Setting Radmc Parameters Below
         def join_list(l, sep='\n'):
@@ -149,14 +166,14 @@ class RadmcController:
 
         if self.calc_line:
             # set molcular number density
-            save_file(f'numberdens_{self.mol_name}.inp',
+            save_file(f'numberdens_{self.molname}.inp',
                       ['1', f'{ntot:d}',
                        join_list(n_mol.ravel(order='F')) ])
             # set_mol_lines
-            self._copy_from_storage(f"molecule_{self.mol_name}.inp")
+            self._copy_from_storage(f"molecule_{self.molname}.inp")
             save_file('lines.inp',
                       ['2', '1', # number of molecules
-                        f'{self.mol_name}  leiden 0 0 0']) # molname1 inpstyle1 iduma1 idumb1 ncol1
+                        f'{self.molname}  leiden 0 0 0']) # molname1 inpstyle1 iduma1 idumb1 ncol1
             # set_gas_velocity
             save_file('gas_velocity.inp',
                       ['1', f'{ntot:d}',
@@ -230,7 +247,7 @@ class RadmcController:
         return self.data
 
     def get_model(self):
-        return ThermalKinematicModel(dpath_radmc=self.dpath_radmc, ispec=self.mol_name, f_dg=self.f_dg)
+        return ThermalKinematicModel(dpath_radmc=self.dpath_radmc, ispec=self.molname, f_dg=self.f_dg)
 
 class ThermalKinematicModel:
     def __init__(self, dpath_radmc=None, ispec=None, f_dg=None, tgas_eq_tdust=True):

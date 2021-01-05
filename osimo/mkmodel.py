@@ -115,25 +115,97 @@ logger = log.set_logger(__name__, ini=True)
 #          logger.info(f'Saved : {save_path}\n')
 #  '''
 
+class ModelBase:
+    def maskfunc(self, model):
+        return np.full_like(self.rr, True)
 
-class KinematicModel:
+    def read_grid(self, grid):
+        for k, v in grid.__dict__.items():
+            setattr(self, k, v)
+
+    def set_cylindrical_velocity(self):
+        self.vR = self.vr * self.ss + self.vt * self.mm
+        self.vz = self.vr * self.mm - self.vt * self.ss
+
+    def check_include_nan(self):
+        if np.isnan([self.rho, self.vr, self.vt, self.vp, self.zeta, self.mu0]).any():
+            raise Exception("Bad values.", self.rho, self.vr, self.vt, self.vp, self.zeta, self.mu0)
+
+class NullModel(ModelBase):
+    def __init__(self, grid):
+        self.read_grid(grid)
+        self.rho = np.zeros_like(self.rr)
+        self.vr = np.zeros_like(self.rr)
+        self.vt = np.zeros_like(self.rr)
+        self.vp = np.zeros_like(self.rr)
+
+class Grid:
+    def __init__(self, rau_lim=None, theta_lim=None, phi_lim=(0, 2*np.pi),
+                 axes=None, nr=60, ntheta=180, nphi=1,
+                 dr_to_r0=None, aspect=None, logr=True):
+        if axes is not None:
+            self.ri_ax = axes[0]
+            self.ti_ax = axes[1]
+            self.pi_ax = axes[2]
+        else:
+            if dr_to_r0 is not None:
+                nr = int(2.3/dr_to_r0 * np.log10(rau_lim[1]/rau_lim[0]) )
+            if aspect is not None:
+                ntheta = self._get_square_ntheta(rau_lim, nr, assratio=aspect)
+
+            if logr:
+                self.ri_ax = np.logspace(*np.log10(rau_lim), nr+1) * nc.au
+            else:
+                self.ri_ax = np.linspace(*rau_lim, nr+1) * nc.au
+            self.ti_ax = np.linspace(*theta_lim, ntheta+1)
+            self.pi_ax = np.linspace(*phi_lim, nphi+1)
+
+        self.set_params()
+
+    def set_params(self):
+        self.rc_ax = 0.5*(self.ri_ax[0:-1] + self.ri_ax[1:])
+        self.tc_ax = 0.5*(self.ti_ax[0:-1] + self.ti_ax[1:])
+        self.pc_ax = 0.5*(self.pi_ax[0:-1] + self.pi_ax[1:])
+        self.rr, self.tt, self.pp = np.meshgrid(self.rc_ax, self.tc_ax, self.pc_ax, indexing='ij')
+        self.RR = self.rr * np.sin(self.tt)
+        self.zz = self.rr * np.cos(self.tt)
+        self.mm = np.round(np.cos(self.tt), 15)
+        self.ss = np.where(self.mm == 1, 1e-100, np.sqrt(1-self.mm**2))
+
+    @staticmethod
+    def _get_square_ntheta(r_range, nr, assratio=1):
+        dlogr = np.log10(r_range[1]/r_range[0])/nr
+        dr_over_r = 10**dlogr -1
+        return int(round(0.5*np.pi/dr_over_r /assratio ))
+
+class KinematicModel(ModelBase):
     def __init__(self, grid=None):
         self.inenv = None
         self.outenv = None
         self.disk = None
         self.grid = grid
 
-    def set_grid(self, grid):
-        self.grid = grid
+    def set_grid(self, grid=None, rau_lim=None, theta_lim=None,
+                 phi_lim=(0, 2*np.pi), axes=None, nr=60, ntheta=180, nphi=1,
+                 dr_to_r0=None, aspect=None, logr=True):
+        if grid is not None:
+            self.grid = grid
+        else:
+            args = ["rau_lim", "theta_lim", "phi_lim", "axes", "nr",
+                    "ntheta", "nphi", "dr_to_r0", "aspect", "logr"]
+            loc = locals()
+            self.grid = Grid(**dict((a, loc[a]) for a in args))
+        self.read_grid(self.grid)
 
     def set_physical_params(self, *, T=None, CR_au=None, M_Msun=None, t_yr=None,
-                            Omega=None, j0=None, Mdot_Msyr=None, meanmolw=2.3):
+                            Omega=None, j0=None, Mdot_Msyr=None, meanmolw=2.3, cavangle_deg=0):
         lst = (T, CR_au, M_Msun, t_yr, Omega, j0, Mdot_Msyr)
         if sum(a is not None for a in lst) != 3:
             raise Exception("Too many given parameters.")
 
         m0 = 0.975
-        self.meanmolw=meanmolw
+        self.meanmolw = meanmolw
+        self.cavangle_deg = cavangle_deg
 
         if T is not None:
             cs = np.sqrt(nc.kB*T/(meanmolw * nc.amu))
@@ -163,60 +235,38 @@ class KinematicModel:
             maxangmom = (0.5*cs*m0*t)**2 * Omega
             CR = maxangmom**2 / (nc.G * M)
 
-        pars = {"T":T, "CR":CR, "M":M, "t":t, "Omega":Omega, "maxangmom":maxangmom, "Mdot":Mdot}
-        for k, v in pars.items():
-            setattr(self, k, v)
+        for k in ("T", "cs", "CR", "M", "t", "Omega", "maxangmom", "Mdot"):
+            setattr(self, k, locals()[k])
 
-        rinlim_tsc = cs*Omega**2*t**3
-        self.log_param_set()
-
-    def log_param_set(self):
-        def logp(valname, unit_name, val, unit_val=1):
-            val = paramset[key]/unit_val
-            logger.info(key.ljust(10)+f'is {val:10.2g} '+unit_name.ljust(10))
+        self.rinlim_tsc = cs*Omega**2*t**3
 
         logger.info('Model Parameters:')
-        logp("Tenv", 'K', self.T)
-        logp("cs", 'km/s', self.cs, nc.kms)
-        logp('t', 'yr', self.t, nc.yr)
-        logp('Ms', 'Msun', self.Ms, nc.Msun)
-        logp('Omega', 's^-1', self.Omega)
-        logp('Mdot', "Msun/yr", self.Mdot, nc.Msun/nc.yr)
-        logp('j0', 'au*km/s', self.maxangmom, nc.kms*nc.au)
-        logp('j0', 'pc*km/s', self.maxangmom, nc.kms*nc.pc)
-        logp('CR', "au", self.CR, nc.au)
-        logp('CB', "au", self.CR/2, nc.au)
-        logp('meanmolw', "", self.meanmolw)
-        logp('cavangle', self.cavangle_deg, 'deg')
-        logp('Omega*t', '', self.Omega*self.t)
-        logp('rinlim_tsc', 'au', self.cs*Omega**2*t**3, nc.au)
-        logp('rinlim_tsc', 'cs*t', Omega**2*t**2)
+        self._logp("Tenv", 'K', T)
+        self._logp("cs", 'km/s', cs, nc.kms)
+        self._logp('t', 'yr', t, nc.yr)
+        self._logp('Ms', 'Msun', M, nc.Msun)
+        self._logp('Omega', 's^-1', Omega)
+        self._logp('Mdot', "Msun/yr", Mdot, nc.Msun/nc.yr)
+        self._logp('j0', 'au*km/s', maxangmom, nc.kms*nc.au)
+        self._logp('j0', 'pc*km/s', maxangmom, nc.kms*nc.pc)
+        self._logp('CR', "au", CR, nc.au)
+        self._logp('CB', "au", CR/2, nc.au)
+        self._logp('meanmolw', "", meanmolw)
+        self._logp('cavangle', "deg", cavangle_deg)
+        self._logp('Omega*t', '', Omega*t)
+        self._logp('rinlim_tsc', 'au', cs*Omega**2*t**3, nc.au)
+        self._logp('rinlim_tsc', 'cs*t', Omega**2*t**2)
 
-    def make_model(self):
-        def _put_value_with_index(i, key):
-            return {0:getattr(self.inenv, key), 1:getattr(self.disk, key), 10:getattr(self.outenv, key)}[i]
-        put_value_with_index = np.frompyfunc(_put_value_with_index, 2, 1)
+    @staticmethod
+    def _logp(valname, unitname, val, unitval=1):
+        logger.info(valname.ljust(10)+f'is {val/unitval:10.2g} '+unitname.ljust(10))
 
-        region_index = np.zeros_like(self.rr)
-        if self.disk is not None:
-            region_index[ self.disk.rho > self.inenv.rho ] += 1
-        if self.outenv is not None:
-            region_index[ self.rr > self.outenv.rho ] += 10
-        self.kmodel.rho = put_value_with_index(region_index, "rho")
-        self.kmodel.vr = put_value_with_index(region_index, "vr")
-        self.kmodel.vt = put_value_with_index(region_index, "vt")
-        self.kmodel.vp = put_value_with_index(region_index, "vp")
 
     def build(self, grid=None, inenv="CM", disk="", outenv=""):
         ### Set grid
         if (self.grid is None) and (grid is None):
             raise Exception("grid is not set.")
-        grid = grid if grid is not None else self.grid
-
-        ### Set ppar
-        #if (self.ppar is None) and (ppar is None):
-        #    raise Exception("grid is not set.")
-        #ppar = self.ppar
+        grid = grid or self.grid
 
         ### Set models
         # Set inenv
@@ -230,20 +280,37 @@ class KinematicModel:
             raise Exception("No Envelope.")
 
         # Set outenv
-        if self.grid.rc_ax[-1] > self.ppar.rinlim_tsc:
-            if not isinstance(outenv, str):
+        if self.grid.rc_ax[-1] > self.rinlim_tsc:
+            if hasattr(outenv, "rho"):
                 self.outenv = outenv
-            if outenv_model == "TSC":
-                self.outenv = TerebeyOuterEnvelope(self.t, self.cs, self.Omega)
+            elif outenv == "TSC":
+                self.outenv = TerebeyOuterEnvelope(grid, self.t, self.cs, self.Omega)
+            elif outenv is not None:
+                 raise Exception("Unknown outenv type")
 
-        # set disk
-        if not isinstance(disk, str):
+        # Set disk
+        if hasattr(self, "rho"):
             self.disk = disk
         elif disk == "exptail":
             self.disk = ExptailDisk(grid, self.Ms, self.CR, Td=30, fracMd=0.1, meanmolw=self.meanmolw, index=-1.5)
+        elif disk is not None:
+            raise Exception("Unknown disk type")
 
         ### Make kmodel
-        self.make_model()
+        conds = [np.ones_like(self.rr, dtype=bool)]
+        regs = [self.inenv]
+        if self.outenv is not None:
+            conds += [self.grid.rr > self.outenv.rin_lim ]
+            regs += [self.outenv]
+        if self.disk is not None:
+            conds += [self.disk.rho > self.inenv.rho ]
+            regs += [self.disk]
+
+        self.rho = np.select(conds[::-1], [r.rho for r in regs[::-1]])
+        self.vr = np.select(conds[::-1], [r.vr for r in regs[::-1]])
+        self.vt = np.select(conds[::-1], [r.vt for r in regs[::-1]])
+        self.vp = np.select(conds[::-1], [r.vp for r in regs[::-1]])
+        self.set_cylindrical_velocity()
 
     def save_model_pickle(self, save_path=None):
         if save_path is None:
@@ -344,62 +411,8 @@ class KinematicModel:
 #        self.pi_ax = pi_ax
 #        self.set_params()
 
-class Grid:
-    def __init__(self, rau_lim=None, theta_lim=None, phi_lim=(0, 2*np.pi),
-                 axes=None, nr=60, ntheta=180, nphi=1,
-                 dr_to_r0=None, aspect=None, logr=True):
-        if axes is not None:
-            self.ri_ax = axes[0]
-            self.ti_ax = axes[1]
-            self.pi_ax = axes[2]
-        else:
-            if dr_to_r0 is not None:
-                nr = int(2.3/dr_to_r0 * np.log10(rau_lim[1]/rau_lim[0]) )
-            if aspect is not None:
-                ntheta = self._get_square_ntheta(rau_lim, nr, assratio=aspect)
-
-            if logr:
-                self.ri_ax = np.logspace(*np.log10(rau_lim), nr+1) * nc.au
-            else:
-                self.ri_ax = np.linspace(*rau_lim, nr+1) * nc.au
-            self.ti_ax = np.linspace(*theta_lim, ntheta+1)
-            self.pi_ax = np.linspace(*phi_lim, nphi+1)
-
-        self.set_params()
-
-    def set_params(self):
-        self.rc_ax = 0.5*(self.ri_ax[0:-1] + self.ri_ax[1:])
-        self.tc_ax = 0.5*(self.ti_ax[0:-1] + self.ti_ax[1:])
-        self.pc_ax = 0.5*(self.pi_ax[0:-1] + self.pi_ax[1:])
-        self.rr, self.tt, self.pp = np.meshgrid(self.rc_ax, self.tc_ax, self.pc_ax, indexing='ij')
-        self.RR = self.rr * np.sin(self.tt)
-        self.zz = self.rr * np.cos(self.tt)
-        self.mm = np.round(np.cos(self.tt), 15)
-        self.ss = np.where(self.mm == 1, 1e-100, np.sqrt(1-self.mm**2))
-
-    @staticmethod
-    def _get_square_ntheta(r_range, nr, assratio=1):
-        dlogr = np.log10(r_range[1]/r_range[0])/nr
-        dr_over_r = 10**dlogr -1
-        return int(round(0.5*np.pi/dr_over_r /assratio ))
 
 ####################################################################################################
-
-class ModelBase:
-    def maskfunc(self, model):
-        return np.full_like(self.rr, True)
-
-    def set_grid(self, grid):
-        for k, v in grip.__dict__.items():
-            setattr(self, k, v)
-
-    def set_cylindrical_velocity(self):
-        self.uR = self.vr * self.ss + self.vt * self.mm
-        self.uz = self.vr * self.mm - self.vt * self.ss
-
-    def check_include_nan(self):
-        if np.isnan([self.rho, self.vr, self.vt, self.vp, self.zeta, self.mu0]).any():
-            raise Exception("Bad values.", self.rho, self.vr, self.vt, self.vp, self.zeta, self.mu0)
 
 
 class CassenMoosmanInnerEnvelope(ModelBase):
@@ -413,29 +426,30 @@ class CassenMoosmanInnerEnvelope(ModelBase):
         self.CR = CR
         self.Ms = M
         self.cavangle_deg = cavangle_deg
-        self.set_grid(grid)
+        self.read_grid(grid)
         self.calc_kinematic_structure()
+        self.set_cylindrical_velocity()
 
     def calc_kinematic_structure(self):
-        csol = np.frompyfunc(sol_with_cubic, 2, 1)
+        csol = np.frompyfunc(self._sol_with_cubic, 2, 1)
         zeta = self.CR / self.rr
         self.mu0 = csol(self.mm, zeta).astype(np.float64)
         sin0 = np.sqrt(1 - self.mu0**2)
         mu_over_mu0 = 1 - zeta*(1 - self.mu0**2)
-        v0 = np.sqrt(nc.G*self.Mstar / self.rr)
+        v0 = np.sqrt(nc.G*self.Ms / self.rr)
         self.vr = - v0 * np.sqrt(1 + mu_over_mu0)
         self.vt = v0 * zeta*sin0**2*self.mu0/self.ss * np.sqrt(1 + mu_over_mu0)
         self.vp = v0 * sin0**2/self.ss * np.sqrt(zeta)
-        rho = - self.Mdot/(4 * np.pi * self.rr**2 * vr * (1 + zeta*(3*mu0**2-1) ))
+        rho = - self.Mdot/(4 * np.pi * self.rr**2 * self.vr * (1 + zeta*(3*self.mu0**2-1) ))
         self.rho = rho * self.cav_mask()
 
     def cav_mask(self):
-        return np.where(mu0 <= np.cos(np.radians(self.cavangle_deg)))
+        return np.where(self.mu0 <= np.cos(np.radians(self.cavangle_deg)), 1, 0)
 
     @staticmethod
     def _sol_with_cubic(m, zeta):
         allsols = np.round(cubicsolver.solve(zeta, 0, 1-zeta, -m).real, 8)
-        sol = [ sol for sol in allsols if 0 <= sol <= 1 ]
+        sols = [ sol for sol in allsols if 0 <= sol <= 1 ]
         return sols[0] if len(sols) != 0 else np.nan
 
 class SimpleBallisticInnerEnvelope(ModelBase):
@@ -449,8 +463,9 @@ class SimpleBallisticInnerEnvelope(ModelBase):
         self.CR = CR
         self.Ms = M
         self.cavangle_deg = cavangle_deg
-        self.set_grid(grid)
+        self.read_grid(grid)
         self.calc_kinematic_structure()
+        self.set_cylindrical_velocity()
 
     def calc_kinematic_structure(self):
         vff = np.sqrt(2*nc.G*self.Mstar/self.rr)
@@ -478,16 +493,17 @@ class TerebeyOuterEnvelope(ModelBase):
         self.Omega = Omega
         self.cavangle_deg = cavangle_deg
         self.rin_lim = self.cs * self.Omega**2 * self.t**3 * 1
-        self.set_grid(grid)
+        self.read_grid(grid)
         self.calc_kinematic_structure()
+        self.set_cylindrical_velocity()
 
     def calc_kinematic_structure(self):
-        tsc = tsc.solve_TSC(self.t, self.cs, self.Omega, run=True, r_crit=self.rin_lim)
-        self.rho = tsc.frho(self.rr, self.tt) * self.cav_mask()
-        self.vr, self.vt, self.vp = tsc.fvelo(self.rr, self.tt)
+        res = tsc.solve_TSC(self.t, self.cs, self.Omega, run=True, r_crit=self.rin_lim)
+        self.rho = res.frho(self.rr, self.tt) * self.cav_mask()
+        self.vr, self.vt, self.vp = res.fvelo(self.rr, self.tt)
 
     def cav_mask(self):
-        return np.where(self.tt <= np.radians(self.cavangle_deg))
+        return np.where(self.tt <= np.radians(self.cavangle_deg), 1, 0)
 
     @staticmethod
     def rinlim_func(model):
@@ -517,7 +533,7 @@ class CMviscDisk(Disk):
         self.CR = CR
         self.Mdisk = frac_Md * self.Mstar
         self.cs = np.sqrt(nc.kB * Td /(meanmolw * nc.amu))
-        self.set_grid(grid)
+        self.read_grid(grid)
         Sigma = self.get_Sigma()
         self.calc_kinematic_structure_from_Sigma(Sigma)
 
@@ -544,10 +560,11 @@ class ExptailDisk(Disk):
         self.vp = None
         self.Ms = Ms
         self.cs = np.sqrt(nc.kB * Td /(meanmolw * nc.amu))
-        self.set_grid(grid)
+        self.read_grid(grid)
         Mdisk = frac_Md * self.Mstar
         Sigma = self.get_Sigma(Mdisk, Rd, index)
         self.calc_kinematic_structure_from_Sigma(Sigma)
+        self.set_cylindrical_velocity()
 
     def get_Sigma(self, Mdisk, Rd, ind):
         Sigma0 = Mdisk/(2*np.pi*Rd**2)/(1-2/np.e)
@@ -567,7 +584,7 @@ def save_kmodel_hdf5_spherical(model, save_path):
     from evtk.hl import gridToVTK
     os.makedirs(os.path.dirname(os.path.abspath(save_path)), exist_ok=True)
     gridToVTK(save_path, model.ri_ax/nc.au, model.ti_ax, model.pi_ax,
-              cellData = {"den" :model.rho, "ur" :model.vr, "uth" :model.vth, "uph" :model.vph})
+              cellData = {"den" :model.rho, "ur" :model.vr, "uth" :model.vt, "uph" :model.vp})
 
 def save_kmodel_hdf5_certesian(model, save_path):
     from evtk.hl import gridToVTK

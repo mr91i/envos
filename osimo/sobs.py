@@ -18,12 +18,7 @@ import radmc3dPy.image as rmci
 import radmc3dPy.analyze as rmca
 from osimo import tools
 from osimo import nconst as nc
-#from header import inp, dpath_radmc
-
-
-# from skimage.feature import peak_local_max
-# import matplotlib.patches
-# from mpl_toolkits.axes_grid1.anchored_artists import AnchoredAuxTransformBox
+from osimo import config
 
 #####################################
 
@@ -50,7 +45,7 @@ def run_and_capture(cmd):
 
     return '\n'.join(buf)
 
-
+"""
 def main():
     osim = ObsSimulator(dpath_radmc, dpc=inp.obs.dpc, sizex_au=inp.obs.sizex_au, sizey_au=inp.obs.sizey_au, pixsize_au=inp.obs.pixsize_au, incl=inp.obs.incl, phi=inp.obs.phi, posang=inp.obs.posang, omp=inp.obs.omp, n_thread=inp.obs.n_thread)
     # obsdata = osim.observe_cont(1249)
@@ -78,7 +73,7 @@ def main():
     from plot_example import plot_pvdiagram
     from header import dpath_fig
     plot_pvdiagram(PV, dpath_fig=dpath_fig, n_lv=5, Mstar_Msun=0.2, rCR_au=150, f_crit=0.1)
-
+"""
 
 def gen_radmc_cmd(mode="image", dpc=0, incl=0, phi=0, posang=0, npixx=32, npixy=32,
                   zoomau=[], lam=None, iline=None, vc_kms=None, vw_kms=None, nlam=None, option="" ):
@@ -97,43 +92,55 @@ class ObsSimulator:
     This class returns observation data
     Basically, 1 object per 1 observation
     """
-    def __init__(self, dpath_radmc=None, dpc=None,
-                 sizex_au=None, sizey_au=None, pixsize_au=None,
-                 npix=None, npixx=None, npixy=None,
-                 incl=0, phi=0, posang=0, omp=True, n_thread=1, inp=None):
-        if inp is not None:
-            self.set_from_inp(inp)
-            return
-        self.dpath_radmc = dpath_radmc
+#    def __init__(self, dpath_radmc=None, dpc=None,
+#                 sizex_au=None, sizey_au=None, pixsize_au=None,
+#                 npix=None, npixx=None, npixy=None,
+#                 incl=0, phi=0, posang=0, omp=True, n_thread=1, inp=None,
+#                 beam_maj_au=None, beam_min_au=None, vreso_kms=None, beam_pa_deg=None, convmode="fft")
+#        self.dpath_radmc = dpath_radmc
+#        self.dpc = dpc
+#        self.omp = omp
+#        self.n_thread = n_thread
+#        self.incl = incl
+#        self.phi = phi
+#        self.posang = posang
+
+    def __init__(self, radmcdir=None, dpc=None, omp=True, n_thread=1):
+                 #beam_maj_au=None, beam_min_au=None, vreso_kms=None, beam_pa_deg=None, convmode="fft")
+
+        self.dpath_radmc = radmcdir or config.dp_radmc
         self.dpc = dpc
         self.omp = omp
         self.n_thread = n_thread
-        self.incl = incl
-        self.phi = phi
-        self.posang = posang
-        self.set_camera(sizex_au, sizey_au, pixsize_au=pixsize_au, npix=npix, npixx=npixx, npixy=npixy)
+        #self.incl = incl
+        #self.phi = phi
+        #self.posang = posang
 
-    def set_from_inp(self, inp):
-        self.dpath_radmc = inp.dpath_radmc
-        self.dpc = inp.dpc
-        self.omp = inp.omp
-        self.n_thread = inp.n_thread
-        self.incl = inp.incl_deg
-        self.phi = inp.phi_deg
-        self.posang = inp.posang_deg
-
-        self.beam_maj_au = inp.beam_maj_au
-        self.beam_min_au = inp.beam_min_au
-        self.vreso_kms = inp.vreso_kms
-        self.beam_pa_deg = inp.beam_pa_deg
-        self.convmode = inp.convmode
-        #self.set_camera(inp.sizex_au, inp.sizey_au, pixsize_au=inp.pixsize_au, npix=inp.npix, npixx=inp.npixx, npixy=inp.npixy)
-        self.set_camera(inp.sizex_au, inp.sizey_au, pixsize_au=inp.pixsize_au)
+        self.view = False
+        self.conv = False
+        #self.set_camera(sizex_au, sizey_au, pixsize_au=pixsize_au, npix=npix, npixx=npixx, npixy=npixy)
 
 
-
+#    def set_from_inp(self, inp):
+#        self.dpath_radmc = inp.dpath_radmc
+#        self.dpc = inp.dpc
+#        self.omp = inp.omp
+#        self.n_thread = inp.n_thread
+#        self.incl = inp.incl_deg
+#        self.phi = inp.phi_deg
+#        self.posang = inp.posang_deg
+#
+#        self.beam_maj_au = inp.beam_maj_au
+#        self.beam_min_au = inp.beam_min_au
+#        self.vreso_kms = inp.vreso_kms
+#        self.beam_pa_deg = inp.beam_pa_deg
+#        self.convmode = inp.convmode
+#        #self.set_camera(inp.sizex_au, inp.sizey_au, pixsize_au=inp.pixsize_au, npix=inp.npix, npixx=inp.npixx, npixy=inp.npixy)
+#        self.set_camera(inp.sizex_au, inp.sizey_au, pixsize_au=inp.pixsize_au)
+#        """
 
     def exe(self, cmd, wdir, log=False):
+
         os.chdir(wdir)
         if log:
             out = run_and_capture(cmd)
@@ -142,81 +149,85 @@ class ObsSimulator:
         else:
             return subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-    def set_camera(self, sizex_au, sizey_au, pixsize_au=None, npix=None, npixx=None, npixy=None):
+    #def set_resolution(self, sizex_au, sizey_au=None, pixsize_au=None, npix=100, npixx=None, npixy=None, incl=0, phi=0, posang=0, vwidth_kms=None, dv_kms=None):
+    def set_resolution(self, sizex_au, sizey_au=None, pixsize_au=None, npix=100, npixx=None, npixy=None, vwidth_kms=None, dv_kms=None):
+        #self.reso = True
+        #self.incl = incl
+        #self.phi = phi
+        #self.posang = posang
+
         if sizex_au != sizey_au:
-            logger.info("Try to use rectangle view mode. Currently (2020/12), a bug in this mode was fixed.")
-            logger.info("Please check your version is latest. If you do not want to use this, please set sizex_au = sizey_au.")
-        #########################################
-        # Update RADMC3D to the newest version, #
-        # if you have an error.                 #
-        # Plus, dx needs to be equal dy.        #
-        #########################################
+            logger.info("Use rectangle view mode. Currently (2020/12), a bug in this mode was fixed.")
+            logger.info("Please check if your version is latest. If you do not want to use this, please set sizex_au = sizey_au.")
 
         self.zoomau_x = [-sizex_au/2, sizex_au/2] #if self.sizex_au == 0 else [-self.pixsize_au/2, self.pixsize_au/2]
-        self.zoomau_y = [-sizey_au/2, sizey_au/2] #if self.sizey_au == 0 else [-self.pixsize_au/2, self.pixsize_au/2]
+        _sizey_au = sizey_au or sizex_au
+        self.zoomau_y = [-_sizey_au/2, _sizey_au/2] #if self.sizey_au == 0 else [-self.pixsize_au/2, self.pixsize_au/2]
+
         if pixsize_au is not None:
             self.pixsize_au = pixsize_au
             self.npixx = int(round((self.zoomau_x[1] - self.zoomau_x[0])/pixsize_au)) # // or int do not work to convert into int.
             self.npixy = int(round((self.zoomau_y[1] - self.zoomau_y[0])/pixsize_au)) # // or int do not work to convert into int.
-        elif (npixx is not None) and (npixy is not None):
-            self.pixsize_au = (self.zoomau_x[1] - self.zoomau_x[0])/npixx
-            self.npixx = npix if npix is not None else npixx
-            self.npixy = npix if npix is not None else npixy
+        else:
+            self.npixx = npixx or npix
+            self.npixy = npixy or npix
+            self.pixsize_au = (self.zoomau_x[1] - self.zoomau_x[0])/self.npixx
+
         self.dx_au, self.dy_au = sizex_au/self.npixx, sizey_au/self.npixy
-        if  self.dx_au !=  self.dy_au:
+
+        if  self.dx_au != self.dy_au:
             raise Exception("dx is not equal to dy. Check your setting again.")
         if sizex_au == 0:
             self.zoomau_x = [-self.pixsize_au/2, self.pixsize_au/2]
         if sizey_au == 0:
             self.zoomau_y = [-self.pixsize_au/2, self.pixsize_au/2]
 
-    @staticmethod
-    def find_proper_nthread(n_thr, n_div):
-        return max([i for i in range(n_thr, 0, -1) if n_div % i == 0])
+        self.vwidth_kms = vwidth_kms
+        self.dv_kms = dv_kms
 
-    @staticmethod
-    def divide_threads(n_thr, n_div):
-        ans = [n_div//n_thr]*n_thr
-        rem = n_div % n_thr
-        nlist = [(n_thr-i//2 if i%2 else i//2) for i in range(n_thr)] #[ ( i if i%2==0 else n_thread -(i-1) ) for i in range(n_thread) ]
-        for i in range(rem):
-            ii = (n_thr-1 - i//2) if i%2 else i//2
-            ans[ii] += 1
-        return ans
+    def set_convolver(self, beam_maj_au, beam_min_au=None, vreso_kms=None, beam_pa_deg=0, convmode="fft"):
+        self.conv = True
+        self.convolver = Convolver((beam_maj_au, beam_min_au, vreso_kms),
+                                    (self.dx_au, self.dy_au, self.dv_kms),
+                                    beam_pa_deg=beam_pa_deg,
+                                    mode=convmode)
 
-    @staticmethod
-    def calc_thread_seps(calc_points, thread_divs):
-        ans = []
-        sum_points = 0
-        for npoints in thread_divs:
-            ans.append( [calc_points[sum_points] , calc_points[sum_points+npoints-1]] )
-            sum_points += npoints
-        return np.array(ans)
 
-    def observe_cont(self, lam):
+    def observe_cont(self, lam, incl=0, phi=0, posang=0):
         self.obs_mode = "cont"
         self.lam = lam
-        cmd = gen_radmc_cmd(mode="image", dpc=self.dpc, incl=self.incl, phi=self.phi, posang=self.posang, npixx=self.npixx, npixy=self.npixx,
-            zoomau=[self.zoomau_x[0], self.zoomau_x[1],self.zoomau_y[0],self.zoomau_y[1]], lam=lam, option="noscat nostar")
+        cmd = gen_radmc_cmd(mode="image", dpc=self.dpc, incl=incl, phi=phi,
+            posang=posang, npixx=self.npixx, npixy=self.npixx, lam=lam,
+            zoomau=[*self.zoomau_x, *self.zoomau_y], option="noscat nostar")
+
         self.exe(cmd, self.dpath_radmc, log=True)
         self.data_cont = rmci.readImage()
         self.data_cont.freq0 = nc.c/(lam*1e4)
+        if self.conv:
+            self.data_cont.image = self.convolver(self.data_cont.image)
+
         odat = ObsData(radmcdata=self.data_cont, datatype=self.obs_mode)
         return odat
 
-    def observe_line(self, iline, vwidth_kms, dv_kms, ispec):
+    def observe_line(self, iline, ispec, incl=0, phi=0, posang=0):
         self.obs_mode = "line"
         self.iline = iline
-        self.vwidth_kms = vwidth_kms
-        self.dv_kms = dv_kms
-        self.nlam = 2*int(round(vwidth_kms/dv_kms)) + 1
+        #self.vwidth_kms = vwidth_kms
+        #self.dv_kms = dv_kms
+        self.nlam = 2*int(round(self.vwidth_kms/self.dv_kms)) + 1
         self.mol = rmca.readMol(fname=f"{self.dpath_radmc}/molecule_{ispec}.inp")
         logger.info(f"Total cell number is {self.npixx} x {self.npixy} x {self.nlam} = {self.npixx*self.npixy*self.nlam}")
 
-        common_cmd = {"mode":"image", "dpc":self.dpc, "incl":self.incl, "phi":self.phi,
-                      "posang":self.posang, "npixx":self.npixx, "npixy":self.npixy,
-                      "zoomau":[self.zoomau_x[0], self.zoomau_x[1], self.zoomau_y[0], self.zoomau_y[1]],
-                      "iline": self.iline, "option": "noscat nostar nodust"}
+        common_cmd = {"mode":"image",
+                      "dpc":self.dpc,
+                      "incl":incl,
+                      "phi":phi,
+                      "posang":posang,
+                      "npixx":self.npixx,
+                      "npixy":self.npixy,
+                      "zoomau":[*self.zoomau_x, *self.zoomau_y],
+                      "iline": self.iline,
+                      "option": "noscat nostar nodust"}
 
         v_calc_points = np.linspace(-self.vwidth_kms, self.vwidth_kms, self.nlam)
         vseps = np.linspace(-self.vwidth_kms-self.dv_kms/2, self.vwidth_kms+self.dv_kms/2, self.nlam+1)
@@ -252,10 +263,33 @@ class ObsSimulator:
             logger.warning("Zero image !")
 
 #        self.data.dpc = self.dpc
-        self.data.freq0 = self.mol.freq[iline -1]
-        self.data.image = self.convolve_ppv(self.data.image, (self.beam_maj_au, self.beam_min_au, self.vreso_kms),
-                                           (self.dx_au, self.dy_au, self.dv_kms), beam_pa_deg=self.beam_pa_deg, mode=self.convmode)
+        self.data.freq0 = self.mol.freq[iline-1]
+        if self.conv:
+            self.data.image = self.convolver(self.data.image)
         return ObsData(radmcdata=self.data, datatype=self.obs_mode)
+
+    @staticmethod
+    def find_proper_nthread(n_thr, n_div):
+        return max([i for i in range(n_thr, 0, -1) if n_div % i == 0])
+
+    @staticmethod
+    def divide_threads(n_thr, n_div):
+        ans = [n_div//n_thr]*n_thr
+        rem = n_div % n_thr
+        nlist = [(n_thr-i//2 if i%2 else i//2) for i in range(n_thr)] #[ ( i if i%2==0 else n_thread -(i-1) ) for i in range(n_thread) ]
+        for i in range(rem):
+            ii = (n_thr-1 - i//2) if i%2 else i//2
+            ans[ii] += 1
+        return ans
+
+    @staticmethod
+    def calc_thread_seps(calc_points, thread_divs):
+        ans = []
+        sum_points = 0
+        for npoints in thread_divs:
+            ans.append( [calc_points[sum_points] , calc_points[sum_points+npoints-1]] )
+            sum_points += npoints
+        return np.array(ans)
 
     def _subcalc(self, p, cmd):
         dn = f"proc{p:d}"
@@ -287,23 +321,6 @@ class ObsSimulator:
             data.nwav += ret.nwav
         return data
 
-    @staticmethod
-    def convolve_ppv(Ippv, conv_size, grid_size, beam_pa_deg=0, mode="fft", pointsource_test=False):
-        # relation : standard deviation = 1/(2 sqrt(ln(2))) * FWHM of Gaussian
-        # theta_deg : cclw is positive
-        sigma_over_FWHM = 2*np.sqrt(2*np.log(2))
-        convolver = {"normal": aconv.convolve, "fft":aconv.convolve_fft}[mode]
-        option = {"allow_huge": True}
-        if pointsource_test:
-            Ippv = np.zeros_like(Ippv)
-            Ippv[Ippv.shape[0]//2, Ippv.shape[1]//2, Ippv.shape[2]//2] = 1
-        stddev = np.array(conv_size)/np.array(grid_size)/sigma_over_FWHM
-        Kernel_xy2d = aconv.Gaussian2DKernel(x_stddev=stddev[0], y_stddev=stddev[1],
-                                             theta=beam_pa_deg/180*np.pi)._array
-        Kernel_v1d = aconv.Gaussian1DKernel(stddev[2])._array
-        Kernel_3d = np.multiply(Kernel_xy2d[np.newaxis,:,:], Kernel_v1d[:,np.newaxis,np.newaxis])
-        return  convolver(Ippv, Kernel_3d, **option)
-
     def output_fits(self, filepath):
         fp_fitsdata = filepath
         if os.path.exists(fp_fitsdata):
@@ -323,6 +340,37 @@ class ObsSimulator:
 def format_array(array):
     return f"[{min(array):.2f}:{max(array):.2f}] with delta = {abs(array[1]-array[0]):.4g} and N = {len(array)}"
 
+class Convolver:
+    def __init__(self, conv_size, grid_size, beam_pa_deg=0, mode="fft"):
+    # relation : standard deviation = 1/(2 sqrt(ln(2))) * FWHM of Gaussian
+    # theta_deg : cclw is positive
+        self.mode = mode
+        sigma_over_FWHM = 2*np.sqrt(2*np.log(2))
+        stddev = np.array(conv_size)/np.array(grid_size)/sigma_over_FWHM
+        beampa = np.radians(beam_pa_deg)
+        self.Kernel_xy2d = aconv.Gaussian2DKernel(stddev[0], stddev[1], beampa)._array
+        if len(conv_size) == 3 and (conv_size[2] is not None):
+            Kernel_v1d = aconv.Gaussian1DKernel(stddev[2])._array
+            self.Kernel_3d = np.multiply(self.Kernel_xy2d[np.newaxis,:,:], Kernel_v1d[:,np.newaxis,np.newaxis])
+
+    def __call__(self, image):
+        if len(image.shape) == 2:
+            Kernel = self.Kernel_xy2d
+        elif len(image.shape) == 3:
+            Kernel = self.Kernel_3d
+
+        if self.mode == "normal":
+            return aconv.convolve(image, Kernel)
+        elif self.mode == "fft":
+            return aconv.convolve_fft(image, Kernel, allow_huge=True)
+
+
+
+#    if pointsource_test:
+#        Ippv = np.zeros_like(Ippv)
+#        Ippv[Ippv.shape[0]//2, Ippv.shape[1]//2, Ippv.shape[2]//2] = 1
+
+
 #############################
 #############################
 
@@ -332,7 +380,7 @@ class ObsData:
     But one can generate obsdata by reading fitsfile or radmcdata
     """
 
-    def __init__(self, fitsfile=None, radmcdata=None, pklfile=None, datatype=None):
+    def __init__(self, fitsfile=None, radmcdata=None, pklfile=None, datatype=None, dpc=None):
         self.datatype=datatype
         self.Ippv = None
         self.Ippv_raw = None
@@ -348,7 +396,7 @@ class ObsData:
         self.Lx = None
         self.Ly = None
         self.Lv = None
-        self.dpc = None
+        self.dpc = dpc
 
         self.conv = False
         self.beam_maj_au = None
@@ -442,7 +490,7 @@ class ObsData:
     def read_radmcdata(self, data):
         # self.Ippv_raw = data.image.transpose(2, 1, 0)
         self.Ippv = data.image.transpose(2, 1, 0)
-        self.dpc = data.dpc
+        self.dpc = data.dpc or 100
         self.Nx = data.nx
         self.Ny = data.ny
         self.Nv = data.nfreq
@@ -511,7 +559,7 @@ class ObsData:
         pos_y = xau*np.sin(PA_rad) + poffset_au*np.sin(PA_rad)
         return np.stack([pos_x, pos_y], axis=-1)
 
-    def make_PV_map(self, pangle_deg=None, poffset_au=0):
+    def make_PV_map(self, pangle_deg=0, poffset_au=0):
         #pangle_deg = pangle_deg if pangle_deg else self
         if self.Ippv.shape[1] > 1:
             posline = self.position_line(self.xau, PA_deg=pangle_deg, poffset_au=poffset_au)
@@ -595,8 +643,8 @@ class PVmap:
         dv = (self.vkms[1] - self.vkms[0])
         hdu = iofits.PrimaryHDU(self.Ipv)
         new_header = {'NAXIS':2,
-                       'CTYPE1':'ANGLE', 'CUNIT1':unitp, 'NAXIS1':Np, 'CRVAL1':0.0, 'CRPIX1':(Np + 1.)/2., 'CDELT1':dx*nc.au/self.dpc*180/np.pi, 'CUNIT1':'deg',
-                       'CTYPE2':'VRAD', 'CUNIT2':unitv, 'NAXIS1':Nv, 'CRVAL2':0.0, 'CRPIX2':(Nv + 1.)/2., 'CDELT2':dv*1e3, 'CUNIT2':'m/s',
+                       'CTYPE1':'ANGLE', 'CUNIT1':unitp, 'NAXIS1':Np, 'CRVAL1':0.0, 'CRPIX1':(Np+1)/2, 'CDELT1':np.radians(dx*nc.au/self.dpc), 'CUNIT1':'deg',
+                       'CTYPE2':'VRAD', 'CUNIT2':unitv, 'NAXIS1':Nv, 'CRVAL2':0.0, 'CRPIX2':(Nv+1)/2, 'CDELT2':dv*1e3, 'CUNIT2':'m/s',
                        'BTYPE': 'Intensity', 'BUNIT': 'Jy/pixel'}
         if self.beam_maj_au:
             nue_header.update({'BMAJ': self.beam_maj_au, 'BMIN':self.beam_min_au, "BPA":self.beam_pa_deg})
