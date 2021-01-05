@@ -456,33 +456,6 @@ class ObsData:
 #
 #   Freeze: Revive in future version
 #
-#    def read_fits_PV(self, filepath):
-#        pic = iofits.open(filepath)[0]
-#        Ipv = pic.data
-#        self.Ipv = copy.copy(self.Ippv_raw)
-#        header = pic.header
-#
-#        self.Nx = header["NAXIS1"]
-#        self.Nz = header["NAXIS2"]
-#        self.dx = header["CDELT1"]*np.pi/180.0*self.dpc*nc.pc/nc.au
-#        Lx = self.Nx*self.dx
-#        self.xau = -0.5*Lx + (np.arange(self.Nx)+0.5)*self.dx
-#
-#        if header["CRVAL2"] > 1e8:
-#            nu_max = header["CRVAL2"] # freq: max --> min
-#            dnu = header["CDELT2"]
-#            nu0 = nu_max + 0.5*dnu*(self.Nz-1)
-#            self.dv = - nc.c / 1e5 * dnu / nu0
-#            self.vkms = (-0.5*(self.Nz-1)+np.arange(self.Nz)) * self.dv
-#        else:
-#            self.dv = header["CDELT2"]/1e3 # in m/s to in km/s
-#            self.vkms = self.dv*(-0.5*(self.Nz-1) + np.arange(self.Nz))
-#        self.Ippv_raw = self.Ippv_raw[::-1,:]
-#       # print(self.xau, self.dx, self.vkms, self.dv)
-#
-#        if ((self.dx < 0) or (self.xau[1] < self.xau[0])) \
-#            or ((self.dv < 0) or (self.vkms[1] < self.vkms[0])):
-#            raise Exception("reading axis is wrong.")
 
     def set_dpc(self, dpc):
         self.dpc = dpc
@@ -507,45 +480,7 @@ class ObsData:
         self.dv = self.vkms[1] - self.vkms[0] if len(self.vkms) > 1 else 0
         self.Lv = self.vkms[-1] - self.vkms[0] if len(self.vkms) > 1 else 0
 
-
-    def convolve(self, beam_maj_au, beam_min_au, vreso_kms, beam_pa_deg, mode="fft", pointsource_test=False):
-        # relation : standard deviation = 1/(2 sqrt(ln(2))) * FWHM of Gaussian
-        # theta_deg : cclw is positive
-        # enroll convolution info.
-        self.conv = True
-        self.beam_maj_au = beam_maj_au
-        self.beam_min_au = beam_min_au
-        self.vreso_kms = vreso_kms
-        self.beam_pa_deg = beam_pa_deg
-        self.convmode = mode
-
-        # setting
-        self.convolution = True
-        sigma_over_FWHM = 2*np.sqrt(2*np.log(2))
-        convolver = {"normal": aconv.convolve, "fft":aconv.convolve_fft}[convmode]
-        option = {"allow_huge": True}
-
-        if pointsource_test:
-            self.pointsource_test = True
-            self.Ippv = np.zeros_like(self.Ippv)
-            Ishape = self.Ippv.shape
-            self.Ippv[Ishape[0]//2, Ishape[1]//2, Ishape[2]//2] = 1
-
-        # making Kernel
-
-        Kernel_xy2d = aconv.Gaussian2DKernel(x_stddev=abs(beam_maj_au/self.dx)/sigma_over_FWHM,
-                                             y_stddev=abs(beam_min_au/self.dy)/sigma_over_FWHM,
-                                             theta=beam_pa_deg/180*np.pi)._array
-        Kernel_v1d = aconv.Gaussian1DKernel(vreso_kms/self.dv/sigma_over_FWHM)._array
-        Kernel_3d = np.multiply(Kernel_xy2d[np.newaxis,:,:], Kernel_v1d[:,np.newaxis,np.newaxis])
-
-        # convolving
-        self.Ippv = convolver(self.Ippv, Kernel_3d, **option)
-
-        # flattening very small value
-        self.Ippv = np.where(self.Ippv > np.max(self.Ippv)*1e-6, self.Ippv, -1e-100)
-        self.Ippv_max = np.max(self.Ippv)
-
+#    def convolve(self, beam_maj_au, beam_min_au, vreso_kms, beam_pa_deg, mode="fft", pointsource_test=False):
 
     def make_mom0_map(self, normalize="peak"):
         Ipp = integrate.simps(self.Ippv, axis=0)
@@ -575,20 +510,21 @@ class ObsData:
         self.PV_list.append(PV)
         return PV
 
-    def save_instance(self, filepath):
+    def save_instance(self, filename="obsdata.pkl", filepath=None):
+        if filepath is None:
+            filepath = os.path.join(config.dp_run, filename)
+        os.mkedirs(os.path.dirname(filepath), exist_ok=True)
         pd.to_pickle(self, filepath)
 
-    def read_instance(self, filepath):
-        instance = pd.read_pickle(filepath)
-        for k,v in instance.__dict__.items():
-            setattr(self, k, v)
+    def save_fits(self, filename="obsdata.fits", dpc=None, filepath=None):
+        if filepath is None:
+            filepath = os.path.join(config.dp_run, filename)
+        os.mkedirs(os.path.dirname(filepath), exist_ok=True)
 
-    def save_fits(self, filepath, dpc):
-        fp_fitsdata = filepath
-        if os.path.exists(fp_fitsdata):
-            logger.info(f"remove old fits file: {fp_fitsdata}")
-            os.remove(fp_fitsdata)
-        self.data.writeFits(fname=fp_fitsdata, dpc=dpc)
+        if os.path.exists(filepath):
+            logger.info(f"remove old fits file: {filepath}")
+            os.remove(filepath)
+        self.data.writeFits(fname=filepath, dpc=dpc)
         logger.info(f"Saved fits file: {fp_fitsdata}")
 
 class PVmap:
@@ -607,7 +543,8 @@ class PVmap:
         self.beam_pa_deg = None
 
         if fitsfile is not None:
-            self.read_fitsfile(filepath=fitsfile)
+            read_fits_PV(self, fitsfile)
+            # self.read_fitsfile(filepath=fitsfile)
 
     def add_conv_info(self, beam_maj_au, beam_min_au, vreso_kms, beam_pa_deg):
         self.beam_maj_au = beam_maj_au
@@ -634,8 +571,11 @@ class PVmap:
             self.Ipv = self.Ipv[jmin:jmax,:]
             self.vkms = self.vkms[jmin:jmax]
 
-    def save_fitsfile(self, filename="PVimage.fits", unitp='au', unitv='km/s' ):
+    def save_fitsfile(self, filename="PVimage.fits", unitp='au', unitv='km/s', filepath=None):
         # see IAU manual : https://fits.gsfc.nasa.gov/standard40/fits_standard40aa-le.pdf
+        if filepath is None:
+            filepath = os.path.join(config.dp_run, filename)
+        os.mkedirs(os.path.dirname(filepath), exist_ok=True)
 
         Np = len(self.xau)
         Nv = len(self.vkms)
@@ -694,6 +634,53 @@ class PVmap:
         if ((self.dx < 0) or (self.xau[1] < self.xau[0])) \
             or ((self.dv < 0) or (self.vkms[1] < self.vkms[0])):
             raise Exception("reading axis is wrong.")
+
+
+def read_pkl_obsdata(self, filepath):
+    return pd.read_pickle(filepath)
+
+
+def read_fits_PV(cls, filepath, unit1_in_au=None, unit2_in_kms=None):
+    logger.info(f"Reading fits file: {filepath}")
+    pic = iofits.open(filepath)[0]
+    cls.Ipv = pic.data
+    print("Ipv_max : ", np.max(cls.Ipv))
+    header = pic.header
+
+    cls.Nx = header["NAXIS1"]
+    if unit1_in_cm:
+        logger.info(f"   1st axis is interpreted as POSITION with user-defined unit (unit1 = {unit1_in_cm} cm).")
+        cls.dx = header["CDELT1"]*unit1_in_au
+    elif "ANGLE" in header["CYTYPE"] and unit1=="deg": # x in deg
+        logger.info(f"   1st axis is interpreted as POSITION [deg].")
+        cls.dx = header["CDELT1"]*np.pi/180.0*cls.dpc*nc.pc/nc.au
+    else:
+        raise Exception("Unknown datatype in 1st axis")
+    cls.xau = -0.5*cls.Nx*cls.dx + (np.arange(cls.Nx)+0.5)*cls.dx
+
+    cls.Nv = header["NAXIS2"]
+    if unit2_in_kms:
+        logger.info(f"    2nd axis is interpreted as VELOCITY with user-defined unit (unit2 = {unit2_in_cm} cm).")
+        cls.dv = header["CDELT2"]*unit2_in_kms
+    elif "VRAD" in header["CYTYPE"] and unit2=="m/s": # v in m/s
+        logger.info(f"    2nd axis is interpreted as VELOCITY [m/s].")
+        cls.dv = header["CDELT2"]/1e3 # in m/s to in km/s
+    else:
+        raise Exception("Unknown datatype in 2nd axis")
+    cls.vkms = (-0.5*(cls.Nv-1)+np.arange(cls.Nv)) * cls.dv
+
+    if "BMAJ" in header:
+        cls.beam_maj_au = header["BMAJ"]*cls.dpc
+        cls.beam_min_au = header["BMIN"]*cls.dpc
+        cls.beam_pa_deg = header["BPA"]
+        cls.vreso_kms = cls.dv
+
+    cls.bunit = header["BUNIT"]
+
+    if ((cls.dx < 0) or (cls.xau[1] < cls.xau[0])) \
+        or ((cls.dv < 0) or (cls.vkms[1] < cls.vkms[0])):
+        raise Exception("reading axis is wrong.")
+
 
 if __name__ == '__main__':
     main()

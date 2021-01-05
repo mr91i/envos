@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+import os
 import numpy as np
 import pandas as pd
 import logging
@@ -60,15 +61,18 @@ class Grid:
         return int(round(0.5*np.pi/dr_over_r /assratio ))
 
 class KinematicModel(ModelBase):
-    def __init__(self, grid=None):
+    def __init__(self, grid=None, filepath=None):
         self.inenv = None
         self.outenv = None
         self.disk = None
         self.grid = grid
+        if filepath is not None:
+            read_model(filepath, base=self)
 
-    def set_grid(self, grid=None, rau_lim=None, theta_lim=None,
+
+    def set_grid(self, rau_lim=None, theta_lim=(0, np.pi/2),
                  phi_lim=(0, 2*np.pi), axes=None, nr=60, ntheta=180, nphi=1,
-                 dr_to_r0=None, aspect=None, logr=True):
+                 dr_to_r0=None, aspect=None, logr=True, grid=None):
         if grid is not None:
             self.grid = grid
         else:
@@ -192,13 +196,12 @@ class KinematicModel(ModelBase):
         self.vp = np.select(conds[::-1], [r.vp for r in regs[::-1]])
         self.set_cylindrical_velocity()
 
-    def save_model_pickle(self, save_path=None):
-        if save_path is None:
-            save_path = "./kmodel.pkl"
-        dirpath = os.path.dirname(os.path.abspath(save_path))
-        os.mkedirs(dirpath, exist_ok=True)
-        pd.to_pickle(self, save_path)
-        logger.info(f'Saved : {save_path}\n')
+    def save(self, filename="kmodel.pkl", filepath=None):
+        if filepath is None:
+            filepath = os.path.join(config.dp_run, filename)
+        os.mkedirs(os.path.dirname(filepath), exist_ok=True)
+        pd.to_pickle(self, filepath)
+        logger.info(f'Saved : {filepath}\n')
 
 ####################################################################################################
 
@@ -359,25 +362,33 @@ class ExptailDisk(Disk):
 ####################################################################################################
 ## Functions                                                                                       #
 ####################################################################################################
-def read_kinematic_model():
-    pass
+def read_model(filepath, base=None):
+    if ".pkl" in filepath:
+        dtype = "pickle"
 
-def read_model_pkl(read_path):
-    return pd.read_pickle(read_path)
+    if mode == "pickle":
+        cls = pd.read_pickle(filepath)
+        if base is None:
+            return cls
+        else:
+            for k,v in cls.__dict__.items():
+                setattr(base, k, v)
 
-def save_kmodel_hdf5_spherical(model, save_path):
+def save_kmodel_hdf5_spherical(model, filename="flow.vtk", filepath=None):
+    if filepath is None:
+        filepath = os.path.join(config.dp_run, filename)
+    os.mkedirs(os.path.dirname(filepath), exist_ok=True)
     from evtk.hl import gridToVTK
-    os.makedirs(os.path.dirname(os.path.abspath(save_path)), exist_ok=True)
-    gridToVTK(save_path, model.ri_ax/nc.au, model.ti_ax, model.pi_ax,
+    gridToVTK(filepath, model.ri_ax/nc.au, model.ti_ax, model.pi_ax,
               cellData = {"den" :model.rho, "ur" :model.vr, "uth" :model.vt, "uph" :model.vp})
 
-def save_kmodel_hdf5_certesian(model, save_path):
+def save_kmodel_hdf5_certesian(model, xi, yi, zi, filename="flow.vtk", filepath=None):
+    if filepath is None:
+        filepath = os.path.join(config.dp_run, filename)
+    os.mkedirs(os.path.dirname(filepath), exist_ok=True)
+
     from evtk.hl import gridToVTK
     from scipy.interpolate import interpn # , RectBivariateSpline, RegularGridInterpolator
-    L = model.rc_ax[-1]
-    xi = np.linspace(-L/10,L/10,200)
-    yi = np.linspace(-L/10,L/10,200)
-    zi = np.linspace(0, L/10, 100)
     xxi, yyi, zzi = np.meshgrid(xi, yi, zi, indexing='ij')
     xc = tools.make_array_center(xi)
     yc = tools.make_array_center(yi)
@@ -396,6 +407,6 @@ def save_kmodel_hdf5_certesian(model, save_path):
     uux = vr_cert * np.sin(tt_cert) * np.cos(pp_cert) + vt_cert * np.cos(tt_cert) * np.cos(pp_cert) - vp_cert  * np.sin(pp_cert)
     uuy = vr_cert * np.sin(tt_cert) * np.sin(pp_cert) + vt_cert * np.cos(tt_cert) * np.sin(pp_cert) + vp_cert * np.cos(pp_cert)
     uuz = vr_cert * np.cos(tt_cert) - vt_cert * np.sin(tt_cert)
-    os.makedir(os.path.dirname(os.path.abspath(save_path)), exist_ok=True)
-    gridToVTK(save_path, xi/nc.au, yi/nc.au, zi/nc.au,
+    os.makedir(os.path.dirname(os.path.abspath(filepath)), exist_ok=True)
+    gridToVTK(filepath, xi/nc.au, yi/nc.au, zi/nc.au,
               cellData = {"den" :den_cert, "ux" :uux, "uy" :uuy, "uz" :uuz})
