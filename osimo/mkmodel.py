@@ -4,7 +4,7 @@ import os
 import numpy as np
 import pandas as pd
 import logging
-from osimo import tools, cubicsolver, tsc, log
+from osimo import tools, cubicsolver, tsc, log, config
 from osimo import nconst as nc
 logger = log.set_logger(__name__, ini=True)
 
@@ -61,7 +61,7 @@ class Grid:
         return int(round(0.5*np.pi/dr_over_r /assratio ))
 
 class KinematicModel(ModelBase):
-    def __init__(self, grid=None, filepath=None):
+    def __init__(self, filepath=None, grid=None):
         self.inenv = None
         self.outenv = None
         self.disk = None
@@ -146,7 +146,7 @@ class KinematicModel(ModelBase):
     def _logp(valname, unitname, val, unitval=1):
         logger.info(valname.ljust(10)+f'is {val/unitval:10.2g} '+unitname.ljust(10))
 
-    def build(self, grid=None, inenv="CM", disk="", outenv=""):
+    def build(self, grid=None, inenv="CM", disk=None, outenv=None):
         ### Set grid
         if (self.grid is None) and (grid is None):
             raise Exception("grid is not set.")
@@ -199,7 +199,7 @@ class KinematicModel(ModelBase):
     def save(self, filename="kmodel.pkl", filepath=None):
         if filepath is None:
             filepath = os.path.join(config.dp_run, filename)
-        os.mkedirs(os.path.dirname(filepath), exist_ok=True)
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
         pd.to_pickle(self, filepath)
         logger.info(f'Saved : {filepath}\n')
 
@@ -377,7 +377,7 @@ def read_model(filepath, base=None):
 def save_kmodel_hdf5_spherical(model, filename="flow.vtk", filepath=None):
     if filepath is None:
         filepath = os.path.join(config.dp_run, filename)
-    os.mkedirs(os.path.dirname(filepath), exist_ok=True)
+    os.makedirs(os.path.dirname(filepath), exist_ok=True)
     from evtk.hl import gridToVTK
     gridToVTK(filepath, model.ri_ax/nc.au, model.ti_ax, model.pi_ax,
               cellData = {"den" :model.rho, "ur" :model.vr, "uth" :model.vt, "uph" :model.vp})
@@ -385,7 +385,7 @@ def save_kmodel_hdf5_spherical(model, filename="flow.vtk", filepath=None):
 def save_kmodel_hdf5_certesian(model, xi, yi, zi, filename="flow.vtk", filepath=None):
     if filepath is None:
         filepath = os.path.join(config.dp_run, filename)
-    os.mkedirs(os.path.dirname(filepath), exist_ok=True)
+    os.makedirs(os.path.dirname(filepath), exist_ok=True)
 
     from evtk.hl import gridToVTK
     from scipy.interpolate import interpn # , RectBivariateSpline, RegularGridInterpolator

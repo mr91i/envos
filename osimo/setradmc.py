@@ -297,7 +297,7 @@ def remove_file(file_path):
         logger.info(f'Removed: {file_path}')
 
 def save_file(file_path, text_lines):
-    os.mkedirs(os.path.dirname(file_path), exist_ok=True)
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)
     # os.path.dirname(os.path.abspath(file_path))
     with open(file_path, 'w+') as f:
         f.write('\n'.join(text_lines))
@@ -378,7 +378,7 @@ class Streamline:
     def save_data(self, filename="stream", filepath=None):
         if filepath is None:
             filepath = os.path.join(config.dp_run, filename)
-        os.mkedirs(os.path.dirname(filepath), exist_ok=True)
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
 
         vlist = [f"{v}["u"]" for v, u in zip(self.vnames, self.sunits)]
         header = " ".join('t[s]', "R[cm]", "z[cm]", *vlist)

@@ -513,13 +513,13 @@ class ObsData:
     def save_instance(self, filename="obsdata.pkl", filepath=None):
         if filepath is None:
             filepath = os.path.join(config.dp_run, filename)
-        os.mkedirs(os.path.dirname(filepath), exist_ok=True)
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
         pd.to_pickle(self, filepath)
 
     def save_fits(self, filename="obsdata.fits", dpc=None, filepath=None):
         if filepath is None:
             filepath = os.path.join(config.dp_run, filename)
-        os.mkedirs(os.path.dirname(filepath), exist_ok=True)
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
 
         if os.path.exists(filepath):
             logger.info(f"remove old fits file: {filepath}")
@@ -575,7 +575,7 @@ class PVmap:
         # see IAU manual : https://fits.gsfc.nasa.gov/standard40/fits_standard40aa-le.pdf
         if filepath is None:
             filepath = os.path.join(config.dp_run, filename)
-        os.mkedirs(os.path.dirname(filepath), exist_ok=True)
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
 
         Np = len(self.xau)
         Nv = len(self.vkms)
