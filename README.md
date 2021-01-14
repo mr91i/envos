@@ -14,7 +14,7 @@ osiire: Observation SImulator for Infalling Rotating Envelope\
 obsend: pipeline for synthetic OBServation of ENvelope Disk systems\
 obento: pipeline for synthetic OBServation of ENvelope Disk systems\
 somen : Synthetic Observation for  Model of Envelope\
-oden: Observation simulatior for Disk-Envelope system\
+oden: Observation simulatior for Disk-Envelope system
 )
 
 #
