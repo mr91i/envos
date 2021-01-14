@@ -5,7 +5,7 @@ This code executes synthetic observation with creating an envelope model.
 
 
 [](
-# project name list\
+project name list\
 pmodes\
 envos: Envelope Observation Simulator\
 endo: Envelope-Disk ystem for Observation\
