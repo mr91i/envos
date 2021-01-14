@@ -5,9 +5,9 @@ This code executes synthetic observation with creating an envelope model.
 
 
 [](
-# project name list
-pmodes
-envos: Envelope Observation Simulator
+# project name list\
+pmodes\
+envos: Envelope Observation Simulator\
 endo: Envelope-Disk ystem for Observation\
 osimen: Observation Simulator for Model of Envelope\
 osiire: Observation SImulator for Infalling Rotating Envelope\
