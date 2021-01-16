@@ -1,37 +1,39 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import numpy as np
-from osimo.inp import gen_input
-from osimo.mkmodel import Grid, KinematicModel
-from osimo.setradmc import RadmcController
-from osimo.sobs import ObsSimulator, ObsData
-import osimo.config as oc
+import envos
+from envos.inp import gen_input
+from envos.mkmodel import Grid, KinematicModel
+from envos.setradmc import RadmcController
+from envos.sobs import ObsSimulator, ObsData
+import envos.config as oc
 
 
 switch = [1, 0, 0, 0]
-calc = [1, 1, 1, 1]
+calc = [0, 1, 1, 1]
 switch = [1]*4
 
 from plot_example import *
 if switch[0]:
     if calc[0]:
         model = KinematicModel()
-        model.set_grid(rau_lim=[1, 10000], dr_to_r0=0.03, aspect=1/4)
+        model.set_grid(rau_lim=[1, 10000], dr_to_r0=0.06, aspect=1/5)
         model.set_physical_params(CR_au=130, M_Msun=0.2, Mdot_Msyr=4.5e-6, meanmolw=2.3)
         model.build(inenv="CM", outenv="TSC")
         model.save("km.pkl")
     else:
-        model = KinematicModel()
-    plot_physical_model(model)
-exit()
+        model = KinematicModel("run/km.pkl")
+    plot_density_map(model)
 
 if switch[1]:
     rc = RadmcController(model=model)
     rc.set_parameters(n_thread=12, opac="MRN20", Lstar_Lsun=1, molname="c18o", molabun=1e-17, iline=3)
     rc.exe_mctherm()
     pmodel = rc.get_model()
-    plot_radmc_data(pmodel)
+    plot_temperature_map(pmodel)
+    #plot_radmc_data(pmodel)
 
+exit()
 if switch[2]:
     dpc = 140
     osim = ObsSimulator(dpc=dpc, n_thread=12)

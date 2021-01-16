@@ -1,147 +1,84 @@
+import os
 import numpy as np
-#import pandas as pd
-import matplotlib.pyplot as plt
-import matplotlib.cm as cm
 from scipy import interpolate, integrate
-#
-# from osimo.header import inp, dpath_radmc, dpath_fig
-import myplot as mp
-from osimo import tools
-import osimo.nconst as nc
-from osimo import config
-
-
-#msg = tools.Message(__file__, debug=False)
-import logging
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-
 from skimage.feature import peak_local_max
 import matplotlib.patches
 from mpl_toolkits.axes_grid1.anchored_artists import AnchoredAuxTransformBox
+import matplotlib.pyplot as plt
+import matplotlib.cm as cm
+import matplotlib.ticker as mt
+import matplotlib.colors as mc
+import time
 
-dpath_fig = "./"
+#import myplot as mp
+from envos import config
+from envos import tools
+from envos import nconst as nc
+from envos import log
+logger = log.set_logger(__name__, ini=True)
+
+dpath_fig = config.dp_fig
 ####################################################################################################
 
-def plot_physical_model(kmodel, stamp="model", r_lim=500, dpath_fig=config.dp_fig):
+def plot_density_map(km, rlim=500, fname="density.pdf", dpath_fig=config.dp_fig, streams=True, trajectries=True, filepath=None):
+    ## plot on meridional plane
+    lvs = np.logspace(-18, -15, 10)
+    img = plt.contourf(km.R[:,:,0]/nc.au, km.z[:,:,0]/nc.au, km.rho[:,:,0], lvs, norm=mc.LogNorm())
+    plt.xlim(0, rlim)
+    plt.ylim(0, rlim)
+    plt.xlabel("R [au]")
+    plt.ylabel("z [au]")
+    cbar = plt.colorbar(img, ticks=mt.LogLocator())
+    cbar.set_label(r'Gas Mass Density [g cm$^{-3}$]')
 
-    def midplane_slice(tt, vals_rtp):
-        iphi = 0
-        if len(vals_rtp) >= 2:
-            #return np.array([val_rtp.take(iphi, 2)[tt.take(iphi, 2) == np.pi/2] for val_rtp in vals_rtp])
-            #print(vals_rtp[0].shape, vals_rtp[0].take(0, 2).shape, vals_rtp[0])
+    if trajectries:
+        r0 = km.cs * km.t / nc.au
+        start_points = [(r0, th0) for th0 in np.radians(np.linspace(0, 90, 10))]
+        trs = _trace_particles_2d_meridional(km.rc_ax/nc.au, km.tc_ax, km.vr[:,:,0], km.vt[:,:,0], start_points)
+        for tr in trs:
+            plt.plot(tr[0], tr[1], c="orange", lw=1., marker=".", ms=5)
 
-            return np.array([val_rtp[:, -1, 0] for val_rtp in vals_rtp])
-        else:
-            return vals_rtp.take(iphi, 2)[tt == np.pi/2]
-    rax = kmodel.rc_ax
-    tax = kmodel.tc_ax
-    pax = kmodel.pc_ax
-    p_ax = pax if len(pax) != 1 else np.linspace(-np.pi, np.pi, 91)
-    rr, tt, pp = np.meshgrid(rax, tax, p_ax, indexing='ij')
-    R, z = rr * [np.sin(tt), np.cos(tt)]
-    x, y = R * [np.cos(pp), np.sin(pp)]
-    vx = kmodel.vr * np.cos(pp) - kmodel.vp * np.sin(pp)
-    vy = kmodel.vr * np.sin(pp) + kmodel.vp * np.cos(pp)
+    if streams:
+        r0 = rlim
+        rau = np.linspace(0, rlim, 1000)
+        xx, yy = np.meshgrid(rau, rau)
+        newgrid = np.stack([np.sqrt(xx**2 + yy**2), np.arctan2(xx, yy)], axis=-1)
+        vR = interpolate.interpn((km.rc_ax/nc.au, km.tc_ax), km.vR[:,:,0], newgrid, bounds_error=False, fill_value=0)
+        vz = interpolate.interpn((km.rc_ax/nc.au, km.tc_ax), km.vz[:,:,0], newgrid, bounds_error=False, fill_value=0)
+        start_points = [(r0*np.sin(th0), r0*np.cos(th0)) for th0 in np.radians(np.linspace(0, 90, 19))]
+        opt = {"density": 5, "linewidth": 0.75, "color":"w", "arrowsize":0.75}
+        ret = plt.streamplot(rau, rau, vR, vz, start_points=start_points, **opt)
 
-    r_ew = kmodel.cs * kmodel.t
+    if filepath is None:
+        filepath = os.path.join(config.dp_run, fname)
+    plt.savefig(filepath)
 
-    pos0_list = [(r_ew, np.radians(deg)) for deg in (80, 70, 60, 50)]
-    pos_list = [trace_particle_2d_meridional(rax, tax, kmodel.vr[:,:,0], kmodel.vt[:,:,0], (0.1*nc.yr, 1e7*nc.yr), pos0) for pos0 in pos0_list]
+    plt.show()
 
-    plmap = mp.Plotter(dpath_fig, x=R.take(0, 2)/nc.au, y=z.take(0, 2)/nc.au,
-                       logcb=True, leg=False, square=True,
-                       xl='Radius [au]', yl='Height [au]', xlim=[0, r_lim], ylim=[0, r_lim],
-                       fn_wrapper=lambda s:'map_%s_%s'%(s, stamp),
-                       decorator=lambda x: x.take(0,2))
-    vec = np.array([kmodel.vR.take(0, 2), kmodel.vz.take(0, 2)])
-    # Density and velocity map
-    plmap.map(kmodel.rho, 'rho', ctlim=[1e-20, 1e-16], cbl=r'log Density [g/cm$^{3}$]', div=10, n_sl=40, Vector=vec, save=False)
-    for pos in pos_list:
-        plmap.ax.plot(pos.R/nc.au, pos.z/nc.au, c="orangered", lw=1., marker="o")
-    plmap.save("rho_pt")
+def plot_midplane_numberdensity_profile(km, fname="ndens.pdf"):
+    plt.plot(km.rc_ax, km.rho[:,-1,0]/km.meanmolw)
+    plt.xlim(10, 1000)
+    plt.ylim(10, 1000)
+    plt.xscale('log')
+    plt.yscale('log')
+    filepath = os.path.join(config.dp_run, fname)
+    plt.savefig(filepath)
+    plt.show()
 
-    plmap.map(kmodel.rho, 'rho_L', ctlim=[1e-20, 1e-16], xlim=[0, 7000], ylim=[0, 7000], cbl=r'log Density [g/cm$^{3}$]', div=10, n_sl=40, Vector=vec, save=False)
-    for pos in pos_list:
-        plmap.ax.plot(pos.R/nc.au, pos.z/nc.au, c="orangered", lw=1., marker="o")
-    plmap.save("rho_L_pt")
 
-    #from scipy.integrate import simps
-    #integrated_value = np.where(r_mg < 300 * nc.au  , D.rho*r_mg**2*np.sin(th_mg), 0)
-    #Mtot = 2*np.pi*simps( simps(integrated_value[:,:,0],D.tc_ax, axis=1), D.rc_ax)
-    #print("Mtot is ", Mtot/nc.Msun)
-    #plmap.map(D.zeta, 'zeta', ctlim=[1e-2, 1e2], cbl=r'log $\zeta$ [g/cm$^{3}$]', div=6, n_sl=40)
+def plot_temperature_map(m, rlim=500, fname="temperature.pdf", dpath_fig=config.dp_fig, streams=True, trajectries=True, filepath=None):
+    lvs = np.linspace(0, 300, 10)
+    img = plt.contourf(m.R[:,:,0]/nc.au, m.z[:,:,0]/nc.au, m.gtemp[:,:,0], lvs, norm=mc.LogNorm())
+    plt.xlim(0, rlim)
+    plt.ylim(0, rlim)
+    plt.xlabel("R [au]")
+    plt.ylabel("z [au]")
+    cbar = plt.colorbar(img)
+    cbar.set_label(r'Gas Temperature [K]')
 
-    def zdeco_plane(z):
-        if z.shape[2] == 1:
-            return np.concatenate([z]*91, axis=2).take(-1,1)
-        else:
-            return z.take(-1,1)
-
-    vec = np.array([vx.take(-1, 1), vy.take(-1, 1)])
-    plplane = mp.Plotter(dpath_fig, x=x.take(-1, 1)/nc.au, y=y.take(-1, 1)/nc.au,
-                       leg=False, square=True, xl='x [au]', yl='y [au] (observer →)',
-                       xlim=[-r_lim, r_lim], ylim=[-r_lim, r_lim],
-                       fn_wrapper=lambda s:'plmap_%s_%s'%(s, stamp),
-                       decorator=zdeco_plane)
-
-    # Analyze radial profiles at the midplane
-    # Slicing
-    vls = x/rr * kmodel.vp - y/rr*kmodel.vr
-    plplane.map(vls/1e5, 'vls', ctlim=[-2.0, 2.0], cbl=r'$V_{\rm LS}$ [km s$^{-1}$]',
-                div=10, n_sl=20, cmap=cm.get_cmap('seismic'), Vector=vec, seeds_angle=[0,2*np.pi])
-
-    plplane.map(kmodel.rho, 'rho', ctlim=[1e-18, 1e-16], cbl=r'log kmodelensity [g/cm$^{3}$]',
-                   div=10, n_sl=20, logcb=True, cmap=cm.get_cmap('seismic'), Vector=vec, seeds_angle=[0,2*np.pi])
-
-    rho_mid, vR_mid, vp_mid = midplane_slice(tt, (kmodel.rho, kmodel.vR, kmodel.vp))
-    pl = mp.Plotter(dpath_fig, x=rax/nc.au, leg=True, xlim=[0, 5000], xl="Radius [au]")
-
-    pl.plot(['nH2_env', rho_mid/(2.3*nc.amu)], 'nenv_%s' % stamp, ylim=[1e3, 1e9],  xlim=[10, 10000],
-            lw=[3], logxy=True, vl=[kmodel.CR/nc.au])
-
-    # Make a 'balistic' orbit similar procedure to Oya+2014
-    pl.plot([['-vR', -vR_mid/nc.kms], ['vp', vp_mid/nc.kms]],
-            'v_%s' % stamp, ylim=[-1, 3], xlim=[0, 500], yl=r"Velocities [km s$^{-1}$]",
-            lw=[2, 2, 4, 4], ls=['-', '-', '--', '--'])
-
-    pl.plot([['-vR', -vR_mid/max(np.abs(vp_mid))], ['vp', vp_mid/max(np.abs(vp_mid))]],
-            'vnorm_%s' % stamp, ylim=[0, 1.5], x=kmodel.rc_ax/(kmodel.CR/2), xlim=[0, 3],  yl=r"Velocities [$u_{\phi,\rm CR}$]",
-            lw=[2, 2, 4, 4], ls=['-', '-', '--', '--'])
-
-    rhoint = vertical_integral(kmodel.rho[:,:,0], R[:,:,0], z[:,:,0], R[:,-1,0], R[:,-1,0])
-    pl.plot(["coldens", rhoint*2], 'coldens_%s' % stamp, ylim=[1e-2, 100], logy=True,
-            xlim=[0, 500], yl=r"Vertical Column Density [g cm $^{-2}$]")
 
 
 ####################################################################################################
-
-def plot_TSC_figs(cls):
-    figopt = {"logx":True, "logy" :True, "save":True, "leg":True, "show":False}
-
-    myp.plot([[r"$-V_{0}$", -cls.V_0], [r"$\alpha_{0}$", cls.al_0]], 'TSC_test_f0_out', x=cls.x,
-             xl=r'log y', yl=r'log $\rho$[$\Omega^2/2\pi G$]', xlim=[1e-3, 1e1], ylim=[1e-7, 1e7], **figopt)
-
-    m0 = 0.975
-    rho = (m0/2/cls.x**3)**0.5/2/cls.tau**2
-    # x = r/at = rOmg/a/tau = ksi/tau ==> ksi = x*tau
-    myp.plot([["Shu's 0th order sol.", cls.al_0/2/cls.tau**2], ["Unpertubed state", cls.f_rho0(cls.x*cls.tau)], ["Inner expansion-wave sol.", rho]],
-             'TSC_rho', x=cls.x, xl=r'log($y$)',yl=r'$\rho$ [$\Omega^2/(2\pi G)$]', ls=["-",":","--"], lw=[2,4,4], **figopt)
-
-    myp.plot([["rho", cls.rho_eq], ["M", cls.M_eq]], "TSC_fig1", x=cls.ksi_eq,
-             xl=r'r [a/$\Omega$]', yl=r'$\rho$ [$\Omega^2/2\pi G$]', xlim=[1e-2, 1e2], ylim=[1e-2, 1e6], **figopt)
-
-    myp.plot(0.25*(cls.x**2*cls.al_0*(cls.x-cls.V_0))**2, 'TSC_fig2', x=cls.x, xl=r'log y', yl=r'$(m_0/2)^2$', xlim=[1e-3, 1e1], ylim=[1e-1, 1e2], **figopt)
-
-    myp.plot([["alpha_0", cls.al_0], ["-alpha_Q", -cls.al_Q], ["alpha_M", cls.al_M]],
-              f"TSC_fig3", x=cls.x, xlim=[1e-3, 1e1], ylim=[3e-6, 1e7], **figopt)
-
-    myp.plot([["-V_0", -cls.V_0], ["V_M", cls.V_M]],
-              f"TSC_fig4a", x=cls.x, xlim=[1e-3, 1e1], ylim=[3e-4, 1e3], **figopt)
-
-    myp.plot([["V_Q", cls.V_Q], ["-V_Q", -cls.V_Q], ["-W_Q", -cls.W_Q]],
-              f"TSC_fig4b", x=cls.x, xlim=[1e-3, 1e1], ylim=[1e-8, 1e3], **figopt)
-
 
 
 
@@ -234,19 +171,19 @@ def vertical_integral(value_rt, R_rt, z_rt, R_ax, z_ax, log=False):
     s = np.array([ integrate.simps(r, z_ax) for r in np.nan_to_num(ret) ])
     return s
 
-def trace_particle_2d_meridional(rc_ax, tc_ax, vr, vth, t_span, pos0):
-    # There are some choice for coordination, but i gave up genelarixation for the code simplicity.
-    # input axis : rth
-    # velocity   : rth
-    # return pos : rth
-
+def _trace_particles_2d_meridional(rc_ax, tc_ax, vr, vth, start_points, t_span=None, nt=600):
+    """
+    There are some choice for coordination, but i gave up genelarixation for the code simplicity.
+    input axis : rth
+    velocity   : rth
+    return pos : rth
+    """
     vr_field = interpolate.RegularGridInterpolator((rc_ax, tc_ax), vr, bounds_error=False, fill_value=None)
     vth_field = interpolate.RegularGridInterpolator((rc_ax, tc_ax), vth, bounds_error=False, fill_value=None)
 
     def func(t, pos, hit_flag=0):
-        if pos[0] > rc_ax[-1]:
-            raise Exception(f"Too large position. r must be less than {rc_ax[-1]/nc.au} au.")
-
+        #if pos[0] > rc_ax[-1]:
+        #    raise Exception(f"Too large position. r must be less than {rc_ax[-1]/nc.au} au.")
         if hit_midplane(t, pos) < 0:
             hit_flag = 1
         r, th = pos[0], pos[1]
@@ -258,16 +195,20 @@ def trace_particle_2d_meridional(rc_ax, tc_ax, vr, vth, t_span, pos0):
         return np.pi/2 - pos[1]
     hit_midplane.terminal = True
 
-    t_trace = np.logspace(np.log10(t_span[0]), np.log10(t_span[-1]), 600)
-    if pos0[0] > rc_ax[-1]:
-        print(f"Too large position:r0 = {pos0[0]/nc.au} au. r0 must be less than {rc_ax[-1]/nc.au} au. I use r0 = {rc_ax[-1]/nc.au} au instead of r0 = {pos0[0]/nc.au} au")
-        pos0 = [rc_ax[-1], pos0[1]]
+    if t_span is None:
+        t_span = (0, 1e10)
+        t_trace = None
+    else:
+        t_trace = np.logspace(np.log10(t_span[0]), np.log10(t_span[-1]), nt)
 
-    #pos = integrate.solve_ivp(func, t_span, pos0, method='BDF', events=hit_midplane, t_eval=t_trace[1:-1])
-    pos = integrate.solve_ivp(func, t_span, pos0, method='RK45', events=hit_midplane, rtol=1e-8)
-    pos.R = pos.y[0] * np.sin(pos.y[1])
-    pos.z = pos.y[0] * np.cos(pos.y[1])
-    return pos
+    #if pos0[0] > rc_ax[-1]:
+    #    print(f"Too large position:r0 = {pos0[0]/nc.au} au. r0 must be less than {rc_ax[-1]/nc.au} au. I use r0 = {rc_ax[-1]/nc.au} au instead of r0 = {pos0[0]/nc.au} au")
+    #    pos0 = [rc_ax[-1], pos0[1]]
+    start_points = [( rc_ax[-1] if p0[0] > rc_ax[-1] else p0) for p0 in start_points]
+
+    #trajectries = [integrate.solve_ivp(func, t_span, p0, method='RK23', events=hit_midplane, rtol=1e-2) for p0 in start_points]
+    trajectries = [integrate.solve_ivp(func, t_span, p0, method='RK23', t_eval=t_trace, events=hit_midplane, rtol=1e-3) for p0 in start_points]
+    return [(t.y[0]*np.sin(t.y[1]), t.y[0]*np.cos(t.y[1])) for t in trajectries]
 
 
 ####################################################################################################
