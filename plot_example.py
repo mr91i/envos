@@ -4,6 +4,7 @@ from scipy import interpolate, integrate
 from skimage.feature import peak_local_max
 import matplotlib.patches
 from mpl_toolkits.axes_grid1.anchored_artists import AnchoredAuxTransformBox
+import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import matplotlib.ticker as mt
@@ -15,13 +16,42 @@ from envos import config
 from envos import tools
 from envos import nconst as nc
 from envos import log
+from envos import streamline
 logger = log.set_logger(__name__, ini=True)
+
+matplotlib.use('Agg')
+#matplotlib.use('tkagg')
+#matplotlib.use('pdf')
 
 dpath_fig = config.dp_fig
 ####################################################################################################
+from myplot import mpl_setting
+
+def add_streams(km, rlim):
+    r0 = rlim
+    rau = np.linspace(0, rlim, 1000)
+    xx, yy = np.meshgrid(rau, rau)
+    newgrid = np.stack([np.sqrt(xx**2 + yy**2), np.arctan2(xx, yy)], axis=-1)
+    vR = interpolate.interpn((km.rc_ax/nc.au, km.tc_ax), km.vR[:,:,0], newgrid, bounds_error=False, fill_value=0)
+    vz = interpolate.interpn((km.rc_ax/nc.au, km.tc_ax), km.vz[:,:,0], newgrid, bounds_error=False, fill_value=0)
+    start_points = [(r0*np.sin(th0), r0*np.cos(th0)) for th0 in np.radians(np.linspace(0, 90, 19))]
+    opt = {"density": 5, "linewidth": 0.5, "color":"w", "arrowsize":0.75}
+    ret = plt.streamplot(rau, rau, vR, vz, start_points=start_points, **opt)
+
+def add_trajectries(km):
+    r0 = km.cs * km.t #/ nc.au
+    start_points = [(r0, th0) for th0 in np.radians(np.linspace(0, 90, 10))]
+    #trs = _trace_particles_2d_meridional(km.rc_ax/nc.au, km.tc_ax, km.vr[:,:,0], km.vt[:,:,0], start_points)
+    sls = streamline.calc_streamlines(km.rc_ax, km.tc_ax, km.vr[:,:,0], km.vt[:,:,0], start_points)
+    for sl in sls:
+        plt.plot(sl.R/nc.au, sl.z/nc.au, c="orange", lw=1., marker=".", ms=5)
+    streamline.save_data(sls)
+
 
 def plot_density_map(km, rlim=500, fname="density.pdf", dpath_fig=config.dp_fig, streams=True, trajectries=True, filepath=None):
     ## plot on meridional plane
+    t = time.time()
+
     lvs = np.logspace(-18, -15, 10)
     img = plt.contourf(km.R[:,:,0]/nc.au, km.z[:,:,0]/nc.au, km.rho[:,:,0], lvs, norm=mc.LogNorm())
     plt.xlim(0, rlim)
@@ -30,30 +60,24 @@ def plot_density_map(km, rlim=500, fname="density.pdf", dpath_fig=config.dp_fig,
     plt.ylabel("z [au]")
     cbar = plt.colorbar(img, ticks=mt.LogLocator())
     cbar.set_label(r'Gas Mass Density [g cm$^{-3}$]')
+    print(time.time() - t)
 
     if trajectries:
-        r0 = km.cs * km.t / nc.au
-        start_points = [(r0, th0) for th0 in np.radians(np.linspace(0, 90, 10))]
-        trs = _trace_particles_2d_meridional(km.rc_ax/nc.au, km.tc_ax, km.vr[:,:,0], km.vt[:,:,0], start_points)
-        for tr in trs:
-            plt.plot(tr[0], tr[1], c="orange", lw=1., marker=".", ms=5)
+        add_trajectries(km)
 
     if streams:
-        r0 = rlim
-        rau = np.linspace(0, rlim, 1000)
-        xx, yy = np.meshgrid(rau, rau)
-        newgrid = np.stack([np.sqrt(xx**2 + yy**2), np.arctan2(xx, yy)], axis=-1)
-        vR = interpolate.interpn((km.rc_ax/nc.au, km.tc_ax), km.vR[:,:,0], newgrid, bounds_error=False, fill_value=0)
-        vz = interpolate.interpn((km.rc_ax/nc.au, km.tc_ax), km.vz[:,:,0], newgrid, bounds_error=False, fill_value=0)
-        start_points = [(r0*np.sin(th0), r0*np.cos(th0)) for th0 in np.radians(np.linspace(0, 90, 19))]
-        opt = {"density": 5, "linewidth": 0.75, "color":"w", "arrowsize":0.75}
-        ret = plt.streamplot(rau, rau, vR, vz, start_points=start_points, **opt)
-
+        add_streams(km, rlim)
+#
     if filepath is None:
         filepath = os.path.join(config.dp_run, fname)
     plt.savefig(filepath)
+    plt.clf()
 
-    plt.show()
+    #matplotlib.use('tkagg')
+    #plt.show()
+    #plt.draw()
+    #matplotlib.use('Agg')
+    #exit()
 
 def plot_midplane_numberdensity_profile(km, fname="ndens.pdf"):
     plt.plot(km.rc_ax, km.rho[:,-1,0]/km.meanmolw)
@@ -63,18 +87,39 @@ def plot_midplane_numberdensity_profile(km, fname="ndens.pdf"):
     plt.yscale('log')
     filepath = os.path.join(config.dp_run, fname)
     plt.savefig(filepath)
-    plt.show()
+    #plt.show()
+    plt.clf()
 
 
 def plot_temperature_map(m, rlim=500, fname="temperature.pdf", dpath_fig=config.dp_fig, streams=True, trajectries=True, filepath=None):
-    lvs = np.linspace(0, 300, 10)
-    img = plt.contourf(m.R[:,:,0]/nc.au, m.z[:,:,0]/nc.au, m.gtemp[:,:,0], lvs, norm=mc.LogNorm())
+    t = time.time()
+    lvs = np.linspace(10, 100, 10)
+    #lvs = np.logspace(1, 2, 11)
+    img = plt.contourf(m.R[:,:,0]/nc.au, m.z[:,:,0]/nc.au, m.gtemp[:,:,0], lvs, cmap=plt.get_cmap("inferno"))# norm=mc.LogNorm())
     plt.xlim(0, rlim)
     plt.ylim(0, rlim)
     plt.xlabel("R [au]")
     plt.ylabel("z [au]")
+    #cbar = plt.colorbar(img, ticks=mt.LogLocator(), format=mt.ScalarFormatter())
     cbar = plt.colorbar(img)
     cbar.set_label(r'Gas Temperature [K]')
+    cbar.ax.minorticks_off()
+    #cbar.ax.yaxis.set_major_formatter(mt.ScalarFormatter())
+    #cbar.ax.yaxis.set_minor_formatter(mt.ScalarFormatter())
+
+    if trajectries:
+        add_trajectries(m)
+
+    if streams:
+        add_streams(m, rlim)
+
+    if filepath is None:
+        filepath = os.path.join(config.dp_run, fname)
+    plt.savefig(filepath)
+    plt.clf()
+    print("showing")
+    print(time.time() - t)
+    #plt.show()
 
 
 
@@ -204,7 +249,8 @@ def _trace_particles_2d_meridional(rc_ax, tc_ax, vr, vth, start_points, t_span=N
     #if pos0[0] > rc_ax[-1]:
     #    print(f"Too large position:r0 = {pos0[0]/nc.au} au. r0 must be less than {rc_ax[-1]/nc.au} au. I use r0 = {rc_ax[-1]/nc.au} au instead of r0 = {pos0[0]/nc.au} au")
     #    pos0 = [rc_ax[-1], pos0[1]]
-    start_points = [( rc_ax[-1] if p0[0] > rc_ax[-1] else p0) for p0 in start_points]
+    start_points = [( (rc_ax[-1], p0[1]) if p0[0] > rc_ax[-1] else p0) for p0 in start_points]
+
 
     #trajectries = [integrate.solve_ivp(func, t_span, p0, method='RK23', events=hit_midplane, rtol=1e-2) for p0 in start_points]
     trajectries = [integrate.solve_ivp(func, t_span, p0, method='RK23', t_eval=t_trace, events=hit_midplane, rtol=1e-3) for p0 in start_points]

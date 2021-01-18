@@ -3,35 +3,43 @@
 import numpy as np
 import envos
 from envos.inp import gen_input
-from envos.mkmodel import Grid, KinematicModel
+from envos.model import Grid, KinematicModel
 from envos.setradmc import RadmcController
 from envos.sobs import ObsSimulator, ObsData
 import envos.config as oc
 
 
 switch = [1, 0, 0, 0]
-calc = [0, 1, 1, 1]
+calc = [1, 1, 1, 1]
 switch = [1]*4
 
 from plot_example import *
 if switch[0]:
     if calc[0]:
         model = KinematicModel()
-        model.set_grid(rau_lim=[1, 10000], dr_to_r0=0.06, aspect=1/5)
+        model.set_grid(rau_lim=[1, 1000], dr_to_r0=0.05, aspect=1/4)
         model.set_physical_params(CR_au=130, M_Msun=0.2, Mdot_Msyr=4.5e-6, meanmolw=2.3)
         model.build(inenv="CM", outenv="TSC")
-        model.save("km.pkl")
+        model.save("kmodel.pkl")
     else:
-        model = KinematicModel("run/km.pkl")
+        model = KinematicModel("run/kmodel.pkl")
     plot_density_map(model)
 
 if switch[1]:
-    rc = RadmcController(model=model)
-    rc.set_parameters(n_thread=12, opac="MRN20", Lstar_Lsun=1, molname="c18o", molabun=1e-17, iline=3)
-    rc.exe_mctherm()
-    pmodel = rc.get_model()
-    plot_temperature_map(pmodel)
-    #plot_radmc_data(pmodel)
+    if calc[1]:
+        rc = RadmcController(model=model)
+        rc.set_parameters(nphot=1e6, mc_scat_maxtauabs=30,scattering_mode_max=1, n_thread=12, opac="MRN20", Lstar_Lsun=1, molname="c18o", molabun=1e-17, iline=3)
+        rc.set_radmc_input()
+        rc.exe_mctherm()
+        tkmodel = rc.get_model()
+        tkmodel.save("tkmodel.pkl")
+    else:
+        tkmodel = ThermalKinematicMode("run/tkmodel.pkl")
+    plot_temperature_map(tkmodel)
+
+r_crit = tkmodel.cs * tkmodel.t
+start_points = [(r_crit, np.radians(deg)) for deg in range(0, 90, 10)]
+streamline.calc_streamlines_from_model(tkmodel, [["rhogas", "Tgas"], ["g/cm3", "K"]], start_points)
 
 exit()
 if switch[2]:

@@ -1,4 +1,4 @@
-# import envos.mkmodel
+# import envos.model
 # import
 
 ## Check Python version

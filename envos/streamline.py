@@ -1,112 +1,24 @@
+import os
 import numpy as np
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from scipy import interpolate, integrate
+from envos import log, config
+from envos import nconst as nc
+logger = log.set_logger(__name__, ini=True)
 
-def calc_streamlines(r_ax, t_ax, vr, vt, physical_value_dict):
-    """
-    physical_value_dict: dict
-        key: str
-            name of physical value
-        value: list
-            values
-    """
-
+def calc_streamlines_from_model(model, name_list, unit_list, **kwargs):
+    values = [(n, getattr(model, n), u) for n, u in zip(name_list, unit_list)]
+    calc_streamlines(model.rc_ax, model.th_ax, model.vr[:,:,0], model.vt[:,:,0], pos0list, values=values, **kwargs)
 
 
-class Streamlines:
-    def __init__(self, r_ax, t_ax, vr, vt ):
-        self.r_ax = r_ax
-        self.t_ax = t_ax
-        self.slines = []
-        self.val_list = []
-
-    def set_pos0list(self, r0_list, theta0_list):
-        self.pos0list = [(r0, th0) for r0 in r0_list for th0 in theta0_list]
-
-    def set_vfield(self, r_ax, t_ax, vr, vt):
-        self.vr_field = interpolate.RegularGridInterpolator((r_ax, t_ax), vr, bounds_error=False, fill_value=None)
-        self.vt_field = interpolate.RegularGridInterpolator((r_ax, t_ax), vt, bounds_error=False, fill_value=None)
-
-    def add_value(self, name, val, unit):
-        valfunc = interpolate.RegularGridInterpolator((self.r_ax, self.t_ax), val, bounds_error=False, fill_value=None)
-        self.val_list.append([ name, valfunc, unit])
-
-    def calc_streamlines(self, dpath):
-        sl = Streamline(self.r_ax, self.t_ax, self.vr_field, self.vt_field, self.t_span)
-        for name, valfunc, unit in self.val_list:
-            sl.add_value(name, valfunc, unit)
-
-        for _pos0 in self.pos0_list:
-            sl.calc_streamline(_pos0)
-            sl.save_data(dpath)
-
-class Streamline:
-    def __init__(self, r_ax, th_ax, vrf, vtf, pos0, t_span=(0, 1e30), nt=500, rtol=1e-4):
-        self.name = "{pos0[0]/nc.au:.2f}_{np.deg2rad(pos0[1]):.2f}"
-        self.vr_field = vrf
-        self.vt_field = vtf
-        self.value_dict = {}
-        self.t_eval = np.logspace(np.log10(t_span[0]), np.log10(t_span[-1]), nt)
-        self.rtol = rtol
-
-
-    def add_value(self, value_dict):
-        #self.vnames.append(name)
-        #self.vfuncs.append(interpfunc)
-        #self.vunits.append(unit)
-        self.value_dict.update(value_dict)
-
-    def calc_streamline(self):
-        if pos0[0] > self.r_ax[-1]:
-            looger.info(f'Too large position:r0 = {pos0[0]/nc.au} au. r0 must be less than {r_ax[-1]/nc.au} au. I use r0 = {r_ax[-1]/nc.au} au instead of r0 = {pos0[0]/nc.au} au')
-            pos0 = [self.r_ax[-1], pos0[1]]
-
-        def func(t, pos, hit_flag=0):
-            if hit_midplane(t, pos) < 0:
-                hit_flag = 1
-            vr = self.vr_field(pos)
-            vt = self.vt_field(pos)
-            return np.array([vr, vt/pos[0]])
-
-        def hit_midplane(t, pos):
-            return np.pi/2 - pos[1]
-        hit_midplane.terminal = True
-
-        pos = integrate.solve_ivp(
-                func,
-                (self.t_eval[0], self.t_eval[-1]),
-                self.pos0,
-                method='RK45',
-                events=hit_midplane,
-                t_eval=self.t_eval,
-                rtol=self.rtol)
-        pos.R = pos.y[0] * np.sin(pos.y[1])
-        pos.z = pos.y[0] * np.cos(pos.y[1])
-        self.pos = pos
-        #self.values = [f(pos) for f in self.vfuncs]
-        for v in self.value_dict.values():
-            vline = self._interpolate_along_streamline(v, pos.y)
-            setattr(
-
-    def _interpolate_along_streamline(self, value, points):
-         return interpolate.interpn((self.r_ax, self.t_ax), value, points, bounds_error=False, fill_value=None)
-
-    def save_data(self, filename="stream", dpath=None):
-        if dpath is None:
-            dpath = config.dp_run
-        os.makedirs(dpath, exist_ok=True)
-
-        #vlist = [f"{v}["u"]" for v, u in zip(self.vnames, self.sunits)]
-        header = " ".join('t [s]', "R [cm]", "z [cm]", *self.value_dict.keys())
-        stream_data = np.stack((self.pos.t, self.pos.R, self.pos.z, *self.values()), axis=-1)
-        np.savetxt(f'{dpath}/{filename}_{self.name}.txt', stream_data, header=header, fmt="%.18e")
-
-
-def calc_streamlines(r_ax, th_ax, vr, vt, pos0list, valueinfo, t_span=(0, 1e30), nt=500, rtol=1e-4, filename="stream", dpath=None):
-    slc = StreamlineCalculator(r_ax, th_ax, vr, vt, pos0list, t_span=t_span, nt=nt, rtol=rtol):
-    for name, value, unitname in valueinfo:
+def calc_streamlines(r_ax, t_ax, vr, vt, pos0list, values=[], t_span=(1, 1e30), nt=500, rtol=1e-4, filename="stream", dpath=None, save=False):
+    slc = StreamlineCalculator(r_ax, t_ax, vr, vt, pos0list, t_span=t_span, nt=nt, rtol=rtol)
+    for name, value, unitname in values:
         slc.add_value(self, name, value, unitname)
     slc.calc_streamlines()
-    slc.save_data(self, filename=filename, dpath=dpath)
+    if save:
+        save_data(slc.streamlines, filename=filename, dpath=dpath)
+    return slc.streamlines
 
 @dataclass
 class Streamline:
@@ -116,11 +28,17 @@ class Streamline:
     z: np.ndarray
     vR: np.ndarray
     vz: np.ndarray
-    def add_value(self, name, value):
-        setattr(self, name, value)
+    values: list = field(default_factory=list)
+
+    def add_value(self, name, value, unit):
+        values.append([name, value, unit])
+
+    def get_values(self):
+        return self.values
+
 
 class StreamlineCalculator:
-    def __init__(self, r_ax, th_ax, vr, vt, pos0list, t_span=(0, 1e30), nt=500, rtol=1e-4, method='RK45'):
+    def __init__(self, r_ax, t_ax, vr, vt, pos0list, t_span=(1, 1e30), nt=500, rtol=1e-8, method='RK45'):
         self.r_ax = r_ax
         self.t_ax = t_ax
         self.vr_field = interpolate.RegularGridInterpolator((r_ax, t_ax), vr, bounds_error=False, fill_value=None)
@@ -129,18 +47,12 @@ class StreamlineCalculator:
         self.t_eval = np.logspace(np.log10(t_span[0]), np.log10(t_span[-1]), nt)
         self.rtol = rtol
         self.method = method
-        self.names = []
-        self.values = []
-        self.unitnames = []
         self.streamlines = []
-        self.hit_midplane.terminal = True
+        self.value_list = []
+        self._hit_midplane.terminal = True
 
     def add_value(self, name, value, unitname):
-        #valfunc = interpolate.RegularGridInterpolator((self.r_ax, self.t_ax), val, bounds_error=False, fill_value=None)
-        #self.val_list.append([ name, valfunc, unit])
-        self.names.append(name)
-        self.values.append(value)
-        self.unitnames.append(unitname)
+        self.value_list.append([name, value, unitname])
 
     def calc_streamlines(self):
         for pos0 in self.pos0list:
@@ -148,53 +60,59 @@ class StreamlineCalculator:
 
     def calc_streamline(self, pos0):
         if pos0[0] > self.r_ax[-1]:
-            looger.info(f'Too large position:r0 = {pos0[0]/nc.au} au. r0 must be less than {r_ax[-1]/nc.au} au. I use r0 = {r_ax[-1]/nc.au} au instead of r0 = {pos0[0]/nc.au} au')
+            logger.info(f"Too large inital position: r0 = {pos0[0]/nc.au} au.")
+            logger.info(f"Use r0 = max(r_ax) = {self.r_ax[-1]/nc.au} au, instead of r0 = {pos0[0]/nc.au} au")
             pos0 = [self.r_ax[-1], pos0[1]]
 
         res = integrate.solve_ivp(
                 self._func,
                 (self.t_eval[0], self.t_eval[-1]),
-                self.pos0,
+                pos0,
                 method=self.method,
-                events=self.hit_midplane,
+                events=self._hit_midplane,
                 t_eval=self.t_eval,
                 rtol=self.rtol)
         self.add_streamline(res)
 
-    def _func(t, pos, hit_flag=0):
-        if hit_midplane(t, pos) < 0:
-            hit_flag = 1
-        vr = self.vr_field(pos)
-        vt = self.vt_field(pos)
+    def _func(self, t, pos):
+        vr = self.vr_field(pos)[0]
+        vt = self.vt_field(pos)[0]
+        print(pos, vr, vt)
+        if np.isnan(pos[0]):
+            exit()
         return np.array([vr, vt/pos[0]])
 
+    @staticmethod
     def _hit_midplane(t, pos):
         return np.pi/2 - pos[1]
 
     def add_streamline(self, res):
         R = res.y[0] * np.sin(res.y[1])
         z = res.y[0] * np.cos(res.y[1])
-        vr = self.vr_field(res.y)
-        vt = self.vt_field(res.y)
+        vr = self.vr_field(res.y.T)
+        vt = self.vt_field(res.y.T)
         vR = np.sin(res.y[1])  *vr + np.cos(res.y[1]) * vt
         vz = np.cos(res.y[1]) * vr - np.sin(res.y[1]) * vt
         sl = Streamline(res.y[:,0], res.t, R, z, vR, vz)
-        for name, value in zip(self.names, self.values):
+        for name, value, unitname in self.value_list:
             vint = self._interpolate_along_streamline(value, res.y)
-            sl.add_value(name, vint)
+            sl.add_value(name, vint, unitname)
         self.streamlines.append(sl)
 
     def _interpolate_along_streamline(self, value, points):
          return interpolate.interpn((self.r_ax, self.t_ax), value, points, bounds_error=False, fill_value=None)
 
-    def save_data(self, filename="stream", dpath=None):
-        if dpath is None:
-            dpath = config.dp_run
-        os.makedirs(dpath, exist_ok=True)
+def save_data(streamlines, filename="stream", dpath=None):
+    if dpath is None:
+        dpath = config.dp_run
+    os.makedirs(dpath, exist_ok=True)
 
-        for sl in self.streamlines:
-            label = "{sl.pos0[0]/nc.au:.2f}_{np.deg2rad(sl.pos0[1]):.2f}"
-            vlist = [f"{v} ["u"]" for v, u in zip(self.vnames, self.unitnames)]
-            header = " ".join('t [s]', "R [cm]", "z [cm]", *self.value_dict.keys())
-            stream_data = np.stack((self.pos.t, self.pos.R, self.pos.z, *self.values()), axis=-1)
-            np.savetxt(f'{dpath}/{filename}_{label}.txt', stream_data, header=header, fmt="%.18e")
+    for sl in streamlines:
+        label = f"r{sl.pos0[0]/nc.au:.0f}_th{np.rad2deg(sl.pos0[1]):.0f}"
+        header = "t [s]  R [cm]  z [cm]  vr [cm/s]  vt [cm/s] "
+        values = []
+        for name, value, unitname in sl.get_values():
+            header += f"{name} [{unitname}]"
+            values.append(value)
+        stream_data = np.stack((sl.t, sl.R, sl.z, sl.vR, sl.vz, *values), axis=-1)
+        np.savetxt(f'{dpath}/{filename}_{label}.txt', stream_data, header=header, fmt="%.18e")
