@@ -312,7 +312,8 @@ def get_tsc(r, theta, t, cs, Omega, mode="read", filename=FILENAME):
     rho = calc_rho(mgdata.tt, tau, Omega, mgdata.Delta_Q, mgdata.alpha_0, mgdata.alpha_M, mgdata.alpha_Q, mgdata.da0dy)
     vr, vt, vp = calc_velocity(mgdata.xx, mgdata.tt, tau, cs, mgdata.Delta_Q, mgdata.V_0, mgdata.V_M, mgdata.V_Q, mgdata.W_Q, mgdata.m_0, mgdata.dV0dy)
 
-    return {"vars":(rho, vr, vt, vp), "Delta":mgdata.Delta_Q}
+    #return {"vars":(rho, vr, vt, vp), "Delta":mgdata.Delta_Q}
+    return {"rho":rho, "vr":vr, "vt":vt, "vp":vp, "Delta":mgdata.Delta_Q}
 
 def save_table(filename=FILENAME, tau=0.01, search_K=False, **kwargs):
     tscs = TscSolver(tau=tau, **kwargs)
