@@ -1,40 +1,62 @@
-import os
+import numpy as np
+from dataclasses import dataclass
 
-def joinpath(basepath, relpath):
-    return os.path.abspath(os.path.join(basepath, relpath))
 
-dp_home = os.path.normpath(os.path.join(os.path.dirname(__file__), '..'))
-dp_storage = joinpath(dp_home, "radmc_storage")
-dp_run = joinpath(dp_home, "run")
-dp_radmc = joinpath(dp_run, "radmc")
-dp_fig = joinpath(dp_run, "fig")
-fp_log = joinpath(dp_run, "log.dat")
+@dataclass
+class Config:
+    def set_grid(self,
+        ri_ax=None,
+        ti_ax=None,
+        pi_ax=None,
+        *,
+        rau_lim=None,
+        theta_lim=(0, np.pi / 2),
+        phi_lim=(0, 2 * np.pi),
+        nr=None,
+        ntheta=None,
+        nphi=1,
+        dr_to_r=None,
+        aspect_ratio=1.0,
+        logr=True
+        ):
 
-def set_homedir(path, update=True):
-    global dp_home
-    dp_home = os.path.abspath(path)
-    if update:
-        dp_storage = joinpath(dp_home, "radmc_storage")
-        dp_run = joinpath(dp_home, "run")
-        dp_radmc = joinpath(dp_run, "radmc")
-        fp_log = joinpath(dp_run, "log.dat")
+        self.grid = Grid(
+        ri_ax=ri_ax,
+        ti_ax=ti_ax,
+        pi_ax=pi_ax,
+        rau_lim=rau_lim,
+        theta_lim=theta_lim,
+        phi_lim=phi_lim,
+        nr=nr,
+        ntheta=ntheta,
+        nphi=nphi,
+        dr_to_r=dr_to_r,
+        aspect_ratio=aspect_ratio,
+        logr=logr,
+        )
 
-def set_storagedir(path):
-    global dp_storage
-    dp_storage = os.path.abspath(path)
 
-def set_rundir(path, update=True):
-    global dp_run
-    dp_run = os.path.abspath(path)
-    if update:
-        dp_radmc = joinpath(dp_run, "radmc")
-        fp_log = joinpath(dp_run, "log.dat")
+    def set_physical_parameters(
+        self, T: float = None,
+        CR_au: float = None,
+        Ms_Msun: float = None,
+        t_yr: float = None,
+        Omega: float = None,
+        maxj: float = None,
+        Mdot_Msyr: float = None,
+        meanmolw: float = 2.3,
+        cavangle_deg: float = 0):
 
-def set_radmcdir(path):
-    global dp_run
-    dp_run = os.path.abspath(path)
-
-def set_logfile(path):
-    global fp_log
-    fp_log = os.path.abspath(path)
+        self.ppar = PhysicalParameters(
+                T
+                CR_au=CR_au,
+                Ms_Msun=Ms_Msun,
+                t_yr=t_yr,
+                Omega=Omega,
+                maxj=maxj,
+                Mdot_Msyr=Mdot_Msyr,
+                meanmolw=meanmolw,
+                cavangle_deg=cavangle_deg,
+            )
+    def set_model_input(self, inenv="CM", outenv=None, disk=None):
 
