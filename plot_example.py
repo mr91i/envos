@@ -12,7 +12,7 @@ import matplotlib.colors as mc
 import time
 
 #import myplot as mp
-from envos import config
+from envos import run_config as rc
 from envos import tools
 from envos import nconst as nc
 from envos import log
@@ -23,7 +23,7 @@ matplotlib.use('Agg')
 #matplotlib.use('tkagg')
 #matplotlib.use('pdf')
 
-dpath_fig = config.dp_fig
+dpath_fig = rc.dp_fig
 ####################################################################################################
 from myplot import mpl_setting
 
@@ -48,7 +48,7 @@ def add_trajectries(km):
     streamline.save_data(sls)
 
 
-def plot_density_map(km, rlim=500, fname="density.pdf", dpath_fig=config.dp_fig, streams=True, trajectries=True, filepath=None):
+def plot_density_map(km, rlim=500, fname="density.pdf", dpath_fig=rc.dp_fig, streams=True, trajectries=True, filepath=None):
     ## plot on meridional plane
     t = time.time()
 
@@ -69,7 +69,7 @@ def plot_density_map(km, rlim=500, fname="density.pdf", dpath_fig=config.dp_fig,
         add_streams(km, rlim)
 #
     if filepath is None:
-        filepath = os.path.join(config.dp_run, fname)
+        filepath = os.path.join(rc.dp_run, fname)
     plt.savefig(filepath)
     plt.clf()
 
@@ -85,13 +85,13 @@ def plot_midplane_numberdensity_profile(km, fname="ndens.pdf"):
     plt.ylim(10, 1000)
     plt.xscale('log')
     plt.yscale('log')
-    filepath = os.path.join(config.dp_run, fname)
+    filepath = os.path.join(rc.dp_run, fname)
     plt.savefig(filepath)
     #plt.show()
     plt.clf()
 
 
-def plot_temperature_map(m, rlim=500, fname="temperature.pdf", dpath_fig=config.dp_fig, streams=True, trajectries=True, filepath=None):
+def plot_temperature_map(m, rlim=500, fname="temperature.pdf", dpath_fig=rc.dp_fig, streams=True, trajectries=True, filepath=None):
     t = time.time()
     lvs = np.linspace(10, 100, 10)
     #lvs = np.logspace(1, 2, 11)
@@ -114,7 +114,7 @@ def plot_temperature_map(m, rlim=500, fname="temperature.pdf", dpath_fig=config.
         add_streams(m, rlim)
 
     if filepath is None:
-        filepath = os.path.join(config.dp_run, fname)
+        filepath = os.path.join(rc.dp_run, fname)
     plt.savefig(filepath)
     plt.clf()
     print("showing")
@@ -173,13 +173,13 @@ def plot_radmc_data(rmc_data):
        plot_plofs(rmc_data.t_dest/rmc_data.t_dyn, "tche", lim=[1e-3,1e3], lb="CCH Lifetime/Dynamical Timescale")
 
    if rmc_data.opac!="":
-       with open(f"{dpath_radmc}/dustkappa_{rmc_data.opac}.inp", mode='r') as f:
+       with open(f"{radmc_dir}/dustkappa_{rmc_data.opac}.inp", mode='r') as f:
            read_data = f.readlines()
            mode = int(read_data[0])
        if mode==2:
-           lam, kappa_abs, kappa_sca = np.loadtxt(f"{dpath_radmc}/dustkappa_{rmc_data.opac}.inp", skiprows=2).T
+           lam, kappa_abs, kappa_sca = np.loadtxt(f"{radmc_dir}/dustkappa_{rmc_data.opac}.inp", skiprows=2).T
        elif mode==3:
-           lam, kappa_abs, kappa_sca, _ = np.loadtxt(f"{dpath_radmc}/dustkappa_{rmc_data.opac}.inp", skiprows=3).T
+           lam, kappa_abs, kappa_sca, _ = np.loadtxt(f"{radmc_dir}/dustkappa_{rmc_data.opac}.inp", skiprows=3).T
 
        mp.Plotter(rmc_data.dpath_fig).plot([["ext",kappa_abs+kappa_sca],["abs", kappa_abs],["sca",kappa_sca]], "dustopac",
            x=lam, xlim=[0.03,3e4], ylim=[1e-4,1e6], logx=True, logy=True,
@@ -339,7 +339,7 @@ def plot_lineprofile(obsdata, dpath_fig=dpath_fig):
     plt.savefig("test.pdf")
 
 
-def plot_pvdiagram(PV, dpath_fig=dpath_fig, out='pvd', n_lv=5, Mstar_Msun=None, rCR_au=None, f_crit=None, mass_ip=False, mass_vp=False, mapmode='grid', oplot={}):
+def plot_pvdiagram(PV, dpath_fig=dpath_fig, out='pvd', n_lv=5, Ms_Msun=None, rCR_au=None, f_crit=None, mass_ip=False, mass_vp=False, mapmode='grid', oplot={}):
 
     def find_local_peak_position(x, y, i):
         if (2 <= i <= len(x)-3):
@@ -393,7 +393,7 @@ def plot_pvdiagram(PV, dpath_fig=dpath_fig, out='pvd', n_lv=5, Mstar_Msun=None, 
     pltr.ax2.set_xlabel("Angular Offset [arcsec]")
     pltr.ax2.set_xlim(np.array(pltr.ax.get_xlim())/dpc)
 
-    l = np.sqrt(nc.G*Mstar_Msun*nc.Msun*rCR_au*nc.au)
+    l = np.sqrt(nc.G*Ms_Msun*nc.Msun*rCR_au*nc.au)
     a = (2*xau/rCR_au)
 
     overplot = {"KeplerRotation":False, "ire_fit":False, "LocalPeak_Pax": False, "LocalPeak_Vax":False, "LocalPeak_2D":False}
@@ -402,7 +402,7 @@ def plot_pvdiagram(PV, dpath_fig=dpath_fig, out='pvd', n_lv=5, Mstar_Msun=None, 
         pltr.ax.plot(xau, 2*l/rCR_au*(2*xau.clip(0)/rCR_au)**(-2/3) * 1/nc.kms, c="hotpink", ls=":", lw=1)
 
     if overplot['KeplerRotation']:
-        vKep = np.sqrt(nc.G*Mstar_Msun*nc.Msun/(xau*nc.au)) * 1/nc.kms
+        vKep = np.sqrt(nc.G*Ms_Msun*nc.Msun/(xau*nc.au)) * 1/nc.kms
         pltr.ax.plot(xau, vKep, c="cyan", ls=":", lw=1)
 
     if overplot['LocalPeak_Pax']:

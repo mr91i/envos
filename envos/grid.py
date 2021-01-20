@@ -1,4 +1,6 @@
 import numpy as np
+from envos import nconst as nc
+
 
 class Grid:
     def __init__(
@@ -68,7 +70,7 @@ class Grid:
         if dr_to_r is not None:
             nr = int(np.log(rau_lim[1] / rau_lim[0]) / dr_to_r)
             ntheta_float = (theta_lim[1] - theta_lim[0]) / dr_to_r / aspect_ratio
-            ntheta = np.rint(ntheta_float, dtype=int)
+            ntheta = int(round(ntheta_float))
 
         if logr:
             self.ri_ax = np.logspace(*np.log10(rau_lim), nr + 1) * nc.au

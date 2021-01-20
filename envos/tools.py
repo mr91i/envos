@@ -4,15 +4,16 @@ import numpy as np
 from envos import nconst as nc
 
 import logging
+
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 ## in input files
 
-#def mkdir(dpath):
+# def mkdir(dpath):
 #    os.mkdirs(dpath, exist_ok=True)
 
-#class Parameters:
+# class Parameters:
 #    def __init__(self, subclass_name_list=None):
 #        if subclass_name_list is not None:
 #            for name in subclass_name_list:
@@ -20,60 +21,77 @@ logger.setLevel(logging.DEBUG)
 #    class Subclass:
 #        pass
 
-#def set_arguments(cls, locals_dict):
+# def set_arguments(cls, locals_dict):
 #    for k, v in locals_dict.items():
 #        if (k != 'self') and (k!="kwargs"):
 #            setattr(cls, k, v)
-            # logger.debug(f"{k:20} is {str(v):20}")
+# logger.debug(f"{k:20} is {str(v):20}")
+
 
 def freq_to_vkms_array(freq, freq0):
-    return nc.c/1e5* (freq0 - freq)/freq0
+    return nc.c / 1e5 * (freq0 - freq) / freq0
+
 
 def freq_to_vkms(freq0, dfreq):
-    return nc.c/1e5* dfreq/freq0
+    return nc.c / 1e5 * dfreq / freq0
 
-def make_array_center( xi ):
-    return 0.5 * ( xi[0:-1] + xi[1:] )
 
-def make_array_interface( xc ):
-        return np.concatenate([[xc[0]-0.5*(xc[1]-xc[0])],
-                                0.5*(xc[0:-1]+xc[1:]),
-                               [xc[-1]+0.5*(xc[-1]-xc[-2])]
-                              ], axis=0)
+def make_array_center(xi):
+    return 0.5 * (xi[0:-1] + xi[1:])
+
+
+def make_array_interface(xc):
+    return np.concatenate(
+        [
+            [xc[0] - 0.5 * (xc[1] - xc[0])],
+            0.5 * (xc[0:-1] + xc[1:]),
+            [xc[-1] + 0.5 * (xc[-1] - xc[-2])],
+        ],
+        axis=0,
+    )
+
 
 def make_meshgrid_center(xxi, yyi, indexing="xy"):
-    if indexing=="xy":
-        xc = make_array_center(xxi[0,:])
-        yc = make_array_center(yyi[:,0])
+    if indexing == "xy":
+        xc = make_array_center(xxi[0, :])
+        yc = make_array_center(yyi[:, 0])
         return np.meshgrid(xc, yc)
 
-    elif indexing=="ij":
-        xc = make_array_center(xxi[:,0])
-        yc = make_array_center(yyi[0,:])
+    elif indexing == "ij":
+        xc = make_array_center(xxi[:, 0])
+        yc = make_array_center(yyi[0, :])
         return np.meshgrid(xc, yc, indexing="ij")
 
-def make_meshgrid_interface( xxc, yyc , indexing="xy"):
-    if indexing=="xy":
-        xi = make_array_interface(xxc[0,:])
-        yi = make_array_interface(yyc[:,0])
+
+def make_meshgrid_interface(xxc, yyc, indexing="xy"):
+    if indexing == "xy":
+        xi = make_array_interface(xxc[0, :])
+        yi = make_array_interface(yyc[:, 0])
         return np.meshgrid(xi, yi)
 
-    elif indexing=="ij":
-        xi = make_array_interface(xxc[:,0])
-        yi = make_array_interface(yyc[0,:])
+    elif indexing == "ij":
+        xi = make_array_interface(xxc[:, 0])
+        yi = make_array_interface(yyc[0, :])
         return np.meshgrid(xi, yi, indexing="ij")
 
+
 def x_cross_zero(x1, x2, y1, y2):
-    return x1 + y1 * (x2 - x1)/(y1 - y2)
+    return x1 + y1 * (x2 - x1) / (y1 - y2)
+
 
 def find_roots(x, y1, y2):
     dy = np.array(y1) - np.array(y2)
     n = len(x) - 1
-    return np.array([x_cross_zero(x[i], x[i+1], dy[i], dy[i+1])
-                     for i in range(n)
-                     if dy[i]*dy[i+1] <= 0])
+    return np.array(
+        [
+            x_cross_zero(x[i], x[i + 1], dy[i], dy[i + 1])
+            for i in range(n)
+            if dy[i] * dy[i + 1] <= 0
+        ]
+    )
 
-#def isnan_values(values):
+
+# def isnan_values(values):
 #    if np.isscalar(values):
 #        return np.any(np.isnan(values))
 #    else:
@@ -89,35 +107,41 @@ class Exe:
     def __call__(self, cmd):
         try:
             if self.dryrun:
-                print("[dryrun]",cmd)
+                print("[dryrun]", cmd)
                 return 0
             else:
-                subprocess.check_call(r'echo `date "+%Y/%m/%d-%H:%M:%S"` "      " "{}" >> .executed_cmd.txt'.format(cmd), shell=True)
+                subprocess.check_call(
+                    r'echo `date "+%Y/%m/%d-%H:%M:%S"` "      " "{}" >> .executed_cmd.txt'.format(
+                        cmd
+                    ),
+                    shell=True,
+                )
                 print("Execute: {}".format(cmd))
                 if not self.debug:
                     retcode = subprocess.check_call(cmd, shell=True)
                 return 0
-                #retcode = subprocess.check_call( cmd.split() )
+                # retcode = subprocess.check_call( cmd.split() )
         except subprocess.CalledProcessError as e:
             if self.skiperror:
                 print("Skipper error:")
-                print("    %s"%e )
+                print("    %s" % e)
             else:
-                print('Error generated:')
-                print(' - return code is %s'%e.returncode)
-                print(' - cmd is \'%s\''%e.cmd)
-                print(' - output is %s'%e.output)
-                raise Exception( e )
+                print("Error generated:")
+                print(" - return code is %s" % e.returncode)
+                print(" - cmd is '%s'" % e.cmd)
+                print(" - output is %s" % e.output)
+                raise Exception(e)
+
 
 exe = Exe()
 
 
-#def interpolator3d(value, x_ori, y_ori, z_ori, xx_new, yy_new, zz_new):
+# def interpolator3d(value, x_ori, y_ori, z_ori, xx_new, yy_new, zz_new):
 #    from scipy.interpolate import interpn # , RectBivariateSpline, RegularGridInterpolatour
 #    ret0 = interpn((x_ori, y_ori, z_ori), value, np.stack([xx_new, yy_new, zz_new], axis=-1), bounds_error=False, fill_value=np.#nan)
 #    return ret0
 
-#def _interpolator2d(value, x_ori, y_ori, x_new, y_new, logx=False, logy=False, logv=False):
+# def _interpolator2d(value, x_ori, y_ori, x_new, y_new, logx=False, logy=False, logv=False):
 #    xo = np.log10(x_ori) if logx else x_ori
 #    xn = np.log10(x_new) if logx else x_new
 #    yo = np.log10(y_ori) if logy else y_ori
@@ -136,7 +160,7 @@ exe = Exe()
 #        ret = ret0
 #    return np.nan_to_num(ret0)
 #
-#def _interpolator3d(value, x_ori, y_ori, z_ori, xx_new, yy_new, zz_new, logx=False, logy=False, logz=False, logv=False):
+# def _interpolator3d(value, x_ori, y_ori, z_ori, xx_new, yy_new, zz_new, logx=False, logy=False, logz=False, logv=False):
 #    if len(z_ori) == 1:
 #        value = _interpolator2d(value, x_ori, y_ori, xx_new, yy_new, logx=False, logy=False, logv=False)
 #        return value
@@ -174,7 +198,6 @@ exe = Exe()
 #    return np.nan_to_num(ret0)
 #
 #
-
 
 
 #  def exe(cmd, debug=False, dryrun=False, skiperror=False):

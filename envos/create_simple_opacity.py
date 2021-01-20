@@ -1,8 +1,9 @@
 import numpy as np
-from header import dpath_radmc
+from config import radmc_dir
 import nconst as nc
 
 # this module will be merged into radmccontoroller
+
 
 class kappa:
     def __init__(self, kappa0_micron, beta):
@@ -15,17 +16,22 @@ class kappa:
         self.table = np.array([self.lam_micron, self.kappa_abs, self.kappa_sca]).T
 
     def kappa_abs_func(self):
-        return self.kappa0_micron * self.lam_micron**self.beta
+        return self.kappa0_micron * self.lam_micron ** self.beta
 
     def kappa_sca_func(self):
         return np.full_like(self.lam_micron, 0.0)
 
     def save(self):
-        #print(f"{dpath_radmc}/dustkappa_kappa0{self.kappa0_micron:.0e}_beta{self.beta}.inp")
-        np.savetxt(f"{dpath_radmc}/dustkappa_kappa0{self.kappa0_micron:.0e}_beta{self.beta}.inp", self.table, header=f"2\n{self.N_lam}\n", comments="")
+        # print(f"{radmc_dir}/dustkappa_kappa0{self.kappa0_micron:.0e}_beta{self.beta}.inp")
+        np.savetxt(
+            f"{radmc_dir}/dustkappa_kappa0{self.kappa0_micron:.0e}_beta{self.beta}.inp",
+            self.table,
+            header=f"2\n{self.N_lam}\n",
+            comments="",
+        )
 
-if __name__=="__main__":
+
+if __name__ == "__main__":
     for k0 in [1e4, 1e3]:
         for b in [0, -1, -2]:
             kappa(k0, b).save()
-
