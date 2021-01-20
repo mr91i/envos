@@ -2,20 +2,21 @@ import os
 import numpy as np
 from dataclasses import dataclass, field
 from scipy import interpolate, integrate
-from envos import log, config
+from envos import log
+from envos.run_config import dp_run
 from envos import nconst as nc
 
 logger = log.set_logger(__name__, ini=True)
 
 
-def calc_streamlines_from_model(model, name_list, unit_list, **kwargs):
+def calc_streamlines_from_model(model, name_list, unit_list, start_points, **kwargs):
     values = [(n, getattr(model, n), u) for n, u in zip(name_list, unit_list)]
     calc_streamlines(
         model.rc_ax,
-        model.th_ax,
+        model.tc_ax,
         model.vr[:, :, 0],
         model.vt[:, :, 0],
-        pos0list,
+        start_points,
         values=values,
         **kwargs,
     )
@@ -39,7 +40,7 @@ def calc_streamlines(
         r_ax, t_ax, vr, vt, pos0list, t_span=t_span, nt=nt, rtol=rtol
     )
     for name, value, unitname in values:
-        slc.add_value(self, name, value, unitname)
+        slc.add_value(name, value, unitname)
     slc.calc_streamlines()
     if save:
         save_data(slc.streamlines, filename=filename, dpath=dpath)
@@ -57,7 +58,7 @@ class Streamline:
     values: list = field(default_factory=list)
 
     def add_value(self, name, value, unit):
-        values.append([name, value, unit])
+        self.values.append([name, value, unit])
 
     def get_values(self):
         return self.values
@@ -103,9 +104,9 @@ class StreamlineCalculator:
 
     def calc_streamline(self, pos0):
         if pos0[0] > self.r_ax[-1]:
-            logger.info(f"Too large inital position: r0 = {pos0[0]/nc.au} au.")
             logger.info(
-                f"Use r0 = max(r_ax) = {self.r_ax[-1]/nc.au} au, instead of r0 = {pos0[0]/nc.au} au"
+                f"Too large starting radius (r0 = {pos0[0]/nc.au:.2f} au). "
+                + f"Use r0 = max(r_ax) = {self.r_ax[-1]/nc.au:.2f} au instead."
             )
             pos0 = [self.r_ax[-1], pos0[1]]
 
@@ -123,7 +124,6 @@ class StreamlineCalculator:
     def _func(self, t, pos):
         vr = self.vr_field(pos)[0]
         vt = self.vt_field(pos)[0]
-        print(pos, vr, vt)
         if np.isnan(pos[0]):
             exit()
         return np.array([vr, vt / pos[0]])
@@ -149,15 +149,16 @@ class StreamlineCalculator:
         return interpolate.interpn(
             (self.r_ax, self.t_ax),
             value,
-            points,
+            points.T,
             bounds_error=False,
             fill_value=None,
         )
 
 
 def save_data(streamlines, filename="stream", dpath=None):
+    global dp_run
     if dpath is None:
-        dpath = config.dp_run
+        dpath = dp_run
     os.makedirs(dpath, exist_ok=True)
 
     for sl in streamlines:

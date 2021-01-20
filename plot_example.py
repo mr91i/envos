@@ -59,7 +59,7 @@ def add_streams(km, rlim):
 
 
 def add_trajectries(km):
-    r0 = km.cs * km.t  # / nc.au
+    r0 = km.ppar.cs * km.ppar.t  # / nc.au
     start_points = [(r0, th0) for th0 in np.radians(np.linspace(0, 90, 10))]
     # trs = _trace_particles_2d_meridional(km.rc_ax/nc.au, km.tc_ax, km.vr[:,:,0], km.vt[:,:,0], start_points)
     sls = streamline.calc_streamlines(
@@ -82,13 +82,11 @@ def plot_density_map(
     filepath=None,
 ):
     ## plot on meridional plane
-    t = time.time()
-
     lvs = np.logspace(-18, -15, 10)
     img = plt.contourf(
         km.R[:, :, 0] / nc.au,
         km.z[:, :, 0] / nc.au,
-        km.rho[:, :, 0],
+        km.rhogas[:, :, 0],
         lvs,
         norm=mc.LogNorm(),
     )
@@ -98,7 +96,6 @@ def plot_density_map(
     plt.ylabel("z [au]")
     cbar = plt.colorbar(img, ticks=mt.LogLocator())
     cbar.set_label(r"Gas Mass Density [g cm$^{-3}$]")
-    print(time.time() - t)
 
     if trajectries:
         add_trajectries(km)
@@ -145,7 +142,7 @@ def plot_temperature_map(
     img = plt.contourf(
         m.R[:, :, 0] / nc.au,
         m.z[:, :, 0] / nc.au,
-        m.gtemp[:, :, 0],
+        m.Tgas[:, :, 0],
         lvs,
         cmap=plt.get_cmap("inferno"),
     )  # norm=mc.LogNorm())
@@ -222,23 +219,23 @@ def plot_radmc_data(rmc_data):
             lb=r"Number density [cm$^{-3}$]",
         )
 
-    if rmc_data.use_gtemp:
+    if rmc_data.use_Tgas:
         pl1d.plot(
-            rmc_data.gtemp[:, -1],
+            rmc_data.Tgas[:, -1],
             "temp",
             ylim=[1, 1000],
             logy=True,
             yl="Temperature [K]",
         )
         pl1d.plot(
-            rmc_data.gtemp[:, 0],
+            rmc_data.Tgas[:, 0],
             "temp_pol",
             ylim=[1, 1000],
             logy=True,
             yl="Temperature [K]",
         )
         pl2d.map(
-            rmc_data.gtemp,
+            rmc_data.Tgas,
             "temp_in",
             ctlim=[0, 200],
             xlim=[0, 100],
@@ -247,14 +244,14 @@ def plot_radmc_data(rmc_data):
             cbl="Temperature [K]",
         )
         pl2d.map(
-            rmc_data.gtemp,
+            rmc_data.Tgas,
             "temp_out",
             ctlim=[0, 100],
             logcb=False,
             cbl="Temperature [K]",
         )
         pl2d.map(
-            rmc_data.gtemp,
+            rmc_data.Tgas,
             "temp_L",
             ctlim=[0, 40],
             xlim=[0, 7000],
@@ -279,7 +276,7 @@ def plot_radmc_data(rmc_data):
         )
 
         pl2d_log.map(
-            rmc_data.gtemp,
+            rmc_data.Tgas,
             "temp_log",
             ctlim=[10 ** 0.5, 10 ** 2.5],
             cbl="log Temperature [K]",
@@ -293,7 +290,7 @@ def plot_radmc_data(rmc_data):
             np.abs(rmc_data.vp) / 1e5, "gvelp", lim=[0, 5], log=False, lb=lb_v
         )
 
-    if rmc_data.use_gdens and rmc_data.use_gtemp:
+    if rmc_data.use_gdens and rmc_data.use_Tgas:
         plot_plofs(
             rmc_data.t_dest / rmc_data.t_dyn,
             "tche",
