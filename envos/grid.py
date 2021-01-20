@@ -69,7 +69,9 @@ class Grid:
 
         if dr_to_r is not None:
             nr = int(np.log(rau_lim[1] / rau_lim[0]) / dr_to_r)
-            ntheta_float = (theta_lim[1] - theta_lim[0]) / dr_to_r / aspect_ratio
+            ntheta_float = (
+                (theta_lim[1] - theta_lim[0]) / dr_to_r / aspect_ratio
+            )
             ntheta = int(round(ntheta_float))
 
         if logr:

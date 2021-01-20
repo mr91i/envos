@@ -29,7 +29,9 @@ import numpy as np
 def solve(a, b, c, d):
 
     if a == 0 and b == 0:  # Case for handling Liner Equation
-        return np.array([(-d * 1.0) / c])  # Returning linear root as numpy array.
+        return np.array(
+            [(-d * 1.0) / c]
+        )  # Returning linear root as numpy array.
 
     elif a == 0:  # Case for handling Quadratic Equations
 

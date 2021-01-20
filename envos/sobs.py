@@ -218,7 +218,9 @@ class ObsSimulator:
         else:
             self.npixx = npixx or npix
             self.npixy = npixy or npix
-            self.pixsize_au = (self.zoomau_x[1] - self.zoomau_x[0]) / self.npixx
+            self.pixsize_au = (
+                self.zoomau_x[1] - self.zoomau_x[0]
+            ) / self.npixx
 
         self.dx_au, self.dy_au = sizex_au / self.npixx, sizey_au / self.npixy
 
@@ -297,7 +299,9 @@ class ObsSimulator:
             "option": "noscat nostar nodust",
         }
 
-        v_calc_points = np.linspace(-self.vwidth_kms, self.vwidth_kms, self.nlam)
+        v_calc_points = np.linspace(
+            -self.vwidth_kms, self.vwidth_kms, self.nlam
+        )
         vseps = np.linspace(
             -self.vwidth_kms - self.dv_kms / 2,
             self.vwidth_kms + self.dv_kms / 2,
@@ -307,12 +311,18 @@ class ObsSimulator:
         if self.omp and (self.n_thread > 1):
             n_points = self.divide_threads(self.n_thread, self.nlam)
             v_thread_seps = self.calc_thread_seps(v_calc_points, n_points)
-            v_center = [0.5 * (v_range[1] + v_range[0]) for v_range in v_thread_seps]
-            v_width = [0.5 * (v_range[1] - v_range[0]) for v_range in v_thread_seps]
+            v_center = [
+                0.5 * (v_range[1] + v_range[0]) for v_range in v_thread_seps
+            ]
+            v_width = [
+                0.5 * (v_range[1] - v_range[0]) for v_range in v_thread_seps
+            ]
 
             logger.info(f"All calc points: {format_array(v_calc_points)}")
             logger.info("Calc points in each thread:")
-            for i, (vc, vw, ncp) in enumerate(zip(v_center, v_width, n_points)):
+            for i, (vc, vw, ncp) in enumerate(
+                zip(v_center, v_width, n_points)
+            ):
                 logger.info(
                     f"    {i}th thread: {format_array(np.linspace(vc-vw, vc+vw, ncp))}"
                 )
@@ -334,7 +344,9 @@ class ObsSimulator:
             self.data = self._combine_multiple_returns(rets)
 
         else:
-            cmd = gen_radmc_cmd(vw_kms=self.vwidth_kms, nlam=self.nlam, **common_cmd)
+            cmd = gen_radmc_cmd(
+                vw_kms=self.vwidth_kms, nlam=self.nlam, **common_cmd
+            )
             logger.info(f"command is {cmd}")
 
             cwd = os.getcwd()
@@ -373,7 +385,12 @@ class ObsSimulator:
         ans = []
         sum_points = 0
         for npoints in thread_divs:
-            ans.append([calc_points[sum_points], calc_points[sum_points + npoints - 1]])
+            ans.append(
+                [
+                    calc_points[sum_points],
+                    calc_points[sum_points + npoints - 1],
+                ]
+            )
             sum_points += npoints
         return np.array(ans)
 
@@ -383,7 +400,9 @@ class ObsSimulator:
         dpath_sub = f"{self.radmc_dir}/{dn}"
         os.makedirs(dpath_sub, exist_ok=True)
         os.system(f"cp {self.radmc_dir}/{{*.inp,*.dat}} {dpath_sub}/")
-        self.exe(cmd, dpath_sub, log=(logger.isEnabledFor(logging.DEBUG) and p == 1))
+        self.exe(
+            cmd, dpath_sub, log=(logger.isEnabledFor(logging.DEBUG) and p == 1)
+        )
         with redirect_stdout(open(os.devnull, "w")):
             return rmci.readImage()
 
@@ -404,7 +423,9 @@ class ObsSimulator:
         data = return_list[0]
         for ret in return_list[1:]:
             data.image = np.append(data.image, ret.image, axis=-1)
-            data.imageJyppix = np.append(data.imageJyppix, ret.imageJyppix, axis=-1)
+            data.imageJyppix = np.append(
+                data.imageJyppix, ret.imageJyppix, axis=-1
+            )
             data.freq = np.append(data.freq, ret.freq, axis=-1)
             data.wav = np.append(data.wav, ret.wav, axis=-1)
             data.nfreq += ret.nfreq
@@ -440,7 +461,9 @@ class Convolver:
         sigma_over_FWHM = 2 * np.sqrt(2 * np.log(2))
         stddev = np.array(conv_size) / np.array(grid_size) / sigma_over_FWHM
         beampa = np.radians(beam_pa_deg)
-        self.Kernel_xy2d = aconv.Gaussian2DKernel(stddev[0], stddev[1], beampa)._array
+        self.Kernel_xy2d = aconv.Gaussian2DKernel(
+            stddev[0], stddev[1], beampa
+        )._array
         if len(conv_size) == 3 and (conv_size[2] is not None):
             Kernel_v1d = aconv.Gaussian1DKernel(stddev[2])._array
             self.Kernel_3d = np.multiply(
@@ -476,7 +499,12 @@ class ObsData:
     """
 
     def __init__(
-        self, fitsfile=None, radmcdata=None, pklfile=None, datatype=None, dpc=None
+        self,
+        fitsfile=None,
+        radmcdata=None,
+        pklfile=None,
+        datatype=None,
+        dpc=None,
     ):
         self.datatype = datatype
         self.Ippv = None
@@ -610,7 +638,10 @@ class ObsData:
 
         PV = PVmap(Ipv, self.xau, self.vkms, self.dpc, pangle_deg, poffset_au)
         PV.add_conv_info(
-            self.beam_maj_au, self.beam_min_au, self.vreso_kms, self.beam_pa_deg
+            self.beam_maj_au,
+            self.beam_min_au,
+            self.vreso_kms,
+            self.beam_pa_deg,
         )
         PV.normalize()
         PV.save_fitsfile()
@@ -749,10 +780,14 @@ class PVmap:
             self.dx = header["CDELT1"] * unit1_in_au
         elif "ANGLE" in header["CYTYPE"] and unit1 == "deg":  # x in deg
             logger.info(f"   1st axis is interpreted as POSITION [deg].")
-            self.dx = header["CDELT1"] * np.pi / 180.0 * self.dpc * nc.pc / nc.au
+            self.dx = (
+                header["CDELT1"] * np.pi / 180.0 * self.dpc * nc.pc / nc.au
+            )
         else:
             raise Exception("Unknown datatype in 1st axis")
-        self.xau = -0.5 * self.Nx * self.dx + (np.arange(self.Nx) + 0.5) * self.dx
+        self.xau = (
+            -0.5 * self.Nx * self.dx + (np.arange(self.Nx) + 0.5) * self.dx
+        )
 
         self.Nv = header["NAXIS2"]
         if unit2_in_kms:

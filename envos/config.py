@@ -5,6 +5,7 @@ from envos.grid import Grid
 from envos.physical_params import PhysicalParameters
 from envos.log import set_logger
 
+
 @dataclass
 class Config:
     def set_grid(

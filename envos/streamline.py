@@ -85,7 +85,9 @@ class StreamlineCalculator:
             (r_ax, t_ax), vt, bounds_error=False, fill_value=None
         )
         self.pos0list = pos0list
-        self.t_eval = np.logspace(np.log10(t_span[0]), np.log10(t_span[-1]), nt)
+        self.t_eval = np.logspace(
+            np.log10(t_span[0]), np.log10(t_span[-1]), nt
+        )
         self.rtol = rtol
         self.method = method
         self.streamlines = []
@@ -145,7 +147,11 @@ class StreamlineCalculator:
 
     def _interpolate_along_streamline(self, value, points):
         return interpolate.interpn(
-            (self.r_ax, self.t_ax), value, points, bounds_error=False, fill_value=None
+            (self.r_ax, self.t_ax),
+            value,
+            points,
+            bounds_error=False,
+            fill_value=None,
         )
 
 
@@ -161,7 +167,12 @@ def save_data(streamlines, filename="stream", dpath=None):
         for name, value, unitname in sl.get_values():
             header += f"{name} [{unitname}]"
             values.append(value)
-        stream_data = np.stack((sl.t, sl.R, sl.z, sl.vR, sl.vz, *values), axis=-1)
+        stream_data = np.stack(
+            (sl.t, sl.R, sl.z, sl.vR, sl.vz, *values), axis=-1
+        )
         np.savetxt(
-            f"{dpath}/{filename}_{label}.txt", stream_data, header=header, fmt="%.18e"
+            f"{dpath}/{filename}_{label}.txt",
+            stream_data,
+            header=header,
+            fmt="%.18e",
         )

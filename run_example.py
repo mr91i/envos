@@ -20,7 +20,9 @@ from plot_example import *
 
 config = Config()
 config.set_grid(rau_lim=[1, 1000], dr_to_r=0.05, aspect_ratio=1 / 4)
-config.set_physical_parameters(CR_au=130, Ms_Msun=0.2, Mdot_smpy=4.5e-6, meanmolw=2.3)
+config.set_physical_parameters(
+    CR_au=130, Ms_Msun=0.2, Mdot_smpy=4.5e-6, meanmolw=2.3
+)
 config.set_model_input(inenv="CM", outenv="TSC")
 config.set_radmc_input(
     nphot=1e6,
@@ -47,7 +49,9 @@ if switch[0]:
     if calc[0]:
         model = KinematicModel()
         model.set_grid(rau_lim=[1, 1000], dr_to_r0=0.05, aspect=1 / 4)
-        model.set_physical_params(CR_au=130, M_Msun=0.2, Mdot_smpy=4.5e-6, meanmolw=2.3)
+        model.set_physical_params(
+            CR_au=130, M_Msun=0.2, Mdot_smpy=4.5e-6, meanmolw=2.3
+        )
         model.build(inenv="CM", outenv="TSC")
         model.save("kmodel.pkl")
     else:
@@ -102,7 +106,13 @@ PV = odat_line.make_PV_map(pangle_deg=0)
 
 plot_lineprofile(odat_line)
 plot_pvdiagram(
-    PV, dpath_fig=dpath_fig, n_lv=5, Ms_Msun=0.2, rCR_au=150, f_crit=0.1, mapmode="grid"
+    PV,
+    dpath_fig=dpath_fig,
+    n_lv=5,
+    Ms_Msun=0.2,
+    rCR_au=150,
+    f_crit=0.1,
+    mapmode="grid",
 )
 
 PV = sobs.PVmap(fitsfile="PVmodel.fits", dpc=inp.obs.dpc)

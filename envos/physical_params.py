@@ -52,7 +52,9 @@ class PhysicalParameters:
         self.Ms = Ms
         self.t = t
 
-    def _calc_CR_maxj_Omega(self, cs, Ms, t, CR_au=None, maxj=None, Omega=None):
+    def _calc_CR_maxj_Omega(
+        self, cs, Ms, t, CR_au=None, maxj=None, Omega=None
+    ):
         m0 = 0.975
         if CR_au is not None:
             CR = CR_au * nc.au
@@ -83,9 +85,13 @@ class PhysicalParameters:
         self._logp("meanmolw", "", self.meanmolw)
         self._logp("cavangle", "deg", np.rad2deg(self.cavangle))
         self._logp("Omega*t", "", self.Omega * self.t)
-        self._logp("rinlim_tsc", "au", self.cs * self.Omega ** 2 * self.t ** 3, nc.au)
+        self._logp(
+            "rinlim_tsc", "au", self.cs * self.Omega ** 2 * self.t ** 3, nc.au
+        )
         self._logp("rinlim_tsc", "cs*t", self.Omega ** 2 * self.t ** 2)
 
     @staticmethod
     def _logp(name, unit, value, unitval=1):
-        logger.info(name.ljust(10) + f"is {value/unitval:10.2g} " + unit.ljust(10))
+        logger.info(
+            name.ljust(10) + f"is {value/unitval:10.2g} " + unit.ljust(10)
+        )

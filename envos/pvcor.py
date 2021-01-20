@@ -27,7 +27,9 @@ PV2_PARAM_PATTERN = param_dict[1].replace("*", re_number)
 # "_".join(["".join(map(str, pl)) for pl in param_list]).replace("*", re_number)
 fp_PV1_data = f"{data_dir}/fig_{plabel_PV1}/PV.fits"
 fp_PV1_fitsdata = f"{data_dir}/fitsdata/{plabel_PV1}.fits"
-CR0, M0 = map(float, re.search(r"CR([\d\.e\+]+)_M([\d\.e\+]+)", plabel_PV1).groups())
+CR0, M0 = map(
+    float, re.search(r"CR([\d\.e\+]+)_M([\d\.e\+]+)", plabel_PV1).groups()
+)
 pat_PV2 = re.compile(PV2_PARAM_PATTERN)
 fits_dir = data_dir + "/fitsdata"
 out_dir = data_dir + "/out"
@@ -112,7 +114,9 @@ def make_pvdlist_corr(pvd1, dp_list):
         print("dpath:", dp)
         pvd2 = gen_pvd(dp + "/PV.fits")
         pvd2.Ms, pvd2.CR = get_param_from_inputfile(dp)
-        pvd2.corr = float(calc_correlation(pvd1.I, pvd2.I, method=method_corel))
+        pvd2.corr = float(
+            calc_correlation(pvd1.I, pvd2.I, method=method_corel)
+        )
         return pvd2
 
     return np.array([gen_data(dp) for dp in dp_list])
@@ -136,7 +140,9 @@ def get_param_from_inputfile(dirpath):
 ########################################################################################
 
 
-def calc_correlation(im1, im2_original, method="ZNCC", threshold=0, with_noise=False):
+def calc_correlation(
+    im1, im2_original, method="ZNCC", threshold=0, with_noise=False
+):
     jmax1, imax1 = im1.shape
     jmax2, imax2 = im2_original.shape
     im2 = ndimage.zoom(im2_original, (jmax1 / jmax2, imax1 / imax2), order=1)
@@ -182,7 +188,9 @@ def main_est(tag=""):
 
 
 def make_pvdl_with_estimation_from_image():
-    dplist = [path for path in glob.glob(data_dir + "/fig_*") if pat_PV2.search(path)]
+    dplist = [
+        path for path in glob.glob(data_dir + "/fig_*") if pat_PV2.search(path)
+    ]
     pvd_list = make_pvd_list(dplist)
     if len(pvd_list) == 0:
         raise Exception("Failed to generate table.")
@@ -254,10 +262,14 @@ def calc_Mass(pvd, threshold=0, f_crit=0.2, method="vpeak"):
         return M_CB
 
     elif method == "ipeak":
-        jpeak, ipeak = peak_local_max(im[jmax // 2 :, imax // 2 :], num_peaks=1)[0]
+        jpeak, ipeak = peak_local_max(
+            im[jmax // 2 :, imax // 2 :], num_peaks=1
+        )[0]
         vkms_peak = pvd.vkms[jmax // 2 + jpeak]
         xau_peak = pvd.xau[imax // 2 + ipeak]
-        M_CR = (abs(xau_peak) * nc.au * (vkms_peak * nc.kms) ** 2) / (nc.G * nc.Msun)
+        M_CR = (abs(xau_peak) * nc.au * (vkms_peak * nc.kms) ** 2) / (
+            nc.G * nc.Msun
+        )
         return M_CR
 
 
@@ -314,7 +326,13 @@ def plot_map_SSD(table):
         yl=r"log M [M$_{\odot}$]",
     )
     mp.ax.scatter(
-        np.log10(CR0), np.log10(M0), c="r", s=50, alpha=1, linewidth=0, zorder=10
+        np.log10(CR0),
+        np.log10(M0),
+        c="r",
+        s=50,
+        alpha=1,
+        linewidth=0,
+        zorder=10,
     )
     ibest = np.argmin(points[:, 2])
     mp.ax.scatter(
@@ -332,7 +350,9 @@ def plot_map_SSD(table):
     res = optimize.minimize(
         lambda v: zfun_rbf(v[0], v[1]), np.array([np.log10(CR0), np.log10(M0)])
     )
-    mp.ax.scatter(res.x[0], res.x[1], c="green", s=30, alpha=1, linewidth=0, zorder=10)
+    mp.ax.scatter(
+        res.x[0], res.x[1], c="green", s=30, alpha=1, linewidth=0, zorder=10
+    )
     mp.save("map")
 
 
@@ -344,7 +364,9 @@ def plot_map_ZNCC(pvd_list):
     points[:, :2] = np.log10(points[:, :2])
     mp = myp.Plotter("F")
     cbdelta = 0.1
-    cbax = np.arange(max(points[:, 2]), min(points[:, 2]) - cbdelta, -cbdelta)[::-1]
+    cbax = np.arange(max(points[:, 2]), min(points[:, 2]) - cbdelta, -cbdelta)[
+        ::-1
+    ]
     # cbax = np.arange( max(points[:,2]), max(points[:,2])*0.9, -cbdelta)[::-1]
     print(points)
     mp.map(
@@ -360,19 +382,31 @@ def plot_map_ZNCC(pvd_list):
         cbax=cbax,
     )
     mp.ax.scatter(
-        np.log10(CR0), np.log10(M0), c="r", s=50, alpha=1, linewidth=0, zorder=10
+        np.log10(CR0),
+        np.log10(M0),
+        c="r",
+        s=50,
+        alpha=1,
+        linewidth=0,
+        zorder=10,
     )
     ibest = np.argmax(points[:, 2])
     # mp.ax.scatter(points[ibest,0], points[ibest,1], c="orange", s=30 , alpha=1, linewidth=0, zorder=10)
     points_ip = points[~np.isnan(points).any(axis=1)]
     zfun_rbf = interpolate.Rbf(
-        points_ip[:, 0], points_ip[:, 1], -points_ip[:, 2], function="cubic", smooth=0
+        points_ip[:, 0],
+        points_ip[:, 1],
+        -points_ip[:, 2],
+        function="cubic",
+        smooth=0,
     )  # default smooth=0 for interpolation
     res = optimize.minimize(
         lambda v: zfun_rbf(v[0], v[1]), np.array([np.log10(CR0), np.log10(M0)])
     )
     print(res.x[0], res.x[1])
-    mp.ax.scatter(res.x[0], res.x[1], c="orange", s=30, alpha=1, linewidth=0, zorder=10)
+    mp.ax.scatter(
+        res.x[0], res.x[1], c="orange", s=30, alpha=1, linewidth=0, zorder=10
+    )
     points_false = points[np.isnan(points).any(axis=1)]
     mp.ax.scatter(
         points_false[:, 0],
@@ -402,9 +436,15 @@ def plot_map_Mest(pvd_list, tag=""):
     ctax = np.concatenate(
         [
             np.arange(
-                -ctdelta / 2, max(min(points[:, 2]), cnlim[0]) - ctdelta, -ctdelta
+                -ctdelta / 2,
+                max(min(points[:, 2]), cnlim[0]) - ctdelta,
+                -ctdelta,
             )[::-1],
-            np.arange(ctdelta / 2, min(max(points[:, 2]), cnlim[1]) + ctdelta, ctdelta),
+            np.arange(
+                ctdelta / 2,
+                min(max(points[:, 2]), cnlim[1]) + ctdelta,
+                ctdelta,
+            ),
         ]
     )
     mp.map(
@@ -420,7 +460,11 @@ def plot_map_Mest(pvd_list, tag=""):
         cmap=plt.cm.get_cmap("coolwarm"),
         cnlim=cnlim,
     )
-    from matplotlib.ticker import MultipleLocator, FormatStrFormatter, FuncFormatter
+    from matplotlib.ticker import (
+        MultipleLocator,
+        FormatStrFormatter,
+        FuncFormatter,
+    )
     import matplotlib as mpl
 
     mp.cbar.formatter = FuncFormatter(lambda x, pos: f"{x:> .0f}")
