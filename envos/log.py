@@ -1,5 +1,11 @@
-import sys
 import logging
+
+DEBUG = False
+enable_saving = False
+loggers = {}
+logger_level = logging.INFO
+stream_level = logging.INFO
+file_level = logging.INFO
 
 
 class color:
@@ -47,20 +53,12 @@ class MyFormatter(logging.Formatter):
         return result
 
 
-DEBUG = False
-enable_saving = False
-loggers = {}
-logger_level = logging.INFO
-stream_level = logging.INFO
-file_level = logging.INFO
-
-
 def set_logger(name):
     global loggers
 
     logger = logging.getLogger(name)
     if logger.hasHandlers():
-        print("This logger is already set. ", name)
+        logger.warning("This logger is already set. ", name)
         return logger
 
     logger.setLevel(logger_level)
@@ -148,7 +146,7 @@ def set_level_for_file_handler(level_name):
 def _add_stream_handler(logger):
     global stream_level
 
-    stream_handler = logging.StreamHandler(sys.stdout)
+    stream_handler = logging.StreamHandler()
     fmt = MyFormatter("stream")
     stream_handler.setFormatter(fmt)
     stream_handler.setLevel(stream_level)

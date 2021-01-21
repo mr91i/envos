@@ -31,10 +31,7 @@ def run_and_capture(cmd):
 
     # Start process asynchronously with the python process
     proc = subprocess.Popen(
-        cmd,
-        shell=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT
+        cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
     )
 
     lines = []
@@ -52,6 +49,7 @@ def run_and_capture(cmd):
             break
 
     return "\n".join(buf)
+
 
 def gen_radmc_cmd(
     mode="image",

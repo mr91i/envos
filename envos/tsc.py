@@ -227,11 +227,11 @@ class TscSolver:
         def f_QuadraPolar_out(x, vals):
             al, V, W, Q, P = vals
             fac = 1 / (x ** 2 - 1)
-            dal =  -12 / x ** 2 * W
-            dal +=  2 / x ** 2 * (x * al + 2 * V + 3 * Q / x ** 4 - 2 * x * P)
+            dal = -12 / x ** 2 * W
+            dal += 2 / x ** 2 * (x * al + 2 * V + 3 * Q / x ** 4 - 2 * x * P)
             dal *= fac
             dV = x * (x * al + 2 * V + 3 * Q / x ** 4 - 2 * x * P)
-            dV += - 6 / x * W
+            dV += -6 / x * W
             dV *= fac
             dW = 2 / x * W + 0.5 * al - Q / x ** 5 - P
             dQ = 0.2 * x ** 4 * al

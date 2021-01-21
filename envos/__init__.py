@@ -16,7 +16,7 @@ I have confirmed that package works in Python 3.8.1."""
     raise Exception("Too old version of Python")
 
 print(
-"""
+    """
 ====================================
          Running envos.py
 ====================================

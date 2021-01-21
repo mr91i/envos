@@ -9,7 +9,9 @@ import envos.nconst as nc
 logger = log.set_logger(__name__)
 
 
-def calc_streamlines_from_model(model, name_list, unit_list, start_points, **kwargs):
+def calc_streamlines_from_model(
+    model, name_list, unit_list, start_points, **kwargs
+):
     values = [(n, getattr(model, n), u) for n, u in zip(name_list, unit_list)]
     calc_streamlines(
         model.rc_ax,
