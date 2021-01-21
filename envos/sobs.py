@@ -5,81 +5,53 @@ import sys
 import subprocess
 import numpy as np
 import pandas as pd
+from scipy import integrate, interpolate
 from multiprocessing import Pool
 from contextlib import redirect_stdout
-from scipy import integrate, interpolate
-import logging
-
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-
 import astropy.io.fits as iofits
 import astropy.convolution as aconv
 import radmc3dPy.image as rmci
 import radmc3dPy.analyze as rmca
 from envos import tools
-from envos import nconst as nc
-from envos import config
+import envos.nconst as nc
+from envos import global_paths as rc
+from envos.log import set_logger
+
+logger = set_logger(__name__)
 
 #####################################
 
 
 def run_and_capture(cmd):
+
     """
-    :param cmd: str 実行するコマンド.
-    :rtype: str
-    :return: 標準出力.
+    :param cmd: str running command
+    :return standard output
     """
-    # ここでプロセスが (非同期に) 開始する.
+
+    # Start process asynchronously with the python process
     proc = subprocess.Popen(
-        cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
+        cmd,
+        shell=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT
     )
-    buf = []
+
+    lines = []
 
     while True:
-        # バッファから1行読み込む.
+        # read a line from buffer of stdout
         line = proc.stdout.readline().decode("utf-8")
-        # print(line)
-        buf.append(line)
+        # lines will be returned as text
+        lines.append(line)
+        # print lines to stdout simultaneously with running process
         sys.stdout.write(line)
 
-        # バッファが空 + プロセス終了.
-        if not line and proc.poll() is not None:
+        # stop here, when buffer is empty and process has done
+        if (not line) and (proc.poll() is not None):
             break
 
     return "\n".join(buf)
-
-
-"""
-def main():
-    osim = ObsSimulator(radmc_dir, dpc=inp.obs.dpc, sizex_au=inp.obs.sizex_au, sizey_au=inp.obs.sizey_au, pixsize_au=inp.obs.pixsize_au, incl=inp.obs.incl, phi=inp.obs.phi, posang=inp.obs.posang, omp=inp.obs.omp, n_thread=inp.obs.n_thread)
-    # obsdata = osim.observe_cont(1249)
-    iout = 1
-    calc = 1
-    if iout:
-        if calc:
-            obsdata2 = osim.observe_line(iline=inp.obs.iline, vwidth_kms=inp.obs.vwidth_kms, dv_kms=inp.obs.dv_kms, ispec=inp.radmc.mol_name)
-            obsdata2.save_instance("obs.pkl")
-        else:
-            obsdata2 = ObsData(pklfile="obs.pkl") # when read
-    else: # or
-        if calc:
-            osim.observe_line(iline=inp.obs.iline, vwidth_kms=inp.obs.vwidth_kms, dv_kms=inp.obs.dv_kms, ispec=inp.radmc.mol_name)
-            osim.output_fits("obs.fits")
-        # osim.output_instance("obs.pkl")
-        else:
-            obsdata2 = ObsData(fitsfile="obs.fits")
-
-    obsdata2.convolve(inp.vis.beama_au, inp.vis.beamb_au, inp.vis.vreso_kms, inp.vis.beam_posang)
-#    obsdata2.make_mom0_map()
-#    plot_mom0_map(obs)
-
-    PV = obsdata2.make_PV_map()
-    from plot_example import plot_pvdiagram
-    from header import dpath_fig
-    plot_pvdiagram(PV, dpath_fig=dpath_fig, n_lv=5, Ms_Msun=0.2, rCR_au=150, f_crit=0.1)
-"""
-
 
 def gen_radmc_cmd(
     mode="image",
@@ -127,40 +99,45 @@ class ObsSimulator:
     #        self.phi = phi
     #        self.posang = posang
 
-    def __init__(self, radmcdir=None, dpc=None, omp=True, n_thread=1):
+    # def __init__(self, radmcdir=None, dpc=None, omp=True, n_thread=1):
+    def __init__(
+        self, config=None, radmcdir=None, dpc=None, omp=True, n_thread=1
+    ):
         # beam_maj_au=None, beam_min_au=None, vreso_kms=None, beam_pa_deg=None, convmode="fft")
 
-        self.radmc_dir = radmcdir or config.dp_radmc
+        self.radmc_dir = radmcdir or config.radmc_dir
         self.dpc = dpc
         self.omp = omp
         self.n_thread = n_thread
-        # self.incl = incl
-        # self.phi = phi
-        # self.posang = posang
 
         self.view = False
         self.conv = False
-        # self.set_camera(sizex_au, sizey_au, pixsize_au=pixsize_au, npix=npix, npixx=npixx, npixy=npixy)
-
-    #    def set_from_inp(self, inp):
-    #        self.radmc_dir = inp.radmc_dir
-    #        self.dpc = inp.dpc
-    #        self.omp = inp.omp
-    #        self.n_thread = inp.n_thread
-    #        self.incl = inp.incl_deg
-    #        self.phi = inp.phi_deg
-    #        self.posang = inp.posang_deg
-    #
-    #        self.beam_maj_au = inp.beam_maj_au
-    #        self.beam_min_au = inp.beam_min_au
-    #        self.vreso_kms = inp.vreso_kms
-    #        self.beam_pa_deg = inp.beam_pa_deg
-    #        self.convmode = inp.convmode
-    #        #self.set_camera(inp.sizex_au, inp.sizey_au, pixsize_au=inp.pixsize_au, npix=inp.npix, npixx=inp.npixx, npixy=inp.npixy)
-    #        self.set_camera(inp.sizex_au, inp.sizey_au, pixsize_au=inp.pixsize_au)
-    #        """
+        if config is not None:
+            self.dpc = config.dpc
+            self.omp = config.omp
+            self.n_thread = config.n_thread
+            self.set_resolution(
+                config.sizex_au,
+                sizey_au=None,
+                pixsize_au=None,
+                npix=None,
+                npixx=None,
+                npixy=None,
+                vwidth_kms=None,
+                dv_kms=None,
+            )
+            self.set_convolver(
+                beam_maj_au,
+                beam_min_au=None,
+                vreso_kms=None,
+                beam_pa_deg=0,
+                convmode="fft",
+            )
 
     def exe(self, cmd, wdir, log=False):
+        """
+        - consider to merge exe in tools
+        """
 
         os.chdir(wdir)
         if log:
@@ -172,60 +149,50 @@ class ObsSimulator:
                 cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
             )
 
-    # def set_resolution(self, sizex_au, sizey_au=None, pixsize_au=None, npix=100, npixx=None, npixy=None, incl=0, phi=0, posang=0, vwidth_kms=None, dv_kms=None):
     def set_resolution(
         self,
         sizex_au,
         sizey_au=None,
         pixsize_au=None,
-        npix=100,
+        npix=None,
         npixx=None,
         npixy=None,
         vwidth_kms=None,
         dv_kms=None,
     ):
-        # self.reso = True
-        # self.incl = incl
-        # self.phi = phi
-        # self.posang = posang
 
         if sizex_au != sizey_au:
             logger.info(
-                "Use rectangle view mode. Currently (2020/12), a bug in this mode was fixed."
-            )
-            logger.info(
-                "Please check if your version is latest. If you do not want to use this, please set sizex_au = sizey_au."
+                "Use rectangle viewing mode."
+                + "Currently (2020/12), a bug in the mode was fixed."
+                + "Please check if your version is latest."
+                + "If you do not want to use this, please set sizex_au = sizey_au."
             )
 
-        self.zoomau_x = [
-            -sizex_au / 2,
-            sizex_au / 2,
-        ]  # if self.sizex_au == 0 else [-self.pixsize_au/2, self.pixsize_au/2]
+        self.zoomau_x = [-sizex_au / 2, sizex_au / 2]
         _sizey_au = sizey_au or sizex_au
-        self.zoomau_y = [
-            -_sizey_au / 2,
-            _sizey_au / 2,
-        ]  # if self.sizey_au == 0 else [-self.pixsize_au/2, self.pixsize_au/2]
+        self.zoomau_y = [-_sizey_au / 2, _sizey_au / 2]
+        Lx = self.zoomau_x[1] - self.zoomau_x[0]
+        Ly = self.zoomau_y[1] - self.zoomau_y[0]
 
         if pixsize_au is not None:
             self.pixsize_au = pixsize_au
-            self.npixx = int(
-                round((self.zoomau_x[1] - self.zoomau_x[0]) / pixsize_au)
-            )  # // or int do not work to convert into int.
-            self.npixy = int(
-                round((self.zoomau_y[1] - self.zoomau_y[0]) / pixsize_au)
-            )  # // or int do not work to convert into int.
+            npixx_float = Lx / pixsize_au
+            self.npixx = int(round(npix_float))
+            npixy_float = Ly / pixsize_au
+            self.npixy = int(round(npixy_afloat))
+            # comment: // or int do not work to convert into int.
         else:
             self.npixx = npixx or npix
             self.npixy = npixy or npix
-            self.pixsize_au = (
-                self.zoomau_x[1] - self.zoomau_x[0]
-            ) / self.npixx
+            self.pixsize_au = Lx / self.npixx
 
-        self.dx_au, self.dy_au = sizex_au / self.npixx, sizey_au / self.npixy
+        self.dx_au = sizex_au / self.npixx
+        self.dy_au = sizey_au / self.npixy
 
         if self.dx_au != self.dy_au:
             raise Exception("dx is not equal to dy. Check your setting again.")
+
         if sizex_au == 0:
             self.zoomau_x = [-self.pixsize_au / 2, self.pixsize_au / 2]
         if sizey_au == 0:
@@ -281,9 +248,11 @@ class ObsSimulator:
         # self.vwidth_kms = vwidth_kms
         # self.dv_kms = dv_kms
         self.nlam = 2 * int(round(self.vwidth_kms / self.dv_kms)) + 1
-        self.mol = rmca.readMol(fname=f"{self.radmc_dir}/molecule_{ispec}.inp")
+        mol_path = f"{self.radmc_dir}/molecule_{ispec}.inp"
+        self.mol = rmca.readMol(fname=mol_path)
         logger.info(
-            f"Total cell number is {self.npixx} x {self.npixy} x {self.nlam} = {self.npixx*self.npixy*self.nlam}"
+            f"Total cell number is {self.npixx}x{self.npixy}x{self.nlam}"
+            + " = {self.npixx*self.npixy*self.nlam}"
         )
 
         common_cmd = {
@@ -302,6 +271,7 @@ class ObsSimulator:
         v_calc_points = np.linspace(
             -self.vwidth_kms, self.vwidth_kms, self.nlam
         )
+
         vseps = np.linspace(
             -self.vwidth_kms - self.dv_kms / 2,
             self.vwidth_kms + self.dv_kms / 2,
@@ -650,13 +620,13 @@ class ObsData:
 
     def save_instance(self, filename="obsdata.pkl", filepath=None):
         if filepath is None:
-            filepath = os.path.join(config.dp_run, filename)
+            filepath = os.path.join(config.run_dir, filename)
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
         pd.to_pickle(self, filepath)
 
     def save_fits(self, filename="obsdata.fits", dpc=None, filepath=None):
         if filepath is None:
-            filepath = os.path.join(config.dp_run, filename)
+            filepath = os.path.join(config.run_dir, filename)
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
 
         if os.path.exists(filepath):
@@ -724,7 +694,7 @@ class PVmap:
     ):
         # see IAU manual : https://fits.gsfc.nasa.gov/standard40/fits_standard40aa-le.pdf
         if filepath is None:
-            filepath = os.path.join(config.dp_run, filename)
+            filepath = os.path.join(config.run_dir, filename)
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
 
         Np = len(self.xau)

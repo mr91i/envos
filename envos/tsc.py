@@ -5,11 +5,11 @@ import pandas as pd
 from scipy import integrate, interpolate, optimize
 from dataclasses import dataclass, asdict
 
-from envos import nconst as nc
-from envos import run_config as rc
+import envos.nconst as nc
+import envos.global_paths as gpath
 from envos.log import set_logger
 
-logger = set_logger(__name__, ini=True)
+logger = set_logger(__name__)
 
 FILENAME = "tscsol.pkl"
 
@@ -226,24 +226,13 @@ class TscSolver:
 
         def f_QuadraPolar_out(x, vals):
             al, V, W, Q, P = vals
-            dal = (
-                1
-                / (x ** 2 - 1)
-                * (
-                    -12 / x ** 2 * W
-                    + 2
-                    / x ** 2
-                    * (x * al + 2 * V + 3 * Q / x ** 4 - 2 * x * P)
-                )
-            )
-            dV = (
-                1
-                / (x ** 2 - 1)
-                * (
-                    x * (x * al + 2 * V + 3 * Q / x ** 4 - 2 * x * P)
-                    - 6 / x * W
-                )
-            )
+            fac = 1 / (x ** 2 - 1)
+            dal =  -12 / x ** 2 * W
+            dal +=  2 / x ** 2 * (x * al + 2 * V + 3 * Q / x ** 4 - 2 * x * P)
+            dal *= fac
+            dV = x * (x * al + 2 * V + 3 * Q / x ** 4 - 2 * x * P)
+            dV += - 6 / x * W
+            dV *= fac
             dW = 2 / x * W + 0.5 * al - Q / x ** 5 - P
             dQ = 0.2 * x ** 4 * al
             dP = -0.2 * al / x
@@ -329,7 +318,7 @@ class TscSolver:
                 plt.xlim(-3, 1)
                 plt.ylim(-5, 7)
                 logger.info(f"{j}: K={K}")
-                plt.savefig(f"{rc.dp_fig}/alpha_{j}.pdf")
+                plt.savefig(f"{gpath.fig_dir}/alpha_{j}.pdf")
                 logger.info("saved figure")
                 plt.clf()
             return soly[3][-1] - 0.2 * soly[0][-1] * solx[-1] ** 5
@@ -386,7 +375,7 @@ class TscSolver:
 
     # def save_table(self, filename="tscsol.dat", path=None):
     #    soldict = asdict(self.get_solution())
-    #    path = path or os.path.join(rc.dp_storage, filename)
+    #    path = path or os.path.join(rc.storage_dir, filename)
     #    vals = np.array(list(soldict.values())).T
     #    np.savetxt(path, vals, header=" ".join(soldict.keys())  )
     def print_result_constants(self):
@@ -394,7 +383,7 @@ class TscSolver:
         print(f"result: K={self.K}, ΔQ={self.Delta_Q}, m*={self.Ms}")
 
     def save_table(self, filename=FILENAME, path=None):
-        path = path or os.path.join(rc.dp_storage, filename)
+        path = path or os.path.join(gpath.storage_dir, filename)
         pd.to_pickle(self.get_solution(), path)
 
     def get_solution(self):
@@ -416,7 +405,7 @@ class TscSolver:
 
 
 # def read_table(filename="tscsol.dat", path=None):
-#    path = path or os.path.join(rc.dp_storage, filename)
+#    path = path or os.path.join(rc.storage_dir, filename)
 #    vals = np.loadtxt(path)
 #    return TscData(*vals.T)
 
@@ -522,7 +511,7 @@ def save_table(filename=FILENAME, tau=0.01, search_K=False, **kwargs):
 
 def read_table(filename=FILENAME, path=None):
     try:
-        path = path or os.path.join(rc.dp_storage, filename)
+        path = path or os.path.join(gpath.storage_dir, filename)
         return pd.read_pickle(path)
     except:
         return None
@@ -544,14 +533,14 @@ if __name__ == "__main__":
         sol.x,
         np.array([sol.alpha_0, sol.alpha_M, sol.alpha_Q, -sol.alpha_Q]).T,
     )
-    plt.savefig(f"{rc.dp_fig}/tscfig3.pdf")
+    plt.savefig(f"{gpath.fig_dir}/tscfig3.pdf")
     [_l.remove() for _l in l]
     plt.xlim(1e-3, 1e0)
     plt.ylim(1e-4, 1e3)
     l = plt.plot(sol.x, np.array([-sol.V_0, sol.V_M]).T)
-    plt.savefig(f"{rc.dp_fig}/tscfig4a.pdf")
+    plt.savefig(f"{gpath.fig_dir}/tscfig4a.pdf")
     [_l.remove() for _l in l]
     plt.xlim(1e-3, 1e1)
     plt.ylim(1e-8, 1e3)
     l = plt.plot(sol.x, np.array([-sol.V_Q, sol.V_Q, -sol.W_Q]).T)
-    plt.savefig(f"{rc.dp_fig}/tscfig4b.pdf")
+    plt.savefig(f"{gpath.fig_dir}/tscfig4b.pdf")

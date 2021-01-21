@@ -1,5 +1,5 @@
 import numpy as np
-from envos import nconst as nc
+import envos.nconst as nc
 
 
 class Grid:

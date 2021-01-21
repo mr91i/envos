@@ -3,10 +3,10 @@ import numpy as np
 from dataclasses import dataclass, field
 from scipy import interpolate, integrate
 from envos import log
-from envos.run_config import dp_run
-from envos import nconst as nc
+from envos.global_paths import run_dir
+import envos.nconst as nc
 
-logger = log.set_logger(__name__, ini=True)
+logger = log.set_logger(__name__)
 
 
 def calc_streamlines_from_model(model, name_list, unit_list, start_points, **kwargs):
@@ -156,9 +156,9 @@ class StreamlineCalculator:
 
 
 def save_data(streamlines, filename="stream", dpath=None):
-    global dp_run
+    global run_dir
     if dpath is None:
-        dpath = dp_run
+        dpath = run_dir
     os.makedirs(dpath, exist_ok=True)
 
     for sl in streamlines:

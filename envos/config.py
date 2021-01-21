@@ -124,6 +124,11 @@ class Config:
             storage_dir=storage_dir,
         )
 
+#    def set_observation_setting(self,
+#
+#
+#    )
+
 
 @dataclass
 class ModelConfig:  # (Input):
@@ -155,6 +160,27 @@ class RadmcConfig:
     radmc_dir: str
     storage_dir: str
 
+@dataclass
+class ObsConfig:
+    sizex_au: float=None
+    sizey_au: float=None
+    pixsize_au: float=None
+    npix: int=None
+    npixx: int=None
+    npixy: int=None
+    vwidth_kms: float=None
+    dv_kms: float=None
+    beam_maj_au: float = None
+    beam_min_au: float=None
+    vreso_kms: float=None
+    beam_pa_deg: float = 0
+    convmode: str="fft"
+    lam: float = None
+    incl: float=0
+    phi: float=0
+    posang: float=0
+    iline: int = None
+    ispec: int = None
 
 #    Tenv: float = None
 #    Mdot_smpy: float =  None

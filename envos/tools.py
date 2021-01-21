@@ -1,12 +1,10 @@
 import subprocess
 import os
 import numpy as np
-from envos import nconst as nc
+import envos.nconst as nc
 
-import logging
-
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+from envos.log import set_logger
+logger = set_logger(__name__)
 
 ## in input files
 

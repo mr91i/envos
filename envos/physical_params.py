@@ -2,7 +2,7 @@ import numpy as np
 import envos.nconst as nc
 from envos.log import set_logger
 
-logger = set_logger(__name__, ini=True)
+logger = set_logger(__name__)
 
 
 class PhysicalParameters:
@@ -93,5 +93,5 @@ class PhysicalParameters:
     @staticmethod
     def _logp(name, unit, value, unitval=1):
         logger.info(
-            name.ljust(10) + f"is {value/unitval:10.2g} " + unit.ljust(10)
+            name.ljust(12) + f"is {value/unitval:10.2g} " + unit.ljust(10)
         )

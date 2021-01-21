@@ -12,19 +12,19 @@ import matplotlib.colors as mc
 import time
 
 # import myplot as mp
-from envos import run_config as rc
+from envos import global_paths as gpath
 from envos import tools
 from envos import nconst as nc
 from envos import log
 from envos import streamline
 
-logger = log.set_logger(__name__, ini=True)
+logger = log.set_logger(__name__)
 
 matplotlib.use("Agg")
 # matplotlib.use('tkagg')
 # matplotlib.use('pdf')
 
-dpath_fig = rc.dp_fig
+dpath_fig = gpath.fig_dir
 ####################################################################################################
 from myplot import mpl_setting
 
@@ -76,7 +76,7 @@ def plot_density_map(
     km,
     rlim=500,
     fname="density.pdf",
-    dpath_fig=rc.dp_fig,
+    dpath_fig=gpath.fig_dir,
     streams=True,
     trajectries=True,
     filepath=None,
@@ -104,7 +104,7 @@ def plot_density_map(
         add_streams(km, rlim)
     #
     if filepath is None:
-        filepath = os.path.join(rc.dp_run, fname)
+        filepath = os.path.join(gpath.run_dir, fname)
     plt.savefig(filepath)
     plt.clf()
 
@@ -121,7 +121,7 @@ def plot_midplane_numberdensity_profile(km, fname="ndens.pdf"):
     plt.ylim(10, 1000)
     plt.xscale("log")
     plt.yscale("log")
-    filepath = os.path.join(rc.dp_run, fname)
+    filepath = os.path.join(gpath.run_dir, fname)
     plt.savefig(filepath)
     # plt.show()
     plt.clf()
@@ -131,7 +131,7 @@ def plot_temperature_map(
     m,
     rlim=500,
     fname="temperature.pdf",
-    dpath_fig=rc.dp_fig,
+    dpath_fig=gpath.fig_dir,
     streams=True,
     trajectries=True,
     filepath=None,
@@ -164,7 +164,7 @@ def plot_temperature_map(
         add_streams(m, rlim)
 
     if filepath is None:
-        filepath = os.path.join(rc.dp_run, fname)
+        filepath = os.path.join(gpath.run_dir, fname)
     plt.savefig(filepath)
     plt.clf()
     print("showing")
