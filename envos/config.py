@@ -8,6 +8,27 @@ from envos.log import set_logger
 
 @dataclass
 class Config:
+    def set_run_config(
+        self,
+        storagedir: str = None,
+        rundir: str = None,
+        figdir: str = None,
+        radmcdir: str = None,
+        logpath: str = None,
+        level_stdout: str = None,
+        level_logfile: str = None,
+    ):
+
+        self.rc = RunConfig(
+            storagedir=storagedir,
+            rundir=rundir,
+            figdir=figdir,
+            radmcdir=radmcdir,
+            logpath=logpath,
+            level_stdout=level_stdout,
+            level_logfile=level_logfile,
+        )
+
     def set_grid(
         self,
         ri_ax=None,
@@ -124,11 +145,60 @@ class Config:
             storage_dir=storage_dir,
         )
 
+    def set_observation_setting(
+        self,
+        sizex_au: float = None,
+        sizey_au: float = None,
+        pixsize_au: float = None,
+        npix: int = None,
+        npixx: int = None,
+        npixy: int = None,
+        vwidth_kms: float = None,
+        dv_kms: float = None,
+        beam_maj_au: float = None,
+        beam_min_au: float = None,
+        vreso_kms: float = None,
+        beam_pa_deg: float = None,
+        convmode: str = None,
+        lam: float = None,
+        incl: float = None,
+        phi: float = None,
+        posang: float = None,
+        iline: int = None,
+        ispec: int = None,
+    ):
+        self.obs = ObsConfig(
+            sizex_au=sizex_au,
+            sizey_au=sizey_au,
+            pixsize_au=pixsize_au,
+            npix=npix,
+            npixx=npixx,
+            npixy=npixy,
+            vwidth_kms=vwidth_kms,
+            dv_kms=dv_kms,
+            beam_maj_au=beam_maj_au,
+            beam_min_au=beam_min_au,
+            vreso_kms=vreso_kms,
+            beam_pa_deg=beam_pa_deg,
+            convmode=convmode,
+            lam=lam,
+            incl=incl,
+            phi=phi,
+            posang=posang,
+            iline=iline,
+            ispec=ispec,
+        )
 
-#    def set_observation_setting(self,
-#
-#
-#    )
+
+@dataclass
+class RunConfig:
+    storagedir: str
+    rundir: str
+    figdir: str
+    radmcdir: str
+    logpath: str
+    level_stdout: str
+    level_logfile: str
 
 
 @dataclass
@@ -164,25 +234,25 @@ class RadmcConfig:
 
 @dataclass
 class ObsConfig:
-    sizex_au: float = None
-    sizey_au: float = None
-    pixsize_au: float = None
-    npix: int = None
-    npixx: int = None
-    npixy: int = None
-    vwidth_kms: float = None
-    dv_kms: float = None
-    beam_maj_au: float = None
-    beam_min_au: float = None
-    vreso_kms: float = None
-    beam_pa_deg: float = 0
-    convmode: str = "fft"
-    lam: float = None
-    incl: float = 0
-    phi: float = 0
-    posang: float = 0
-    iline: int = None
-    ispec: int = None
+    sizex_au: float
+    sizey_au: float
+    pixsize_au: float
+    npix: int
+    npixx: int
+    npixy: int
+    vwidth_kms: float
+    dv_kms: float
+    beam_maj_au: float
+    beam_min_au: float
+    vreso_kms: float
+    beam_pa_deg: float
+    convmode: str
+    lam: float
+    incl: float
+    phi: float
+    posang: float
+    iline: int
+    ispec: int
 
 
 #    Tenv: float = None
@@ -196,3 +266,12 @@ class ObsConfig:
 #    cavangle_deg: float = 0
 #    Tdisk: float = 30
 #    frac_Md: float = 0.1
+
+
+def initialize_running(run_config):
+    """
+    - make run_dir, fig_dir, ..
+    - set them to global_paths
+    - set file_handler of logging
+    """
+    pass
