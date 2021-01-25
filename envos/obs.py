@@ -2,19 +2,21 @@
 # -*- coding: utf-8 -*-
 import os
 import sys
-import subprocess
 import numpy as np
 import pandas as pd
+import subprocess
+import contextlib
+import multiprocessing
 from scipy import integrate, interpolate
-from multiprocessing import Pool
-from contextlib import redirect_stdout
+
 import astropy.io.fits as iofits
 import astropy.convolution as aconv
 import radmc3dPy.image as rmci
 import radmc3dPy.analyze as rmca
-from envos import tools
+
 import envos.nconst as nc
-from envos import global_paths as rc
+from envos import tools
+import envos.global_paths as gpath
 from envos.log import set_logger
 
 logger = set_logger(__name__)
@@ -25,7 +27,7 @@ logger = set_logger(__name__)
 def run_and_capture(cmd):
 
     """
-    :param cmd: str running command
+    cmd: str running command
     :return standard output
     """
 
@@ -48,7 +50,7 @@ def run_and_capture(cmd):
         if (not line) and (proc.poll() is not None):
             break
 
-    return "\n".join(buf)
+    return "\n".join(line)
 
 
 def gen_radmc_cmd(
@@ -84,52 +86,40 @@ class ObsSimulator:
     Basically, 1 object per 1 observation
     """
 
-    #    def __init__(self, radmc_dir=None, dpc=None,
-    #                 sizex_au=None, sizey_au=None, pixsize_au=None,
-    #                 npix=None, npixx=None, npixy=None,
-    #                 incl=0, phi=0, posang=0, omp=True, n_thread=1, inp=None,
-    #                 beam_maj_au=None, beam_min_au=None, vreso_kms=None, beam_pa_deg=None, convmode="fft")
-    #        self.radmc_dir = radmc_dir
-    #        self.dpc = dpc
-    #        self.omp = omp
-    #        self.n_thread = n_thread
-    #        self.incl = incl
-    #        self.phi = phi
-    #        self.posang = posang
-
-    # def __init__(self, radmcdir=None, dpc=None, omp=True, n_thread=1):
     def __init__(
         self, config=None, radmcdir=None, dpc=None, omp=True, n_thread=1
     ):
-        # beam_maj_au=None, beam_min_au=None, vreso_kms=None, beam_pa_deg=None, convmode="fft")
 
-        self.radmc_dir = radmcdir or config.radmc_dir
+        self.radmc_dir = radmcdir or gpath.radmc_dir
         self.dpc = dpc
         self.omp = omp
         self.n_thread = n_thread
-
         self.view = False
         self.conv = False
+
         if config is not None:
-            self.dpc = config.dpc
-            self.omp = config.omp
-            self.n_thread = config.n_thread
+            oconf = config.obs
+            self.dpc = oconf.dpc
+            self.omp = oconf.omp
+            self.n_thread = oconf.n_thread
+
             self.set_resolution(
-                config.sizex_au,
-                sizey_au=None,
-                pixsize_au=None,
-                npix=None,
-                npixx=None,
-                npixy=None,
-                vwidth_kms=None,
-                dv_kms=None,
+                sizex_au=config.sizex_au,
+                sizey_au=oconf.sizey_au,
+                pixsize_au=oconf.pixsize_au,
+                npix=oconf.npix,
+                npixx=oconf.npixx,
+                npixy=oconf.npixy,
+                vwidth_kms=oconf.vwidth_kms,
+                dv_kms=oconf.dv_kms,
             )
+
             self.set_convolver(
-                beam_maj_au,
-                beam_min_au=None,
-                vreso_kms=None,
-                beam_pa_deg=0,
-                convmode="fft",
+                beam_maj_au=oconf.beam_maj_au,
+                beam_min_au=oconf.beam_min_au,
+                vreso_kms=oconf.vreso_kms,
+                beam_pa_deg=oconf.beam_pa_deg,
+                convmode=oconf.convmode,
             )
 
     def exe(self, cmd, wdir, log=False):
@@ -176,9 +166,9 @@ class ObsSimulator:
         if pixsize_au is not None:
             self.pixsize_au = pixsize_au
             npixx_float = Lx / pixsize_au
-            self.npixx = int(round(npix_float))
+            self.npixx = int(round(npixx_float))
             npixy_float = Ly / pixsize_au
-            self.npixy = int(round(npixy_afloat))
+            self.npixy = int(round(npixy_float))
             # comment: // or int do not work to convert into int.
         else:
             self.npixx = npixx or npix
@@ -216,8 +206,7 @@ class ObsSimulator:
         )
 
     def observe_cont(self, lam, incl=0, phi=0, posang=0):
-        self.obs_mode = "cont"
-        self.lam = lam
+        zoomau = np.concatenete([self.zoomau_x, self.zoomau_y])
         cmd = gen_radmc_cmd(
             mode="image",
             dpc=self.dpc,
@@ -227,7 +216,7 @@ class ObsSimulator:
             npixx=self.npixx,
             npixy=self.npixx,
             lam=lam,
-            zoomau=[*self.zoomau_x, *self.zoomau_y],
+            zoomau=zoomau,
             option="noscat nostar",
         )
 
@@ -237,11 +226,11 @@ class ObsSimulator:
         if self.conv:
             self.data_cont.image = self.convolver(self.data_cont.image)
 
-        odat = ObsData(radmcdata=self.data_cont, datatype=self.obs_mode)
+        odat = ObsData(radmcdata=self.data_cont, datatype="continum")
         return odat
 
     def observe_line(self, iline, ispec, incl=0, phi=0, posang=0):
-        self.obs_mode = "line"
+        # self.obs_mode = "line"
         self.iline = iline
         # self.vwidth_kms = vwidth_kms
         # self.dv_kms = dv_kms
@@ -270,21 +259,18 @@ class ObsSimulator:
             -self.vwidth_kms, self.vwidth_kms, self.nlam
         )
 
-        vseps = np.linspace(
-            -self.vwidth_kms - self.dv_kms / 2,
-            self.vwidth_kms + self.dv_kms / 2,
-            self.nlam + 1,
-        )
+        # vseps = np.linspace(
+        #    -self.vwidth_kms - self.dv_kms / 2,
+        #     self.vwidth_kms + self.dv_kms / 2,
+        #    self.nlam + 1,
+        # )
 
         if self.omp and (self.n_thread > 1):
-            n_points = self.divide_threads(self.n_thread, self.nlam)
-            v_thread_seps = self.calc_thread_seps(v_calc_points, n_points)
-            v_center = [
-                0.5 * (v_range[1] + v_range[0]) for v_range in v_thread_seps
-            ]
-            v_width = [
-                0.5 * (v_range[1] - v_range[0]) for v_range in v_thread_seps
-            ]
+            # Load-balance for multiple processing
+            n_points = self._divide_nlam_by_threads(self.nlam, self.n_thread)
+            vrange_list = self._calc_vrange_list(v_calc_points, n_points)
+            v_center = [0.5 * (vmax + vmin) for vmin, vmax in vrange_list]
+            v_width = [0.5 * (vmax - vmin) for vmin, vmax in vrange_list]
 
             logger.info(f"All calc points: {format_array(v_calc_points)}")
             logger.info("Calc points in each thread:")
@@ -295,21 +281,21 @@ class ObsSimulator:
                     f"    {i}th thread: {format_array(np.linspace(vc-vw, vc+vw, ncp))}"
                 )
 
-            args = [
-                (
-                    p,
-                    gen_radmc_cmd(
-                        vc_kms=v_center[p],
-                        vw_kms=v_width[p],
-                        nlam=n_points[p],
-                        **common_cmd,
-                    ),
+            def cmdfunc(i):
+                return gen_radmc_cmd(
+                    vc_kms=v_center[p],
+                    vw_kms=v_width[p],
+                    nlam=n_points[p],
+                    **common_cmd,
                 )
-                for p in range(self.n_thread)
-            ]
-            rets = Pool(self.n_thread).starmap(self._subcalc, args)
-            self._check_multiple_returns(rets)
-            self.data = self._combine_multiple_returns(rets)
+
+            args = [(i, cmdfunc(i)) for i in range(self.n_thread)]
+
+            with multiprocessing.Pool(self.n_thread) as pool:
+                results = pool.starmap(self._subcalc, args)
+
+            self._check_multiple_returns(results)
+            self.data = self._combine_multiple_returns(results)
 
         else:
             cmd = gen_radmc_cmd(
@@ -330,37 +316,32 @@ class ObsSimulator:
         self.data.freq0 = self.mol.freq[iline - 1]
         if self.conv:
             self.data.image = self.convolver(self.data.image)
-        return ObsData(radmcdata=self.data, datatype=self.obs_mode)
+        return ObsData(radmcdata=self.data, datatype="line")
 
     @staticmethod
     def find_proper_nthread(n_thr, n_div):
         return max([i for i in range(n_thr, 0, -1) if n_div % i == 0])
 
     @staticmethod
-    def divide_threads(n_thr, n_div):
-        ans = [n_div // n_thr] * n_thr
-        rem = n_div % n_thr
-        nlist = [
-            (n_thr - i // 2 if i % 2 else i // 2) for i in range(n_thr)
-        ]  # [ ( i if i%2==0 else n_thread -(i-1) ) for i in range(n_thread) ]
-        for i in range(rem):
-            ii = (n_thr - 1 - i // 2) if i % 2 else i // 2
-            ans[ii] += 1
-        return ans
+    def _divide_nlam_by_threads(nlam, nthr):
+        divided_nlam_list = [nlam // nthr] * nthr
+        remainder = nlam % nthr
+        for i in range(reminder):
+            i_distribute = (nthr - 1 - i // 2) if i % 2 else i // 2
+            divided_nlam_list[i_distribute] += 1
+        return divided_nlam_list
 
     @staticmethod
-    def calc_thread_seps(calc_points, thread_divs):
-        ans = []
-        sum_points = 0
-        for npoints in thread_divs:
-            ans.append(
-                [
-                    calc_points[sum_points],
-                    calc_points[sum_points + npoints - 1],
-                ]
-            )
-            sum_points += npoints
-        return np.array(ans)
+    def _calc_vrange_list(whole_vrange, divided_nlam_list):
+        vrange_list = []
+        sum_nlam = 0
+        for nlam in divided_nlam_list:
+            i_start = sum_points
+            i_end = sum_points + nlam - 1
+            vrange = (whole_vrange[i_start], whole_vrange[i_end])
+            vrange_list.append(vrange)
+            sum_nlam += nlam
+        return np.array(vrange_list)
 
     def _subcalc(self, p, cmd):
         dn = f"proc{p:d}"
@@ -368,10 +349,9 @@ class ObsSimulator:
         dpath_sub = f"{self.radmc_dir}/{dn}"
         os.makedirs(dpath_sub, exist_ok=True)
         os.system(f"cp {self.radmc_dir}/{{*.inp,*.dat}} {dpath_sub}/")
-        self.exe(
-            cmd, dpath_sub, log=(logger.isEnabledFor(logging.DEBUG) and p == 1)
-        )
-        with redirect_stdout(open(os.devnull, "w")):
+        log = logger.isEnabledFor(logging.DEBUG) and p == 1
+        self.exe(cmd, dpath_sub, log=log)
+        with contextlib.redirect_stdout(open(os.devnull, "w")):
             return rmci.readImage()
 
     def _check_multiple_returns(self, return_list):
@@ -380,9 +360,7 @@ class ObsSimulator:
             for k, v in r.__dict__.items():
                 if isinstance(v, (np.ndarray)):
                     logger.debug(
-                        "{}: shape is {}, range is [{}, {}]".format(
-                            k, v.shape, np.min(v), np.max(v)
-                        )
+                        f"{k}: shape {v.shape}, range [{np.min(v)}, {np.max(v)}]"
                     )
                 else:
                     logger.debug(f"{k}: {v}")
@@ -618,13 +596,13 @@ class ObsData:
 
     def save_instance(self, filename="obsdata.pkl", filepath=None):
         if filepath is None:
-            filepath = os.path.join(config.run_dir, filename)
+            filepath = os.path.join(gpath.run_dir, filename)
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
         pd.to_pickle(self, filepath)
 
     def save_fits(self, filename="obsdata.fits", dpc=None, filepath=None):
         if filepath is None:
-            filepath = os.path.join(config.run_dir, filename)
+            filepath = os.path.join(gpath.run_dir, filename)
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
 
         if os.path.exists(filepath):
@@ -692,7 +670,7 @@ class PVmap:
     ):
         # see IAU manual : https://fits.gsfc.nasa.gov/standard40/fits_standard40aa-le.pdf
         if filepath is None:
-            filepath = os.path.join(config.run_dir, filename)
+            filepath = os.path.join(gpath.run_dir, filename)
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
 
         Np = len(self.xau)
