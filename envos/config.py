@@ -145,8 +145,11 @@ class Config:
             storage_dir=storage_dir,
         )
 
-    def set_observation_setting(
+    def set_observation_input(
         self,
+        dpc: float,
+        omp: bool = False,
+        nthread: int = 1,
         sizex_au: float = None,
         sizey_au: float = None,
         pixsize_au: float = None,
@@ -159,7 +162,7 @@ class Config:
         beam_min_au: float = None,
         vreso_kms: float = None,
         beam_pa_deg: float = None,
-        convmode: str = None,
+        convmode: str = "fft",
         lam: float = None,
         incl: float = None,
         phi: float = None,
@@ -168,6 +171,9 @@ class Config:
         ispec: int = None,
     ):
         self.obs = ObsConfig(
+            dpc=dpc,
+            omp=omp,
+            nthread=nthread,
             sizex_au=sizex_au,
             sizey_au=sizey_au,
             pixsize_au=pixsize_au,
@@ -234,6 +240,9 @@ class RadmcConfig:
 
 @dataclass
 class ObsConfig:
+    dpc: float
+    omp: bool
+    nthread: int
     sizex_au: float
     sizey_au: float
     pixsize_au: float
