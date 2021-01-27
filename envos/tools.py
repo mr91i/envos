@@ -13,21 +13,6 @@ logger = set_logger(__name__)
 # def mkdir(dpath):
 #    os.mkdirs(dpath, exist_ok=True)
 
-# class Parameters:
-#    def __init__(self, subclass_name_list=None):
-#        if subclass_name_list is not None:
-#            for name in subclass_name_list:
-#                setattr(self, name, Subclass() )
-#    class Subclass:
-#        pass
-
-# def set_arguments(cls, locals_dict):
-#    for k, v in locals_dict.items():
-#        if (k != 'self') and (k!="kwargs"):
-#            setattr(cls, k, v)
-# logger.debug(f"{k:20} is {str(v):20}")
-
-
 def freq_to_vkms_array(freq, freq0):
     return nc.c / 1e5 * (freq0 - freq) / freq0
 
@@ -50,31 +35,6 @@ def make_array_interface(xc):
         axis=0,
     )
 
-
-def make_meshgrid_center(xxi, yyi, indexing="xy"):
-    if indexing == "xy":
-        xc = make_array_center(xxi[0, :])
-        yc = make_array_center(yyi[:, 0])
-        return np.meshgrid(xc, yc)
-
-    elif indexing == "ij":
-        xc = make_array_center(xxi[:, 0])
-        yc = make_array_center(yyi[0, :])
-        return np.meshgrid(xc, yc, indexing="ij")
-
-
-def make_meshgrid_interface(xxc, yyc, indexing="xy"):
-    if indexing == "xy":
-        xi = make_array_interface(xxc[0, :])
-        yi = make_array_interface(yyc[:, 0])
-        return np.meshgrid(xi, yi)
-
-    elif indexing == "ij":
-        xi = make_array_interface(xxc[:, 0])
-        yi = make_array_interface(yyc[0, :])
-        return np.meshgrid(xi, yi, indexing="ij")
-
-
 def x_cross_zero(x1, x2, y1, y2):
     return x1 + y1 * (x2 - x1) / (y1 - y2)
 
@@ -89,26 +49,6 @@ def find_roots(x, y1, y2):
             if dy[i] * dy[i + 1] <= 0
         ]
     )
-
-
-# def isnan_values(values):
-#    if np.isscalar(values):
-#        return np.any(np.isnan(values))
-#    else:
-#        return np.any([np.any(np.isnan(v)) for v in values])
-
-
-#        os.chdir(wdir)
-#        if log:
-#            out = run_and_capture(cmd)
-#            if "ERROR" in out:
-#                raise Exception(out)
-#        else:
-#            return subprocess.run(
-#                cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
-#            )
-
-################################################yy
 
 
 def shell(
