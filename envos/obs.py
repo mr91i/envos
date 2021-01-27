@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import os
-import sys
 import numpy as np
 import pandas as pd
-import subprocess
+import copy
+import logging
 import contextlib
 import multiprocessing
 from scipy import integrate, interpolate
@@ -41,7 +41,8 @@ def gen_radmc_cmd(
     option="",
 ):
     position = f"dpc {dpc} incl {incl} phi {phi} posang {posang}"
-    camera = f"npixx {npixx} npixy {npixy} zoomau {zoomau[0]} {zoomau[1]} {zoomau[2]} {zoomau[3]}"
+    camera = f"npixx {npixx} npixy {npixy} "
+    camera += f"zoomau {zoomau[0]} {zoomau[1]} {zoomau[2]} {zoomau[3]}"
     if lam is not None:
         freq = f"lambda {lam}"
     elif iline is not None:
@@ -99,21 +100,6 @@ class ObsSimulator:
                 convmode=oconf.convmode,
             )
 
-    #    def exe(self, cmd, wdir, log=False):
-    #        """
-    #        - consider to merge exe in tools
-    #        """
-    #
-    #        os.chdir(wdir)
-    #        if log:
-    #            out = run_and_capture(cmd)
-    #            if "ERROR" in out:
-    #                raise Exception(out)
-    #        else:
-    #            return subprocess.run(
-    #                cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
-    #            )
-
     def set_resolution(
         self,
         sizex_au,
@@ -131,9 +117,10 @@ class ObsSimulator:
         if (sizey_au is not None) and (sizex_au != sizey_au):
             logger.warning(
                 "Use rectangle viewing mode. "
-                + "Currently (2020/12), a bug in the mode was fixed. "
-                + "Please check if your version is latest. "
-                + "If you do not want to use this, please set sizex_au = sizey_au."
+                "Currently (2020/12), a bug in the mode was fixed. "
+                "Please check if your version is latest. "
+                "If you do not want to use this, "
+                "please set sizex_au = sizey_au."
             )
 
         self.zoomau_x = [-sizex_au / 2, sizex_au / 2]
@@ -268,12 +255,6 @@ class ObsSimulator:
             -self.vwidth_kms, self.vwidth_kms, self.nlam
         )
 
-        # vseps = np.linspace(
-        #    -self.vwidth_kms - self.dv_kms / 2,
-        #     self.vwidth_kms + self.dv_kms / 2,
-        #    self.nlam + 1,
-        # )
-
         if self.omp and (self.nthread > 1):
             # Load-balance for multiple processing
             n_points = self._divide_nlam_by_threads(self.nlam, self.nthread)
@@ -290,9 +271,9 @@ class ObsSimulator:
 
             def cmdfunc(i):
                 return gen_radmc_cmd(
-                    vc_kms=v_center[p],
-                    vw_kms=v_width[p],
-                    nlam=n_points[p],
+                    vc_kms=v_center[i],
+                    vw_kms=v_width[i],
+                    nlam=n_points[i],
                     **common_cmd,
                 )
 
@@ -308,7 +289,6 @@ class ObsSimulator:
             cmd = gen_radmc_cmd(
                 vw_kms=self.vwidth_kms, nlam=self.nlam, **common_cmd
             )
-            logger.info(f"command is {cmd}")
 
             tools.shell(cmd, cwd=self.radmc_dir)
             self.data = rmci.readImage(fname=f"{self.radmc_dir}/image.out")
@@ -330,7 +310,7 @@ class ObsSimulator:
     def _divide_nlam_by_threads(nlam, nthr):
         divided_nlam_list = [nlam // nthr] * nthr
         remainder = nlam % nthr
-        for i in range(reminder):
+        for i in range(remainder):
             i_distribute = (nthr - 1 - i // 2) if i % 2 else i // 2
             divided_nlam_list[i_distribute] += 1
         return divided_nlam_list
@@ -340,8 +320,8 @@ class ObsSimulator:
         vrange_list = []
         sum_nlam = 0
         for nlam in divided_nlam_list:
-            i_start = sum_points
-            i_end = sum_points + nlam - 1
+            i_start = sum_nlam
+            i_end = sum_nlam + nlam - 1
             vrange = (whole_vrange[i_start], whole_vrange[i_end])
             vrange_list.append(vrange)
             sum_nlam += nlam
@@ -349,25 +329,23 @@ class ObsSimulator:
 
     def _subcalc(self, p, cmd):
         dn = f"proc{p:d}"
-        logger.info("execute: " + cmd)
+        # logger.info("execute: " + cmd)
         dpath_sub = f"{self.radmc_dir}/{dn}"
         os.makedirs(dpath_sub, exist_ok=True)
         os.system(f"cp {self.radmc_dir}/{{*.inp,*.dat}} {dpath_sub}/")
         log = logger.isEnabledFor(logging.DEBUG) and p == 1
         tools.shell(cmd, cwd=dpath_sub, log=log)
         with contextlib.redirect_stdout(open(os.devnull, "w")):
-            return rmci.readImage(
-                fname=f"{self.radmc_dir}/image.out",
-            )
+            fname = f"{self.radmc_dir}/image.out"
+            return rmci.readImage(fname=fname)
 
     def _check_multiple_returns(self, return_list):
         for i, r in enumerate(return_list):
-            logger.debug(f"The{i}th return")
+            logger.debug(f"The {i}th return")
             for k, v in r.__dict__.items():
                 if isinstance(v, (np.ndarray)):
-                    logger.debug(
-                        f"{k}: shape {v.shape}, range [{np.min(v)}, {np.max(v)}]"
-                    )
+                    vrange = f"[{np.min(v)}, {np.max(v)}]"
+                    logger.debug(f"{k}: shape {v.shape}, range {vrange}")
                 else:
                     logger.debug(f"{k}: {v}")
 
@@ -392,17 +370,12 @@ class ObsSimulator:
         self.data.writeFits(fname=fp_fitsdata, dpc=self.dpc)
         logger.info(f"Saved fits file: {fp_fitsdata}")
 
-    def output_instance(self, filepath):
-        pd.to_pickle(self, filepath)
-
-    def read_instance(self, filepath):
-        instance = pd.read_pickle(filepath)
-        for k, v in instance.__dict__.items():
-            setattr(self, k, v)
-
 
 def format_array(array):
-    return f"[{min(array):.2f}:{max(array):.2f}] with delta = {abs(array[1]-array[0]):.4g} and N = {len(array)}"
+    delta = abs(array[1] - array[0])
+    msg = f"[{min(array):.2f}:{max(array):.2f}] "
+    msg += f"with delta = {delta:.4g} and N = {len(array)}"
+    return msg
 
 
 class Convolver:
@@ -429,7 +402,7 @@ class Convolver:
         elif len(image.shape) == 3:
             Kernel = self.Kernel_3d
         else:
-            raise Exception("Unknown data.image shape, ", imege.shape)
+            raise Exception("Unknown data.image shape, ", image.shape)
 
         if self.mode == "normal":
             return aconv.convolve(image, Kernel)
@@ -541,9 +514,6 @@ class ObsData:
     #   Freeze: Revive in future version
     #
 
-    def set_dpc(self, dpc):
-        self.dpc = dpc
-
     def read_radmcdata(self, data):
         # self.Ippv_raw = data.image.transpose(2, 1, 0)
         # print(data.image.shape)
@@ -569,7 +539,8 @@ class ObsData:
         self.dv = self.vkms[1] - self.vkms[0] if len(self.vkms) > 1 else 0
         self.Lv = self.vkms[-1] - self.vkms[0] if len(self.vkms) > 1 else 0
 
-    #    def convolve(self, beam_maj_au, beam_min_au, vreso_kms, beam_pa_deg, mode="fft", pointsource_test=False):
+    def set_dpc(self, dpc):
+        self.dpc = dpc
 
     def make_mom0_map(self, normalize="peak"):
         Ipp = integrate.simps(self.Ippv, axis=0)
@@ -626,8 +597,9 @@ class ObsData:
         if os.path.exists(filepath):
             logger.info(f"remove old fits file: {filepath}")
             os.remove(filepath)
+
         self.data.writeFits(fname=filepath, dpc=dpc)
-        logger.info(f"Saved fits file: {fp_fitsdata}")
+        logger.info(f"Saved fits file: {filepath}")
 
 
 class PVmap:
@@ -655,7 +627,7 @@ class PVmap:
         self.beam_pa_deg = None
 
         if fitsfile is not None:
-            read_fits_PV(self, fitsfile)
+            self.read_fits_PV(fitsfile)
             # self.read_fitsfile(filepath=fitsfile)
 
     def add_conv_info(self, beam_maj_au, beam_min_au, vreso_kms, beam_pa_deg):
@@ -672,21 +644,20 @@ class PVmap:
             self.Ipv /= Ipv_norm
             self.unit_I = rf"[{Ipv_norm} Jy pixel$^{{-1}}$]]"
 
-    def trim(range_x=None, range_v=None):
+    def trim(self, range_x=None, range_v=None):
         if range_x is not None:
-            imax, imin = [np.abs(self.xau - xlim).argmin() for xl in range_x]
+            imax, imin = [np.abs(self.xau - xl).argmin() for xl in range_x]
             self.Ipv = self.Ipv[:, imin:imax]
             self.xau = self.xau[imin:imax]
 
-        if ramge_v is not None:
-            jmin, jmax = [np.abs(self.vkms - vlim).argmin() for vl in range_v]
+        if range_v is not None:
+            jmin, jmax = [np.abs(self.vkms - vl).argmin() for vl in range_v]
             self.Ipv = self.Ipv[jmin:jmax, :]
             self.vkms = self.vkms[jmin:jmax]
 
-    def save_fitsfile(
-        self, filename="PVimage.fits", unitp="au", unitv="km/s", filepath=None
-    ):
-        # see IAU manual : https://fits.gsfc.nasa.gov/standard40/fits_standard40aa-le.pdf
+    def save_fitsfile(self, filename="PVimage.fits", filepath=None):
+        # see IAU manual:
+        #     https://fits.gsfc.nasa.gov/standard40/fits_standard40aa-le.pdf
         if filepath is None:
             filepath = os.path.join(gpath.run_dir, filename)
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
@@ -699,15 +670,13 @@ class PVmap:
         new_header = {
             "NAXIS": 2,
             "CTYPE1": "ANGLE",
-            "CUNIT1": unitp,
             "NAXIS1": Np,
             "CRVAL1": 0.0,
             "CRPIX1": (Np + 1) / 2,
             "CDELT1": np.radians(dx * nc.au / self.dpc),
             "CUNIT1": "deg",
             "CTYPE2": "VRAD",
-            "CUNIT2": unitv,
-            "NAXIS1": Nv,
+            "NAXIS2": Nv,
             "CRVAL2": 0.0,
             "CRPIX2": (Nv + 1) / 2,
             "CDELT2": dv * 1e3,
@@ -716,7 +685,7 @@ class PVmap:
             "BUNIT": "Jy/pixel",
         }
         if self.beam_maj_au:
-            nue_header.update(
+            new_header.update(
                 {
                     "BMAJ": self.beam_maj_au,
                     "BMIN": self.beam_min_au,
@@ -727,50 +696,53 @@ class PVmap:
         hdulist = iofits.HDUList([hdu])
         hdulist.writeto(filename, overwrite=True)
 
-    # SIMPLE  =                    T                                                  BITPIX  =                  -32                                                  NAXIS   =                    2                                                  NAXIS1  =                  122                                                  NAXIS2  =                   56                                                  CTYPE1  = 'ANGLE   '                                                            CRVAL1  =  0.0000000000000E+00                                                  CRPIX1  =  6.2000000000000E+01                                                  CDELT1  =  3.4722222324035E-05                                                  CTYPE2  = 'VRAD    '                                                            CRVAL2  =  1.4886976186320E+03                                                  CRPIX2  = -2.0000000000000E+00                                                  CDELT2  =  1.4693057132590E+02                                                  BUNIT   = 'JY/BEAM '                                                            OBJECT  = 'IRAS04368+2557'                                                      DATE-OBS= '2012-08-10T10:49:13.824000'                                          OBSRA   =  6.9974458333330E+01                                                  OBSDEC  =  2.6052694444440E+01                                                  TELESCOP= 'ALMA    '                                                            EQUINOX =  2.0000000000000E+03                                                  BTYPE   = 'Intensity'                                                           BMAJ    =  2.1805740065040E-04                                                  BMIN    =  1.8803813391260E-04                                                  BPA     =  1.7929582214360E+02                                                  VELREF  =                  257                                                  DATAMIN = -6.8105190992355E-02                                                  DATAMAX =  6.2522120773792E-02
-
-    def read_fitsfile(self, filepath, unit1_in_au=None, unit2_in_kms=None):
+    def read_fitsfile(
+        self, filepath, unit1_in_au=None, unit2_in_kms=None, unit1="", unit2=""
+    ):
         logger.info(f"Reading fits file: {filepath}")
         pic = iofits.open(filepath)[0]
         self.Ipv = pic.data
-        print("Ipv_max : ", np.max(self.Ipv))
         header = pic.header
 
         self.Nx = header["NAXIS1"]
-        if unit1_in_cm:
+
+        if unit1_in_au:
             logger.info(
-                f"   1st axis is interpreted as POSITION with user-defined unit (unit1 = {unit1_in_cm} cm)."
+                "   1st axis is interpreted as POSITION "
+                f"with user-defined unit (unit1 = {unit1_in_au} au)."
             )
-            self.dx = header["CDELT1"] * unit1_in_au
+            dx_au = header["CDELT1"] * unit1_in_au
+
         elif "ANGLE" in header["CYTYPE"] and unit1 == "deg":  # x in deg
-            logger.info(f"   1st axis is interpreted as POSITION [deg].")
-            self.dx = (
-                header["CDELT1"] * np.pi / 180.0 * self.dpc * nc.pc / nc.au
-            )
+            logger.info("   1st axis is interpreted as POSITION [deg].")
+            dx_au = header["CDELT1"] * 3600 * self.dpc  # dx in au
         else:
             raise Exception("Unknown datatype in 1st axis")
-        self.xau = (
-            -0.5 * self.Nx * self.dx + (np.arange(self.Nx) + 0.5) * self.dx
-        )
+
+        self.xau = (np.arange(self.Nx) - 0.5 * (self.Nx - 1)) * dx_au
 
         self.Nv = header["NAXIS2"]
         if unit2_in_kms:
             logger.info(
-                f"    2nd axis is interpreted as VELOCITY with user-defined unit (unit2 = {unit2_in_cm} cm)."
+                "    2nd axis is interpreted as VELOCITY "
+                f"with user-defined unit (unit2 = {unit2_in_kms} km/s)."
             )
-            self.dv = header["CDELT2"] * unit2_in_kms
+            dv_kms = header["CDELT2"] * unit2_in_kms
+
         elif "VRAD" in header["CYTYPE"] and unit2 == "m/s":  # v in m/s
-            logger.info(f"    2nd axis is interpreted as VELOCITY [m/s].")
-            self.dv = header["CDELT2"] / 1e3  # in m/s to in km/s
+            logger.info("    2nd axis is interpreted as VELOCITY [m/s].")
+            dv_kms = header["CDELT2"] / 1e3  # in m/s to in km/s
+
         else:
             raise Exception("Unknown datatype in 2nd axis")
-        self.vkms = (-0.5 * (self.Nv - 1) + np.arange(self.Nv)) * self.dv
+
+        self.vkms = (np.arange(self.Nv) - 0.5 * (self.Nv - 1)) * dv_kms
 
         if "BMAJ" in header:
             self.beam_maj_au = header["BMAJ"] * self.dpc
             self.beam_min_au = header["BMIN"] * self.dpc
             self.beam_pa_deg = header["BPA"]
-            self.vreso_kms = self.dv
+            self.vreso_kms = dv_kms
 
         self.bunit = header["BUNIT"]
 
@@ -784,52 +756,13 @@ def read_pkl_obsdata(self, filepath):
     return pd.read_pickle(filepath)
 
 
-def read_fits_PV(cls, filepath, unit1_in_au=None, unit2_in_kms=None):
-    logger.info(f"Reading fits file: {filepath}")
-    pic = iofits.open(filepath)[0]
-    cls.Ipv = pic.data
-    print("Ipv_max : ", np.max(cls.Ipv))
-    header = pic.header
-
-    cls.Nx = header["NAXIS1"]
-    if unit1_in_cm:
-        logger.info(
-            f"   1st axis is interpreted as POSITION with user-defined unit (unit1 = {unit1_in_cm} cm)."
-        )
-        cls.dx = header["CDELT1"] * unit1_in_au
-    elif "ANGLE" in header["CYTYPE"] and unit1 == "deg":  # x in deg
-        logger.info(f"   1st axis is interpreted as POSITION [deg].")
-        cls.dx = header["CDELT1"] * np.pi / 180.0 * cls.dpc * nc.pc / nc.au
-    else:
-        raise Exception("Unknown datatype in 1st axis")
-    cls.xau = -0.5 * cls.Nx * cls.dx + (np.arange(cls.Nx) + 0.5) * cls.dx
-
-    cls.Nv = header["NAXIS2"]
-    if unit2_in_kms:
-        logger.info(
-            f"    2nd axis is interpreted as VELOCITY with user-defined unit (unit2 = {unit2_in_cm} cm)."
-        )
-        cls.dv = header["CDELT2"] * unit2_in_kms
-    elif "VRAD" in header["CYTYPE"] and unit2 == "m/s":  # v in m/s
-        logger.info(f"    2nd axis is interpreted as VELOCITY [m/s].")
-        cls.dv = header["CDELT2"] / 1e3  # in m/s to in km/s
-    else:
-        raise Exception("Unknown datatype in 2nd axis")
-    cls.vkms = (-0.5 * (cls.Nv - 1) + np.arange(cls.Nv)) * cls.dv
-
-    if "BMAJ" in header:
-        cls.beam_maj_au = header["BMAJ"] * cls.dpc
-        cls.beam_min_au = header["BMIN"] * cls.dpc
-        cls.beam_pa_deg = header["BPA"]
-        cls.vreso_kms = cls.dv
-
-    cls.bunit = header["BUNIT"]
-
-    if ((cls.dx < 0) or (cls.xau[1] < cls.xau[0])) or (
-        (cls.dv < 0) or (cls.vkms[1] < cls.vkms[0])
-    ):
-        raise Exception("reading axis is wrong.")
-
-
-if __name__ == "__main__":
-    main()
+def read_fits_PV(
+    cls, filepath, unit1_in_au=None, unit2_in_kms=None, unit1="", unit2=""
+):
+    return PVmap(
+        fitsfile=filepath,
+        unit1_in_au=unit1_in_au,
+        unit2_in_kms=unit2_in_kms,
+        unit1=unit1,
+        unit2=unit2,
+    )
