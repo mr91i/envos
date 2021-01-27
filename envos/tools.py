@@ -1,5 +1,6 @@
 import subprocess
 import os
+import sys
 import numpy as np
 import envos.nconst as nc
 
@@ -97,42 +98,158 @@ def find_roots(x, y1, y2):
 #        return np.any([np.any(np.isnan(v)) for v in values])
 
 
-class Exe:
-    def __init__(self, debug=False, dryrun=False, skiperror=False):
-        self.debug = debug
-        self.dryrun = dryrun
-        self.skiperror = skiperror
+#        os.chdir(wdir)
+#        if log:
+#            out = run_and_capture(cmd)
+#            if "ERROR" in out:
+#                raise Exception(out)
+#        else:
+#            return subprocess.run(
+#                cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+#            )
 
-    def __call__(self, cmd):
-        try:
-            if self.dryrun:
-                print("[dryrun]", cmd)
-                return 0
-            else:
-                subprocess.check_call(
-                    r'echo `date "+%Y/%m/%d-%H:%M:%S"` "      " "{}" >> .executed_cmd.txt'.format(
-                        cmd
-                    ),
-                    shell=True,
-                )
-                print("Execute: {}".format(cmd))
-                if not self.debug:
-                    retcode = subprocess.check_call(cmd, shell=True)
-                return 0
-                # retcode = subprocess.check_call( cmd.split() )
-        except subprocess.CalledProcessError as e:
-            if self.skiperror:
-                print("Skipper error:")
-                print("    %s" % e)
-            else:
-                print("Error generated:")
-                print(" - return code is %s" % e.returncode)
-                print(" - cmd is '%s'" % e.cmd)
-                print(" - output is %s" % e.output)
-                raise Exception(e)
+################################################yy
+
+def shell(
+    cmd,
+    cwd=None,
+    log=True,
+    dryrun=False,
+    skiperror=False,
+    error_keyword=None,
+    logger=logger,
+    log_prefix="", simple=False):
+
+    error_flag = 0
+
+    if cwd is not None:
+        logger.info(f"Move the working directory from {os.getcwd()} to {cwd} temporarily.")
+    else:
+        cwd = os.getcwd()
+
+    logger.info(f"Running shell command: \"{cmd}\"")
+
+    if simple:
+        return subprocess.run(cmd, shell=True, cwd=cwd)
+    else:
+        proc = subprocess.Popen(
+        cmd,
+        shell=True,
+        cwd=cwd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        universal_newlines=True
+        )
+
+    if dryrun:
+        logger.info(f"(dryrun) {cmd}")
+        return 0
+
+    while True:
+        line = proc.stdout.readline().rstrip() #.decode("utf-8").rstrip()
+        if line:
+            logger.info(log_prefix+line)
+            if (error_keyword is not None) and (error_keyword in line):
+                error_flag = 1
+
+        if (not line) and (proc.poll() is not None):
+            break
+
+    retcode = proc.wait()
+
+    if (retcode != 0) or (error_flag == 1):
+        e = subprocess.CalledProcessError
+        if skip_error:
+            logger.warning("Skip error:")
+            logger.warning("    %s" % e)
+        else:
+            logger.exception(e)
+            raise e
 
 
-exe = Exe()
+#  def shell(
+#      cmd,
+#      cwd=None,
+#      log=True,
+#      dryrun=False,
+#      skiperror=False,
+#      realtime=False,
+#      error_keyword=None,
+#  ):
+#
+#      if cwd is not None:
+#          logger.info(f"Move the working directory from {os.getcwd()} to {cwd} temporarily.")
+#      else:
+#          cwd = os.getcwd()
+#      try:
+#          if dryrun:
+#              logger.info("(dryrun) %s", cmd)
+#              return 0
+#
+#          logger.info("shell: %s", cmd)
+#
+#          if realtime:
+#              for line in run_and_get_lines(cmd, cwd=cwd):
+#                  if log:
+#                      print(line)
+#                      #logger.info(line)
+#                  else:
+#                      pass
+#              #logger.info("")
+#              return 0
+#
+#          if log:
+#              retcode = subprocess.run(cmd, shell=True, cwd=cwd, check=True)
+#          else:
+#              retcode = subprocess.run(
+#                  cmd,
+#                  shell=True,
+#                  cwd=cwd,
+#                  check=True,
+#                  stdout=subprocess.PIPE,
+#                  stderr=subprocess.PIPE,
+#              )
+#
+#          logger.info("")
+#          return retcode
+#
+#      except subprocess.CalledProcessError as e:
+#
+#          if skiperror:
+#              logger.warning("Skip error:")
+#              logger.warning("    %s" % e)
+#
+#          else:
+#              logger.exception("Error generated:")
+#              logger.exception(" - return code is %s" % e.returncode)
+#              logger.exception(" - cmd is '%s'" % e.cmd)
+#              logger.exception(" - output is %s" % e.output)
+#              exit()
+#
+#
+#  # def run_and_capture(cmd):
+#  def run_and_get_lines(cmd, **kwargs):
+#
+#      """
+#      cmd: str running command
+#      :return standard output
+#      """
+#
+#      # Start process asynchronously with the python process
+#      proc = subprocess.Popen(
+#          cmd,
+#          shell=True,
+#          stdout=subprocess.PIPE,
+#          stderr=subprocess.STDOUT,
+#          **kwargs
+#      )
+#      while True:
+#          line = proc.stdout.readline() #.decode("utf-8")
+#          if line:
+#              yield line
+#
+#          if (not line) and (proc.poll() is not None):
+#              break
 
 
 # def interpolator3d(value, x_ori, y_ori, z_ori, xx_new, yy_new, zz_new):
