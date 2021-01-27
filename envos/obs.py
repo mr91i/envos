@@ -24,35 +24,6 @@ logger = set_logger(__name__)
 #####################################
 
 
-def run_and_capture(cmd):
-
-    """
-    cmd: str running command
-    :return standard output
-    """
-
-    # Start process asynchronously with the python process
-    proc = subprocess.Popen(
-        cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
-    )
-
-    lines = []
-
-    while True:
-        # read a line from buffer of stdout
-        line = proc.stdout.readline().decode("utf-8")
-        # lines will be returned as text
-        lines.append(line)
-        # print lines to stdout simultaneously with running process
-        sys.stdout.write(line)
-
-        # stop here, when buffer is empty and process has done
-        if (not line) and (proc.poll() is not None):
-            break
-
-    return "\n".join(line)
-
-
 def gen_radmc_cmd(
     mode="image",
     dpc=0,
@@ -87,24 +58,33 @@ class ObsSimulator:
     """
 
     def __init__(
-        self, config=None, radmcdir=None, dpc=None, omp=True, n_thread=1
+        self, config=None, radmcdir=None, dpc=None, omp=True, nthread=1
     ):
 
         self.radmc_dir = radmcdir or gpath.radmc_dir
         self.dpc = dpc
         self.omp = omp
-        self.n_thread = n_thread
+        self.nthread = nthread
         self.view = False
         self.conv = False
+        self.incl = None
+        self.phi = None
+        self.posang = None
+
 
         if config is not None:
             oconf = config.obs
             self.dpc = oconf.dpc
             self.omp = oconf.omp
-            self.n_thread = oconf.n_thread
+            self.nthread = oconf.nthread
+            self.incl = oconf.incl
+            self.phi = oconf.phi
+            self.posang = oconf.posang
+
+
 
             self.set_resolution(
-                sizex_au=config.sizex_au,
+                sizex_au=oconf.sizex_au,
                 sizey_au=oconf.sizey_au,
                 pixsize_au=oconf.pixsize_au,
                 npix=oconf.npix,
@@ -122,20 +102,20 @@ class ObsSimulator:
                 convmode=oconf.convmode,
             )
 
-    def exe(self, cmd, wdir, log=False):
-        """
-        - consider to merge exe in tools
-        """
-
-        os.chdir(wdir)
-        if log:
-            out = run_and_capture(cmd)
-            if "ERROR" in out:
-                raise Exception(out)
-        else:
-            return subprocess.run(
-                cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
-            )
+#    def exe(self, cmd, wdir, log=False):
+#        """
+#        - consider to merge exe in tools
+#        """
+#
+#        os.chdir(wdir)
+#        if log:
+#            out = run_and_capture(cmd)
+#            if "ERROR" in out:
+#                raise Exception(out)
+#        else:
+#            return subprocess.run(
+#                cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+#            )
 
     def set_resolution(
         self,
@@ -149,11 +129,13 @@ class ObsSimulator:
         dv_kms=None,
     ):
 
-        if sizex_au != sizey_au:
-            logger.info(
-                "Use rectangle viewing mode."
-                + "Currently (2020/12), a bug in the mode was fixed."
-                + "Please check if your version is latest."
+        logger.info("Setting resolution of ObsSimulator")
+
+        if (sizey_au is not None) and (sizex_au != sizey_au):
+            logger.warning(
+                "Use rectangle viewing mode. "
+                + "Currently (2020/12), a bug in the mode was fixed. "
+                + "Please check if your version is latest. "
                 + "If you do not want to use this, please set sizex_au = sizey_au."
             )
 
@@ -176,7 +158,7 @@ class ObsSimulator:
             self.pixsize_au = Lx / self.npixx
 
         self.dx_au = sizex_au / self.npixx
-        self.dy_au = sizey_au / self.npixy
+        self.dy_au = _sizey_au / self.npixy
 
         if self.dx_au != self.dy_au:
             raise Exception("dx is not equal to dy. Check your setting again.")
@@ -197,6 +179,9 @@ class ObsSimulator:
         beam_pa_deg=0,
         convmode="fft",
     ):
+
+        logger.info("Setting convolution function of ObsSimulator")
+
         self.conv = True
         self.convolver = Convolver(
             (beam_maj_au, beam_min_au, vreso_kms),
@@ -206,7 +191,17 @@ class ObsSimulator:
         )
 
     def observe_cont(self, lam, incl=0, phi=0, posang=0):
-        zoomau = np.concatenete([self.zoomau_x, self.zoomau_y])
+        if self.incl is not None:
+            incl = self.incl
+        if self.phi  is not None:
+            phi = self.phi
+        if self.posang is not None:
+            posang = self.posang
+
+
+        logger.info(f"Observing continum with wavelength of {lam} micron")
+
+        zoomau = np.concatenate([self.zoomau_x, self.zoomau_y])
         cmd = gen_radmc_cmd(
             mode="image",
             dpc=self.dpc,
@@ -220,21 +215,32 @@ class ObsSimulator:
             option="noscat nostar",
         )
 
-        self.exe(cmd, self.radmc_dir, log=True)
-        self.data_cont = rmci.readImage()
-        self.data_cont.freq0 = nc.c / (lam * 1e4)
-        if self.conv:
-            self.data_cont.image = self.convolver(self.data_cont.image)
+        tools.shell(cmd, cwd=self.radmc_dir,
+            error_keyword = "ERROR",
+            log_prefix = "    ")
 
-        odat = ObsData(radmcdata=self.data_cont, datatype="continum")
+        self.data_cont = rmci.readImage(fname=f"{self.radmc_dir}/image.out")
+
+        self.data_cont.freq0 = nc.c / (lam * 1e4)
+        convolve=False
+        if self.conv:
+            #self.data_cont.conv_image = self.convolver(self.data_cont.image)
+            self.data_cont.image = self.convolver(self.data_cont.image)
+            convolve = True
+
+        odat = ObsData(radmcdata=self.data_cont, datatype="continum", convolve=convolve)
         return odat
 
     def observe_line(self, iline, ispec, incl=0, phi=0, posang=0):
+
+        logger.info(f"Observing line with {ispec}")
+
+
         # self.obs_mode = "line"
         self.iline = iline
         # self.vwidth_kms = vwidth_kms
         # self.dv_kms = dv_kms
-        self.nlam = 2 * int(round(self.vwidth_kms / self.dv_kms)) + 1
+        self.nlam = int(round(2 *self.vwidth_kms / self.dv_kms)) + 1
         mol_path = f"{self.radmc_dir}/molecule_{ispec}.inp"
         self.mol = rmca.readMol(fname=mol_path)
         logger.info(
@@ -265,21 +271,19 @@ class ObsSimulator:
         #    self.nlam + 1,
         # )
 
-        if self.omp and (self.n_thread > 1):
+        if self.omp and (self.nthread > 1):
             # Load-balance for multiple processing
-            n_points = self._divide_nlam_by_threads(self.nlam, self.n_thread)
+            n_points = self._divide_nlam_by_threads(self.nlam, self.nthread)
             vrange_list = self._calc_vrange_list(v_calc_points, n_points)
             v_center = [0.5 * (vmax + vmin) for vmin, vmax in vrange_list]
             v_width = [0.5 * (vmax - vmin) for vmin, vmax in vrange_list]
 
             logger.info(f"All calc points: {format_array(v_calc_points)}")
             logger.info("Calc points in each thread:")
-            for i, (vc, vw, ncp) in enumerate(
-                zip(v_center, v_width, n_points)
-            ):
-                logger.info(
-                    f"    {i}th thread: {format_array(np.linspace(vc-vw, vc+vw, ncp))}"
-                )
+            _zipped = zip(v_center, v_width, n_points)
+            for i, (vc, vw, ncp) in enumerate(_zipped):
+                vax_nthread = np.linspace(vc-vw, vc+vw, ncp)
+                logger.info(f" -- {i}th thread: {format_array(vax_nthread)}")
 
             def cmdfunc(i):
                 return gen_radmc_cmd(
@@ -289,9 +293,9 @@ class ObsSimulator:
                     **common_cmd,
                 )
 
-            args = [(i, cmdfunc(i)) for i in range(self.n_thread)]
+            args = [(i, cmdfunc(i)) for i in range(self.nthread)]
 
-            with multiprocessing.Pool(self.n_thread) as pool:
+            with multiprocessing.Pool(self.nthread) as pool:
                 results = pool.starmap(self._subcalc, args)
 
             self._check_multiple_returns(results)
@@ -303,11 +307,9 @@ class ObsSimulator:
             )
             logger.info(f"command is {cmd}")
 
-            cwd = os.getcwd()
-            os.chdir(self.radmc_dir)
-            subprocess.call(cmd, shell=True)
-            self.data = rmci.readImage()
-            os.chdir(cwd)
+            tools.shell(cmd, cwd=self.radmc_dir)
+            self.data = rmci.readImage(fname=f"{self.radmc_dir}/image.out")
+
 
         if np.max(self.data.image) == 0:
             logger.warning("Zero image !")
@@ -350,9 +352,9 @@ class ObsSimulator:
         os.makedirs(dpath_sub, exist_ok=True)
         os.system(f"cp {self.radmc_dir}/{{*.inp,*.dat}} {dpath_sub}/")
         log = logger.isEnabledFor(logging.DEBUG) and p == 1
-        self.exe(cmd, dpath_sub, log=log)
+        tools.shell(cmd, cwd=dpath_sub, log=log)
         with contextlib.redirect_stdout(open(os.devnull, "w")):
-            return rmci.readImage()
+            return rmci.readImage(fname=f"{self.radmc_dir}/image.out",)
 
     def _check_multiple_returns(self, return_list):
         for i, r in enumerate(return_list):
@@ -422,11 +424,17 @@ class Convolver:
             Kernel = self.Kernel_xy2d
         elif len(image.shape) == 3:
             Kernel = self.Kernel_3d
+        else:
+            raise Exception("Unknown data.image shape, ", imege.shape)
 
         if self.mode == "normal":
             return aconv.convolve(image, Kernel)
         elif self.mode == "fft":
             return aconv.convolve_fft(image, Kernel, allow_huge=True)
+        elif self.mode == "null":
+            return image
+        else:
+            raise Exception("Unknown convolve mode ", self.mode)
 
 
 #    if pointsource_test:
@@ -451,6 +459,7 @@ class ObsData:
         pklfile=None,
         datatype=None,
         dpc=None,
+        convolve=False
     ):
         self.datatype = datatype
         self.Ippv = None
@@ -469,7 +478,7 @@ class ObsData:
         self.Lv = None
         self.dpc = dpc
 
-        self.conv = False
+        self.convolve = convolve
         self.beam_maj_au = None
         self.beam_min_au = None
         self.vreso_kms = None
@@ -533,7 +542,12 @@ class ObsData:
 
     def read_radmcdata(self, data):
         # self.Ippv_raw = data.image.transpose(2, 1, 0)
-        self.Ippv = data.image.transpose(2, 1, 0)
+        #print(data.image.shape)
+
+        #self.Ippv = data.image.transpose(2, 1, 0)
+        self.Ippv = data.image #.transpose(2, 1, 0)
+        #exit()
+
         self.dpc = data.dpc or 100
         self.Nx = data.nx
         self.Ny = data.ny
