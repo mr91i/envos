@@ -81,7 +81,6 @@ def plot_density_map(
     trajectries=True,
     filepath=None,
 ):
-    ## plot on meridional plane
     lvs = np.logspace(-18, -15, 10)
     img = plt.contourf(
         km.R[:, :, 0] / nc.au,
@@ -469,26 +468,26 @@ def draw_cross_pointer(ax, x, y, c="k", lw=2, s=10, alpha=1, zorder=1):
 def draw_beamsize(
     ax,
     mode,
-    beam_a_au,
-    beam_b_au,
+    beam_maj_au,
+    beam_min_au,
     beam_pa_deg,
     pangle_deg=None,
     vreso_kms=None,
     with_box=False,
 ):
-    print(beam_a_au, beam_b_au, vreso_kms)
+    print(beam_maj_au, beam_min_au, vreso_kms)
 
     if mode == "PV":
         cross_angle = (beam_pa_deg - pangle_deg) * np.pi / 180
         beam_crosslength_au = 1 / np.sqrt(
-            (np.cos(cross_angle) / beam_a_au) ** 2
-            + (np.sin(cross_angle) / beam_b_au) ** 2
+            (np.cos(cross_angle) / beam_maj_au) ** 2
+            + (np.sin(cross_angle) / beam_min_au) ** 2
         )
         beamx = beam_crosslength_au
         beamy = vreso_kms
     elif mode == "mom0":
-        beamx = beam_a_au
-        beamy = beam_b_au
+        beamx = beam_maj_au
+        beamy = beam_min_au
 
     if with_box:
         e1 = matplotlib.patches.Ellipse(
@@ -525,13 +524,63 @@ def draw_beamsize(
 
 
 def plot_mom0_map(
-    obsdata, pangle_deg=None, poffset_au=None, dpath_fig=dpath_fig, n_lv=10
+    obsdata, pangle_deg=None, poffset_au=None, n_lv=100,
+    fname="mom0.pdf",
+    dpath_fig=gpath.fig_dir,
+    filepath=None,
 ):
     def position_line(xau, pangle_deg, poffset_au=0):
         pangle_rad = pangle_deg * np.pi / 180
         pos_x = xau * np.cos(pangle_rad) - poffset_au * np.sin(pangle_rad)
         pos_y = xau * np.sin(pangle_rad) + poffset_au * np.sin(pangle_rad)
         return np.stack([pos_x, pos_y], axis=-1)
+
+    img = plt.contourf(
+        obsdata.xau, obsdata.yau, obsdata.Ippv[:,:,0], n_lv
+    )
+    #plt.xlim(0, rlim)
+    #plt.ylim(0, rlim)
+    plt.xlabel("x [au]")
+    plt.ylabel("y [au]")
+    #cbar = plt.colorbar(img, ticks=mt.LogLocator())
+    #cbar.set_label(r"Gas Mass Density [g cm$^{-3}$]")
+
+    draw_center_line(plt.gca())
+
+    if pangle_deg is not None:
+        pline0 = position_line(obsdata.xau, pangle_deg)
+        plt.plot(pline0[0], pline0[1], ls="--", c="w", lw=1)
+        if poffset_au is not None:
+            pline = position_line(
+                obsdata.xau, pangle_deg, poffset_au=poffset_au
+            )
+            plt.plot(pline[0], pline[1], c="w", lw=1)
+
+    if obsdata.convolve and obsdata.beam_maj_au :
+        # draw_beamsize(pltr, obsdata.conv_info, mode="mom0")
+        draw_beamsize(
+            plt.gca(),
+            "mom0",
+            obsdata.beam_maj_au,
+            obsdata.beam_min_au,
+            obsdata.beam_pa_deg,
+        )
+
+    if filepath is None:
+        filepath = os.path.join(gpath.run_dir, fname)
+    print("saved ", filepath)
+    plt.savefig(filepath)
+    plt.clf()
+
+
+    exit()
+
+
+
+
+
+
+
 
     pltr = mp.Plotter(dpath_fig, x=obsdata.xau, y=obsdata.yau)
     pltr.map(
@@ -547,26 +596,6 @@ def plot_mom0_map(
         save=False,
     )
 
-    draw_center_line(pltr.ax)
-
-    if pangle_deg is not None:
-        pline0 = position_line(obsdata.xau, pangle_deg)
-        plt.plot(pline0[0], pline0[1], ls="--", c="w", lw=1)
-        if poffset_au is not None:
-            pline = position_line(
-                obsdata.xau, pangle_deg, poffset_au=poffset_au
-            )
-            plt.plot(pline[0], pline[1], c="w", lw=1)
-
-    if obsdata.convolution:
-        # draw_beamsize(pltr, obsdata.conv_info, mode="mom0")
-        draw_beamsize(
-            pltr.ax,
-            "mom0",
-            obsdata.beam_a_au,
-            obsdata.beam_b_au,
-            obsdata.beam_pa_deg,
-        )
 
     pltr.save("mom0map")
 
@@ -803,8 +832,8 @@ def plot_pvdiagram(
         draw_beamsize(
             pltr.ax,
             "PV",
-            PV.beam_a_au,
-            PV.beam_b_au,
+            PV.beam_maj_au,
+            PV.beam_min_au,
             PV.beam_pa_deg,
             PV.pangle_deg,
             PV.vreso_kms,
