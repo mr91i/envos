@@ -110,6 +110,7 @@ def find_roots(x, y1, y2):
 
 ################################################yy
 
+
 def shell(
     cmd,
     cwd=None,
@@ -118,27 +119,31 @@ def shell(
     skiperror=False,
     error_keyword=None,
     logger=logger,
-    log_prefix="", simple=False):
+    log_prefix="",
+    simple=False,
+):
 
     error_flag = 0
 
     if cwd is not None:
-        logger.info(f"Move the working directory from {os.getcwd()} to {cwd} temporarily.")
+        logger.info(
+            f"Move the working directory from {os.getcwd()} to {cwd} temporarily."
+        )
     else:
         cwd = os.getcwd()
 
-    logger.info(f"Running shell command: \"{cmd}\"")
+    logger.info(f'Running shell command: "{cmd}"')
 
     if simple:
         return subprocess.run(cmd, shell=True, cwd=cwd)
     else:
         proc = subprocess.Popen(
-        cmd,
-        shell=True,
-        cwd=cwd,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        universal_newlines=True
+            cmd,
+            shell=True,
+            cwd=cwd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            universal_newlines=True,
         )
 
     if dryrun:
@@ -146,9 +151,9 @@ def shell(
         return 0
 
     while True:
-        line = proc.stdout.readline().rstrip() #.decode("utf-8").rstrip()
+        line = proc.stdout.readline().rstrip()  # .decode("utf-8").rstrip()
         if line:
-            logger.info(log_prefix+line)
+            logger.info(log_prefix + line)
             if (error_keyword is not None) and (error_keyword in line):
                 error_flag = 1
 

@@ -168,7 +168,7 @@ class Config:
         phi: float = None,
         posang: float = None,
         iline: int = None,
-        ispec: int = None,
+        molname: str = None,
     ):
         self.obs = ObsConfig(
             dpc=dpc,
@@ -192,7 +192,7 @@ class Config:
             phi=phi,
             posang=posang,
             iline=iline,
-            ispec=ispec,
+            molname=molname,
         )
 
 
@@ -261,7 +261,7 @@ class ObsConfig:
     phi: float
     posang: float
     iline: int
-    ispec: int
+    molname: str
 
 
 #    Tenv: float = None
