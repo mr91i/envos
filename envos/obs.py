@@ -307,7 +307,9 @@ class ObsSimulator:
             self.data = rmci.readImage(fname=f"{self.radmc_dir}/image.out")
 
         if np.max(self.data.image) == 0:
+            print(vars(self.data))
             logger.warning("Zero image !")
+            raise Exception
 
         #        self.data.dpc = self.dpc
         self.data.freq0 = self.mol.freq[iline - 1]
@@ -346,7 +348,7 @@ class ObsSimulator:
         dpath_sub = f"{self.radmc_dir}/{dn}"
         os.makedirs(dpath_sub, exist_ok=True)
         os.system(f"cp {self.radmc_dir}/{{*.inp,*.dat}} {dpath_sub}/")
-        log = logger.isEnabledFor(logging.DEBUG) and p == 1
+        log = logger.isEnabledFor(logging.INFO) and p == 0
         tools.shell(
             cmd,
             cwd=dpath_sub,
@@ -355,7 +357,7 @@ class ObsSimulator:
             log_prefix="    ",
         )
         with contextlib.redirect_stdout(open(os.devnull, "w")):
-            fname = f"{self.radmc_dir}/image.out"
+            fname = f"{dpath_sub}/image.out"
             return rmci.readImage(fname=fname)
 
     def _check_multiple_returns(self, return_list):
@@ -421,7 +423,7 @@ class Convolver:
         elif len(image.shape) == 3:
             Kernel = self.Kernel_3d
         else:
-            raise Exception("Unknown data.image shape, ", image.shape)
+            raise Exception("Unknown data.image shape: ", image.shape)
 
         if self.mode == "normal":
             return aconv.convolve(image, Kernel)
@@ -430,7 +432,7 @@ class Convolver:
         elif self.mode == "null":
             return image
         else:
-            raise Exception("Unknown convolve mode ", self.mode)
+            raise Exception("Unknown convolve mode: ", self.mode)
 
 
 #    if pointsource_test:
@@ -568,9 +570,11 @@ class ObsData:
             posline = self.position_line(
                 self.xau, PA_deg=pangle_deg, poffset_au=poffset_au
             )
-            points = [[(v, pl[1], pl[0]) for pl in posline] for v in self.vkms]
+            #points = [[(v, pl[1], pl[0]) for pl in posline] for v in self.vkms]
+            points = [[(pl[0], pl[1], v) for pl in posline] for v in self.vkms]
             Ipv = interpolate.interpn(
-                (self.vkms, self.yau, self.xau),
+                #(self.vkms, self.yau, self.xau),
+                (self.xau, self.yau, self.vkms),
                 self.Ippv,
                 points,
                 bounds_error=False,
