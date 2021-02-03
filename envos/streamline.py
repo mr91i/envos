@@ -35,11 +35,20 @@ def calc_streamlines(
     nt=500,
     rtol=1e-4,
     filename="stream",
+    method="RK23",
     dpath=None,
     save=False,
 ):
     slc = StreamlineCalculator(
-        r_ax, t_ax, vr, vt, pos0list, t_span=t_span, nt=nt, rtol=rtol
+        r_ax,
+        t_ax,
+        vr,
+        vt,
+        pos0list,
+        t_span=t_span,
+        nt=nt,
+        rtol=rtol,
+        method=method,
     )
     for name, value, unitname in values:
         slc.add_value(name, value, unitname)
