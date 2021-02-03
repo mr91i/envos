@@ -75,7 +75,7 @@ class Grid:
             ntheta = int(round(ntheta_float))
 
         if logr:
-            self.ri_ax = np.logspace(*np.log10(rau_lim), nr + 1) * nc.au
+            self.ri_ax = np.geomspace(*rau_lim, nr + 1) * nc.au
         else:
             self.ri_ax = np.linspace(*rau_lim, nr + 1) * nc.au
 

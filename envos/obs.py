@@ -80,6 +80,8 @@ class ObsSimulator:
             self.incl = oconf.incl
             self.phi = oconf.phi
             self.posang = oconf.posang
+            self.iline = oconf.iline
+            self.molname = oconf.molname
 
             self.set_resolution(
                 sizex_au=oconf.sizex_au,
@@ -135,7 +137,7 @@ class ObsSimulator:
             self.npixx = int(round(npixx_float))
             npixy_float = Ly / pixsize_au
             self.npixy = int(round(npixy_float))
-            # comment: // or int do not work to convert into int.
+            """comment: // or int do not work to convert into int."""
         else:
             self.npixx = npixx or npix
             self.npixy = npixy or npix
@@ -216,7 +218,11 @@ class ObsSimulator:
         )
         return odat
 
-    def observe_line(self, iline, molname, incl=0, phi=0, posang=0):
+    def observe_line(self, iline=None, molname=None, incl=0, phi=0, posang=0):
+        if self.iline is not None:
+            iline = self.iline
+        if self.molname is not None:
+            molname = self.molname
         if self.incl is not None:
             incl = self.incl
         if self.phi is not None:
@@ -225,6 +231,13 @@ class ObsSimulator:
             posang = self.posang
 
         logger.info(f"Observing line with {molname}")
+        if self.omp and (self.nthread > 1):
+            logger.info(
+                f"Use OpenMP dividing processes into velocity directions."
+            )
+            logger.info(f"Number of threads is {self.nthread}.")
+        else:
+            logger.info(f"Not use OpenMP.")
 
         # self.obs_mode = "line"
         self.iline = iline
@@ -235,7 +248,7 @@ class ObsSimulator:
         self.mol = rmca.readMol(fname=mol_path)
         logger.info(
             f"Total cell number is {self.npixx}x{self.npixy}x{self.nlam}"
-            + " = {self.npixx*self.npixy*self.nlam}"
+            + f" = {self.npixx*self.npixy*self.nlam}"
         )
 
         common_cmd = {
@@ -334,7 +347,13 @@ class ObsSimulator:
         os.makedirs(dpath_sub, exist_ok=True)
         os.system(f"cp {self.radmc_dir}/{{*.inp,*.dat}} {dpath_sub}/")
         log = logger.isEnabledFor(logging.DEBUG) and p == 1
-        tools.shell(cmd, cwd=dpath_sub, log=log)
+        tools.shell(
+            cmd,
+            cwd=dpath_sub,
+            log=log,
+            error_keyword="ERROR",
+            log_prefix="    ",
+        )
         with contextlib.redirect_stdout(open(os.devnull, "w")):
             fname = f"{self.radmc_dir}/image.out"
             return rmci.readImage(fname=fname)
@@ -510,18 +529,8 @@ class ObsData:
         logger.info(f"pixel size[au]: {self.dx}  {self.dy}")
         logger.info(f"L[au]: {self.Lx} {self.Ly}")
 
-    #
-    #   Freeze: Revive in future version
-    #
-
     def read_radmcdata(self, data):
-        # self.Ippv_raw = data.image.transpose(2, 1, 0)
-        # print(data.image.shape)
-
-        # self.Ippv = data.image.transpose(2, 1, 0)
         self.Ippv = data.image  # .transpose(2, 1, 0)
-        # exit()
-
         self.dpc = data.dpc or 100
         self.Nx = data.nx
         self.Ny = data.ny
@@ -555,7 +564,6 @@ class ObsData:
         return np.stack([pos_x, pos_y], axis=-1)
 
     def make_PV_map(self, pangle_deg=0, poffset_au=0):
-        # pangle_deg = pangle_deg if pangle_deg else self
         if self.Ippv.shape[1] > 1:
             posline = self.position_line(
                 self.xau, PA_deg=pangle_deg, poffset_au=poffset_au
@@ -628,7 +636,6 @@ class PVmap:
 
         if fitsfile is not None:
             self.read_fits_PV(fitsfile)
-            # self.read_fitsfile(filepath=fitsfile)
 
     def add_conv_info(self, beam_maj_au, beam_min_au, vreso_kms, beam_pa_deg):
         self.beam_maj_au = beam_maj_au
@@ -656,8 +663,11 @@ class PVmap:
             self.vkms = self.vkms[jmin:jmax]
 
     def save_fitsfile(self, filename="PVimage.fits", filepath=None):
-        # see IAU manual:
-        #     https://fits.gsfc.nasa.gov/standard40/fits_standard40aa-le.pdf
+        """
+        save the obsdata as a fitsfile
+        see IAU manual for variables used in fits:
+             https://fits.gsfc.nasa.gov/standard40/fits_standard40aa-le.pdf
+        """
         if filepath is None:
             filepath = os.path.join(gpath.run_dir, filename)
         os.makedirs(os.path.dirname(filepath), exist_ok=True)

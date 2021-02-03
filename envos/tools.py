@@ -1,6 +1,7 @@
 import subprocess
 import os
 import sys
+import shutil
 import numpy as np
 import envos.nconst as nc
 
@@ -67,7 +68,8 @@ def shell(
 
     if cwd is not None:
         logger.info(
-            f"Move the working directory from {os.getcwd()} to {cwd} temporarily."
+            f"Change the working directory from {os.getcwd()} to {cwd}"
+            " while executing the command"
         )
     else:
         cwd = os.getcwd()
@@ -98,6 +100,7 @@ def shell(
                 error_flag = 1
 
         if (not line) and (proc.poll() is not None):
+            logger.info("")
             break
 
     retcode = proc.wait()
@@ -110,6 +113,45 @@ def shell(
         else:
             logger.exception(e)
             raise e
+
+
+def filecopy(src, dst, error_already_exist=False):
+    dpath_src = os.path.abspath(os.path.dirname(src))
+    fname_src = os.path.basename(src)
+    dpath_dst = os.path.abspath(os.path.dirname(dst))
+
+    logger.info(f"Copying {fname_src} from {dpath_src} into {dpath_dst}")
+
+    if os.path.exists(dst):
+        msg = f"File already exists: {dst}"
+        if error_already_exist:
+            logger.error(msg)
+            raise Exception(msg)
+        else:
+            logger.warn(msg)
+            logger.warn("Do nothing.")
+
+    try:
+        shutil.copy2(src, dst)
+
+    except FileNotFoundError as err:
+        msg = ""
+        if not os.path.exists(dpath_src):
+            msg = f"Source directory not found: {dpath_src}"
+        elif not os.path.exists(src):
+            fpath_src = os.path.abspath(src)
+            msg = f"Source file not found: {fpath_src}"
+        elif not os.path.exists(dpath_dst):
+            msg = f"Destination directory not found: {dpath_dst}"
+        logger.error(msg)
+        raise
+
+    except Exception as e:
+        logger.error(e)
+        raise
+
+    else:
+        logger.debug("Sucsess copying")
 
 
 #  def shell(

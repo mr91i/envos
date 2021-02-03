@@ -88,9 +88,7 @@ class StreamlineCalculator:
             (r_ax, t_ax), vt, bounds_error=False, fill_value=None
         )
         self.pos0list = pos0list
-        self.t_eval = np.logspace(
-            np.log10(t_span[0]), np.log10(t_span[-1]), nt
-        )
+        self.t_eval = np.geomspace(t_span[0], t_span[-1], nt)
         self.rtol = rtol
         self.method = method
         self.streamlines = []

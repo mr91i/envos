@@ -10,7 +10,7 @@ class kappa:
         self.N_lam = 100
         self.kappa0_micron = kappa0_micron
         self.beta = beta
-        self.lam_micron = np.logspace(np.log10(0.1), np.log10(1e5), self.N_lam)
+        self.lam_micron = np.geomspace(0.1, 1e5, self.N_lam)
         self.kappa_abs = self.kappa_abs_func()
         self.kappa_sca = self.kappa_sca_func()
         self.table = np.array(

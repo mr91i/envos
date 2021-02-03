@@ -65,10 +65,9 @@ class TscSolver:
         self.tau = tau
         self.plot = plot
         self.eps = eps
-        epslog = np.log10(eps)
-        self.xout = 1.0 + np.logspace(np.log10(1 / self.tau - 1), epslog, n)
+        self.xout = 1.0 + np.geomspace(1 / self.tau - 1, eps, n)
         self.xin = 1 / (
-            1.0 + np.logspace(epslog, np.log10(self.tau ** (-2) - 1.0), n)
+            1.0 + np.geomspace(eps, self.tau ** (-2) - 1.0, n)
         )
         self.x = np.hstack((self.xout, self.xin))
 
@@ -92,7 +91,7 @@ class TscSolver:
             return dPhi, ddPhi
 
         logger.debug("Start solve_Spherically_Symmetric_Solution")
-        ksi = np.logspace(-2, 2, 200)
+        ksi = np.geomspace(0.01, 100, 200)
         sol = integrate.solve_ivp(
             f,
             (ksi[0], ksi[-1]),

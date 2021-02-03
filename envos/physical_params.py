@@ -89,9 +89,13 @@ class PhysicalParameters:
             "rinlim_tsc", "au", self.cs * self.Omega ** 2 * self.t ** 3, nc.au
         )
         self._logp("rinlim_tsc", "cs*t", self.Omega ** 2 * self.t ** 2)
+        logger.info("")
 
     @staticmethod
     def _logp(name, unit, value, unitval=1):
         logger.info(
-            name.ljust(12) + f"is {value/unitval:10.2g} " + unit.ljust(10)
+            "    "
+            + name.ljust(12)
+            + f"= {value/unitval:10.2g} "
+            + unit.ljust(8)
         )

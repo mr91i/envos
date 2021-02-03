@@ -4,10 +4,29 @@ from dataclasses import dataclass
 from envos.grid import Grid
 from envos.physical_params import PhysicalParameters
 from envos.log import set_logger
-
+logger = set_logger(__name__)
 
 @dataclass
 class Config:
+
+    class Subconfig:
+        def __init__(self, **kwargs):
+            for key, value in kwargs.items():
+                setattr(self, key, value)
+
+        def check_input(self, dic, except_keys=[]):
+            for key in dic.keys():
+                if key in except_keys:
+                    continue
+                if not hasattr(self, key):
+                    logger.warn(f"{key} has not been set.")
+
+
+    def make_subconfig(self, **kwargs):
+        subconf = Config.Subconfig(**kwargs)
+        # setattr(self, name, subconf)
+        return subconf
+
     def set_run_config(
         self,
         storagedir: str = None,
@@ -108,6 +127,7 @@ class Config:
         n_thread: int = 1,
         scattering_mode_max: int = 0,
         mc_scat_maxtauabs: float = 5.0,
+        tgas_eq_tdust: bool = True,
         f_dg: float = 0.01,
         opac: str = "silicate",
         Lstar_Lsun: float = 1.0,
@@ -124,11 +144,13 @@ class Config:
         storage_dir: str = None,
     ):
 
-        self.radmc = RadmcConfig(
+        #self.radmc = RadmcConfig(
+        self.radmc = self.make_subconfig(
             nphot=nphot,
             n_thread=n_thread,
             scattering_mode_max=scattering_mode_max,
             mc_scat_maxtauabs=mc_scat_maxtauabs,
+            tgas_eq_tdust=tgas_eq_tdust,
             f_dg=f_dg,
             opac=opac,
             Lstar_Lsun=Lstar_Lsun,
@@ -144,6 +166,7 @@ class Config:
             radmc_dir=radmc_dir,
             storage_dir=storage_dir,
         )
+        self.radmc.check_input(locals(), ["self"])
 
     def set_observation_input(
         self,
@@ -222,6 +245,7 @@ class RadmcConfig:
     n_thread: int
     scattering_mode_max: int
     mc_scat_maxtauabs: float
+    tgas_eq_tdust: bool
     f_dg: float
     opac: str
     Lstar_Lsun: float
