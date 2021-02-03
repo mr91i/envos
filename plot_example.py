@@ -643,6 +643,8 @@ def plot_pvdiagram(
     mass_vp=False,
     mapmode="grid",
     oplot={},
+    fname="pvdiagram.pdf",
+    filepath=None,
 ):
     def find_local_peak_position(x, y, i):
         if 2 <= i <= len(x) - 3:
@@ -682,6 +684,35 @@ def plot_pvdiagram(
     dpc = PV.dpc
     ctlim = [0, np.max(Ipv)]
 
+    #img = plt.contourf(
+    img = plt.pcolormesh(
+        xau, vkms, Ipv,
+    )
+    #plt.xlim(0, rlim)
+    #plt.ylim(0, rlim)
+    plt.xlabel("position [au]")
+    plt.ylabel(r"velocity [km s$^{-1}$]")
+    #cbar = plt.colorbar(img, ticks=mt.LogLocator())
+    #cbar.set_label(r"Gas Mass Density [g cm$^{-3}$]")
+
+    ax = plt.gca()
+    draw_center_line(ax)
+    ax.minorticks_on()
+    ax.tick_params("both", direction="inout")
+
+    ax2 = ax.twiny()
+    ax2.minorticks_on()
+    ax2.tick_params("both", direction="inout")
+    ax2.set_xlabel("Angular Offset [arcsec]")
+    ax2.set_xlim(np.array(ax.get_xlim()) / dpc)
+
+    if filepath is None:
+        filepath = os.path.join(gpath.run_dir, fname)
+    print("saved ", filepath)
+    plt.savefig(filepath)
+    plt.clf()
+
+    exit()
     print(xau)
     pltr = mp.Plotter(
         dpath_fig, x=PV.xau, y=PV.vkms, xlim=[-700, 700], ylim=[-4, 4]
