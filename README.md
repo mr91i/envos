@@ -19,8 +19,9 @@ oden: Observation simulatior for Disk-Envelope system
 -->
 
 ## Setup
-1. Download envos from this github repository:
-`git clone https://github.com/mr91i/envos.git`
+1. Download envos from this github repository:  
+`git clone https://github.com/mr91i/envos.git` 
+
 
 2. To run this code, one need to install RADMC-3D (Dullemond et al. 2012) follwoing the website [https://www.ita.uni-heidelberg.de/~dullemond/software/radmc-3d/](https://www.ita.uni-heidelberg.de/~dullemond/software/radmc-3d/)
 
