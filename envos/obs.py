@@ -23,6 +23,7 @@ from envos.radmc3d import RadmcController
 
 logger = set_logger(__name__)
 
+# np.set_printoptions(edgeitems=5)
 #####################################
 
 
@@ -483,26 +484,9 @@ class Convolver:
 #############################
 #############################
 class BaseObsData:
-#    def __str__(self):
-#        space = "  "
-#        txt = self.__class__.__name__
-#        txt += "("
-#        for k, v in asdict(self).items():
-#            txt += "\n"
-#            var = str(k) + " = "
-#            if isinstance(v, (list, np.ndarray)):
-#                #txt += "\n"
-#                #txt += space*2 + str(v).replace('\n', '\n'+space*2)
-#                space_var = " "*len(var)
-#                txt += space + var + str(v).replace('\n', '\n'+space+space_var)
-#            else:
-#                txt += space + var + str(v)
-#            txt += ","
-#        else:
-#            txt = txt[:-1]
-#            txt += "\n" + ")"
-#        return txt
-#
+    def __str__(self):
+        return tools.dataclass_str(self)
+
     def set_dpc(self, dpc):
         self.dpc = dpc
 
@@ -752,33 +736,26 @@ class Image(BaseObsData):
 class LineProfile(BaseObsData):
     pass
 
-
+@dataclass
 class PVmap(BaseObsData):
-    def __init__(
-        self,
-        Ipv=None,
-        xau=None,
-        vkms=None,
-        dpc=None,
-        pangle_deg=None,
-        poffset_au=None,
-        fitsfile=None,
-    ):
-        self.Ipv = Ipv
-        self.Ipv_raw = Ipv
-        self.xau = xau
-        self.vkms = vkms
-        self.dpc = dpc
-        self.pangle_deg = pangle_deg
-        self.poffset_au = poffset_au
-        self.unit_I = r"[Jy pixel$^{-1}$]"
-        self.beam_maj_au = None
-        self.beam_min_au = None
-        self.vreso_kms = None
-        self.beam_pa_deg = None
+    Ipv: np.ndarray = None
+    xau: np.ndarray = None
+    vkms: np.ndarray = None
+    dpc: float = None
+    pangle_deg: float = None
+    poffset_au: float = None
+    unit_I: str = r"[Jy pixel$^{-1}$]"
+    beam_maj_au: float = None
+    beam_min_au: float = None
+    vreso_kms: float = None
+    beam_pa_deg: float = None
+    fitsfile: str = None
 
-        if fitsfile is not None:
-            self.read_fits_PV(fitsfile)
+    def __post_init__(
+        self,
+    ):
+        if self.fitsfile is not None:
+            self.read_fits_PV(self.fitsfile)
 
 
     def normalize(self, Ipv_norm=None):
