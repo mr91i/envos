@@ -25,7 +25,7 @@ oden: Observation simulatior for Disk-Envelope system
 
 2. To run this code, one need to install RADMC-3D (Dullemond et al. 2012) follwoing the website [https://www.ita.uni-heidelberg.de/~dullemond/software/radmc-3d/](https://www.ita.uni-heidelberg.de/~dullemond/software/radmc-3d/)
 
-3. Put the opacity table and molecular line data that you want to use in RADMC-3D, into storage directory.
+3. Put the opacity table and molecular line data that you want to use in RADMC-3D, into `storage` directory.
 
 4. Install the following ptyhon packages needed to run this code.
     - astropy        >= 4.2
