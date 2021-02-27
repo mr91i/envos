@@ -3,10 +3,13 @@
 import os
 import numpy as np
 import pandas as pd
+from dataclasses import dataclass
+from typing import Callable, Any
 from envos import tools, cubicsolver, tsc
 from .nconst import G, kB, amu, au
 from .gpath import run_dir
 from .log import set_logger
+from . import tools
 
 logger = set_logger(__name__)
 
@@ -33,18 +36,35 @@ class ModelBase:
             filepath = os.path.join(run_dir, filename)
         tools.setattr_from_pickle(self, filepath)
 
-
+@dataclass
 class CircumstellarModel(ModelBase):
-    def __init__(self, grid=None, ppar=None, filepath=None):
+    grid: Any = None
+    ppar: Any = None
+    rhogas: np.ndarray = None
+    rhodust: np.ndarray = None
+    vr: np.ndarray = None
+    vt: np.ndarray = None
+    vp: np.ndarray = None
+    Tgas: np.ndarray = None
+    Tdust: np.ndarray = None
+    f_dg: float = None
+    molname: str = None
+    radmcdir: str = None
+    filepath: str = None
+
+    def __post_init__(self):
         logger.info("Constructing a model of circumstellar material")
-        if filepath is not None:
-            self.read_pickle(filepath=filepath)
+        if self.filepath is not None:
+            self.read_pickle(filepath=self.filepath)
 
-        if grid is not None:
-            self.set_grid(grid)
+        if self.grid is not None:
+            self.set_grid(self.grid)
 
-        if ppar is not None:
-            self.set_physical_parameters(ppar)
+        if self.ppar is not None:
+            self.set_physical_parameters(self.ppar)
+
+    def __str__(self):
+        return tools.dataclass_str(self)
 
     def set_physical_parameters(self, ppar):
         self.ppar = ppar
