@@ -6,7 +6,7 @@ from scipy import integrate, interpolate, optimize
 from dataclasses import dataclass, asdict
 
 import envos.nconst as nc
-import envos.global_paths as gpath
+from envos import gpath
 from envos.log import set_logger
 
 logger = set_logger(__name__)

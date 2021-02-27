@@ -3,7 +3,7 @@ import numpy as np
 from dataclasses import dataclass, field
 from scipy import interpolate, integrate
 from envos import log
-from envos.global_paths import run_dir
+from envos.gpath import run_dir
 import envos.nconst as nc
 
 logger = log.set_logger(__name__)
@@ -134,7 +134,9 @@ class StreamlineCalculator:
         vr = self.vr_field(pos)[0]
         vt = self.vt_field(pos)[0]
         if np.isnan(pos[0]):
-            exit()
+            raise Exception
+        if  np.pi / 2 < pos[1]:
+            vt *= -1
         return np.array([vr, vt / pos[0]])
 
     @staticmethod

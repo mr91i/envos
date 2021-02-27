@@ -4,6 +4,47 @@ from envos.log import set_logger
 
 logger = set_logger(__name__)
 
+def calc_dependent_params(
+        T: float = None,
+        CR_au: float = None,
+        Ms_Msun: float = None,
+        t_yr: float = None,
+        Omega: float = None,
+        maxj: float = None,
+        Mdot_smpy: float = None,
+        meanmolw: float = None,
+    ):
+
+    m0 = 0.975
+    if T is not None:
+        cs = np.sqrt(nc.kB * T / (meanmolw * nc.amu))
+        Mdot = cs ** 3 * m0 / nc.G
+    elif Mdot_smpy is not None:
+        Mdot = Mdot_smpy * nc.smpy
+        cs = (Mdot * nc.G / m0) ** (1 / 3)
+        T = cs ** 2 * meanmolw * nc.amu / nc.kB
+
+    if Ms_Msun is not None:
+        Ms = Ms_Msun * nc.Msun
+        t = Ms / Mdot
+    elif t_yr is not None:
+        t = t_yr * nc.yr
+        M = Mdot * t
+
+    if CR_au is not None:
+        CR = CR_au * nc.au
+        maxj = np.sqrt(CR * nc.G * Ms)
+        Omega = maxj / (0.5 * cs * m0 * t) ** 2
+    elif maxj is not None:
+        CR = maxj ** 2 / (nc.G * Ms)
+        Omega = maxj / (0.5 * cs * m0 * t) ** 2
+    elif Omega is not None:
+        maxj = (0.5 * cs * m0 * t) ** 2 * Omega
+        CR = maxj ** 2 / (nc.G * Ms)
+
+    return {"T":T, "cs":cs, "Mdot":Mdot, "Ms":Ms, "t":t, "CR": CR, "maxj": maxj, "Omega": Omega}
+
+
 
 class PhysicalParameters:
     def __init__(

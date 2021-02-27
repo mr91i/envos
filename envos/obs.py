@@ -8,6 +8,7 @@ import logging
 import contextlib
 import multiprocessing
 from scipy import integrate, interpolate
+from dataclasses import dataclass, asdict
 
 import astropy.io.fits as iofits
 import astropy.convolution as aconv
@@ -16,8 +17,9 @@ import radmc3dPy.analyze as rmca
 
 import envos.nconst as nc
 from envos import tools
-import envos.global_paths as gpath
+from envos import gpath
 from envos.log import set_logger
+from envos.radmc3d import RadmcController
 
 logger = set_logger(__name__)
 
@@ -36,7 +38,7 @@ def gen_radmc_cmd(
     lam=None,
     iline=None,
     vc_kms=None,
-    vw_kms=None,
+    vhw_kms=None,
     nlam=None,
     option="",
 ):
@@ -46,7 +48,7 @@ def gen_radmc_cmd(
     if lam is not None:
         freq = f"lambda {lam}"
     elif iline is not None:
-        freq = f"iline {iline} widthkms {vw_kms:g} linenlam {nlam:d}"
+        freq = f"iline {iline} widthkms {vhw_kms:g} linenlam {nlam:d}"
         freq += f" vkms {vc_kms:g}" if vc_kms else ""
     cmd = " ".join(["radmc3d", f"{mode}", position, camera, freq, option])
     return cmd
@@ -59,58 +61,77 @@ class ObsSimulator:
     """
 
     def __init__(
-        self, config=None, radmcdir=None, dpc=None, omp=True, nthread=1
+        self, config=None, radmcdir=None, dpc=None, n_thread=1
     ):
 
         self.radmc_dir = radmcdir or gpath.radmc_dir
         self.dpc = dpc
-        self.omp = omp
-        self.nthread = nthread
-        self.view = False
+        self.n_thread = n_thread
+        #self.view = False
         self.conv = False
         self.incl = None
         self.phi = None
         self.posang = None
 
         if config is not None:
-            oconf = config.obs
-            self.dpc = oconf.dpc
-            self.omp = oconf.omp
-            self.nthread = oconf.nthread
-            self.incl = oconf.incl
-            self.phi = oconf.phi
-            self.posang = oconf.posang
-            self.iline = oconf.iline
-            self.molname = oconf.molname
+            self.init_from_config(config)
 
-            self.set_resolution(
-                sizex_au=oconf.sizex_au,
-                sizey_au=oconf.sizey_au,
-                pixsize_au=oconf.pixsize_au,
-                npix=oconf.npix,
-                npixx=oconf.npixx,
-                npixy=oconf.npixy,
-                vwidth_kms=oconf.vwidth_kms,
-                dv_kms=oconf.dv_kms,
-            )
+    def init_from_config(self, config):
+        self.config = config
+        self.dpc = config.dpc
+        self.n_thread = config.n_thread
+        self.incl = config.incl
+        self.phi = config.phi
+        self.posang = config.posang
+        self.iline = config.iline
+        self.molname = config.molname
 
-            self.set_convolver(
-                beam_maj_au=oconf.beam_maj_au,
-                beam_min_au=oconf.beam_min_au,
-                vreso_kms=oconf.vreso_kms,
-                beam_pa_deg=oconf.beam_pa_deg,
-                convmode=oconf.convmode,
-            )
+
+        self.set_resolution(
+            sizex_au=config.sizex_au or config.size_au,
+            sizey_au=config.sizey_au or config.size_au,
+            pixsize_au=config.pixsize_au,
+        #    npix=config.npix,
+        #    npixx=config.npixx,
+        #    npixy=config.npixy,
+            vfw_kms=config.vfw_kms,
+            dv_kms=config.dv_kms,
+        )
+
+        self.set_convolver(
+            beam_maj_au=config.beam_maj_au,
+            beam_min_au=config.beam_min_au,
+            vreso_kms=config.vreso_kms,
+            beam_pa_deg=config.beam_pa_deg,
+            convmode=config.convmode,
+        )
+
+    def set_model(self, model, conf=None):
+        logger.info("Setting model for observation")
+        if conf is None:
+            conf = self.config
+        radmc = RadmcController(config = conf)
+        radmc.clean_radmc_dir()
+        radmc.set_model(model)
+        radmc.set_temperature(model.Tgas)
+        radmc.set_lineobs_inpfiles()
+
+    def set_radmc_input(self, conf):
+        radmc = RadmcController(**conf.__dict__)
+        radmc.clean_radmc_dirs()
+        radmc.set_model(model)
+        radmc.set_temperature(model.Tgas)
+        radmc.set_lineobs_inpfiles()
 
     def set_resolution(
         self,
         sizex_au,
         sizey_au=None,
         pixsize_au=None,
-        npix=None,
-        npixx=None,
-        npixy=None,
-        vwidth_kms=None,
+        #npix=None,
+        #npixx=None,
+        #npixy=None,
+        vfw_kms=None,
         dv_kms=None,
     ):
 
@@ -139,9 +160,11 @@ class ObsSimulator:
             self.npixy = int(round(npixy_float))
             """comment: // or int do not work to convert into int."""
         else:
-            self.npixx = npixx or npix
-            self.npixy = npixy or npix
-            self.pixsize_au = Lx / self.npixx
+            logger.error("No pixsize_au.")
+            raise Exception
+        #    self.npixx = npixx or npix
+        #    self.npixy = npixy or npix
+        #    self.pixsize_au = Lx / self.npixx
 
         self.dx_au = sizex_au / self.npixx
         self.dy_au = _sizey_au / self.npixy
@@ -154,7 +177,7 @@ class ObsSimulator:
         if sizey_au == 0:
             self.zoomau_y = [-self.pixsize_au / 2, self.pixsize_au / 2]
 
-        self.vwidth_kms = vwidth_kms
+        self.vfw_kms = vfw_kms
         self.dv_kms = dv_kms
 
     def set_convolver(
@@ -169,23 +192,19 @@ class ObsSimulator:
         logger.info("Setting convolution function of ObsSimulator")
 
         self.conv = True
+        self.convolve_config = {"beam_maj_au": beam_maj_au, "beam_min_au": beam_min_au, "beam_pa_deg": beam_pa_deg, "vreso_kms": vreso_kms}
         self.convolver = Convolver(
-            (beam_maj_au, beam_min_au, vreso_kms),
             (self.dx_au, self.dy_au, self.dv_kms),
-            beam_pa_deg=beam_pa_deg,
+            **self.convolve_config,
             mode=convmode,
         )
 
-    def observe_cont(self, lam, incl=0, phi=0, posang=0):
-        if self.incl is not None:
-            incl = self.incl
-        if self.phi is not None:
-            phi = self.phi
-        if self.posang is not None:
-            posang = self.posang
+    def observe_cont(self, lam, incl=None, phi=None, posang=None):
+        incl = incl or self.incl
+        phi = phi or self.phi
+        posang = phi or self.posang
 
         logger.info(f"Observing continum with wavelength of {lam} micron")
-
         zoomau = np.concatenate([self.zoomau_x, self.zoomau_y])
         cmd = gen_radmc_cmd(
             mode="image",
@@ -205,45 +224,46 @@ class ObsSimulator:
         )
 
         self.data_cont = rmci.readImage(fname=f"{self.radmc_dir}/image.out")
-
         self.data_cont.freq0 = nc.c / (lam * 1e4)
-        convolve = False
-        if self.conv:
-            # self.data_cont.conv_image = self.convolver(self.data_cont.image)
-            self.data_cont.image = self.convolver(self.data_cont.image)
-            convolve = True
+        odat = Image(radmcdata=self.data_cont, datatype="continum")
 
-        odat = ObsData(
-            radmcdata=self.data_cont, datatype="continum", convolve=convolve
-        )
+        if self.conv:
+            odat.Ipp = self.convolver(odat.Ipp)
+            odat.add_convolution_info(**self.convolve_config)
+
         return odat
 
-    def observe_line(self, iline=None, molname=None, incl=0, phi=0, posang=0):
-        if self.iline is not None:
-            iline = self.iline
-        if self.molname is not None:
-            molname = self.molname
-        if self.incl is not None:
-            incl = self.incl
-        if self.phi is not None:
-            phi = self.phi
-        if self.posang is not None:
-            posang = self.posang
+    def observe_line_profile(self, zoomau=None, iline=None, molname=None, incl=None, phi=None, posang=None):
+        iline = iline or self.iline
+        molname = molname or self.molname
+        incl = incl or self.incl
+        phi = phi or self.phi
+        posang = poang or self.posang
+
+        cmd = gen_radmc_cmd(
+            mode="image",
+            dpc=self.dpc,
+            incl=incl,
+            phi=phi,
+            posang=posang,
+            npixx=self.npixx,
+            npixy=self.npixx,
+            lam=lam,
+            zoomau=zoomau,
+            option="noscat nostar",
+        )
+
+#    return
+
+    def observe_line(self, iline=None, molname=None, incl=None, phi=None, posang=None):
+        iline = iline or self.iline
+        molname = molname or self.molname
+        incl = incl or self.incl
+        phi = phi or self.phi
+        posang = posang or self.posang
 
         logger.info(f"Observing line with {molname}")
-        if self.omp and (self.nthread > 1):
-            logger.info(
-                f"Use OpenMP dividing processes into velocity directions."
-            )
-            logger.info(f"Number of threads is {self.nthread}.")
-        else:
-            logger.info(f"Not use OpenMP.")
-
-        # self.obs_mode = "line"
-        self.iline = iline
-        # self.vwidth_kms = vwidth_kms
-        # self.dv_kms = dv_kms
-        self.nlam = int(round(2 * self.vwidth_kms / self.dv_kms)) + 1
+        self.nlam = int(round(self.vfw_kms / self.dv_kms)) # + 1
         mol_path = f"{self.radmc_dir}/molecule_{molname}.inp"
         self.mol = rmca.readMol(fname=mol_path)
         logger.info(
@@ -265,42 +285,47 @@ class ObsSimulator:
         }
 
         v_calc_points = np.linspace(
-            -self.vwidth_kms, self.vwidth_kms, self.nlam
+            -self.vfw_kms/2, self.vfw_kms/2, self.nlam
         )
 
-        if self.omp and (self.nthread > 1):
+        if self.n_thread >= 2:
+            logger.info(
+                f"Use OpenMP dividing processes into velocity directions."
+            )
+            logger.info(f"Number of threads is {self.n_thread}.")
             # Load-balance for multiple processing
-            n_points = self._divide_nlam_by_threads(self.nlam, self.nthread)
+            n_points = self._divide_nlam_by_threads(self.nlam, self.n_thread)
             vrange_list = self._calc_vrange_list(v_calc_points, n_points)
             v_center = [0.5 * (vmax + vmin) for vmin, vmax in vrange_list]
-            v_width = [0.5 * (vmax - vmin) for vmin, vmax in vrange_list]
+            v_hwidth = [0.5*(vmax - vmin) for vmin, vmax in vrange_list]
 
             logger.info(f"All calc points: {format_array(v_calc_points)}")
             logger.info("Calc points in each thread:")
-            _zipped = zip(v_center, v_width, n_points)
-            for i, (vc, vw, ncp) in enumerate(_zipped):
-                vax_nthread = np.linspace(vc - vw, vc + vw, ncp)
+            _zipped = zip(v_center, v_hwidth, n_points)
+            for i, (vc, vhw, ncp) in enumerate(_zipped):
+                vax_nthread = np.linspace(vc - vhw, vc + vhw, ncp)
                 logger.info(f" -- {i}th thread: {format_array(vax_nthread)}")
 
             def cmdfunc(i):
                 return gen_radmc_cmd(
                     vc_kms=v_center[i],
-                    vw_kms=v_width[i],
+                    vhw_kms=v_hwidth[i],
                     nlam=n_points[i],
                     **common_cmd,
                 )
 
-            args = [(i, cmdfunc(i)) for i in range(self.nthread)]
+            args = [(i, cmdfunc(i)) for i in range(self.n_thread)]
 
-            with multiprocessing.Pool(self.nthread) as pool:
+            with multiprocessing.Pool(self.n_thread) as pool:
                 results = pool.starmap(self._subcalc, args)
 
             self._check_multiple_returns(results)
             self.data = self._combine_multiple_returns(results)
 
         else:
+            logger.info(f"Not use OpenMP.")
             cmd = gen_radmc_cmd(
-                vw_kms=self.vwidth_kms, nlam=self.nlam, **common_cmd
+                vhw_kms=self.vfw_kms/2, nlam=self.nlam, **common_cmd
             )
 
             tools.shell(cmd, cwd=self.radmc_dir)
@@ -311,11 +336,18 @@ class ObsSimulator:
             logger.warning("Zero image !")
             raise Exception
 
+
         #        self.data.dpc = self.dpc
+        self.data.dpc = self.dpc
         self.data.freq0 = self.mol.freq[iline - 1]
+        odat = ObsData3D(datatype="line")
+        odat.read(radmcdata=self.data)
+
         if self.conv:
-            self.data.image = self.convolver(self.data.image)
-        return ObsData(radmcdata=self.data, datatype="line")
+            odat.Ippv = self.convolver(odat.Ippv)
+            odat.add_convolution_info(**self.convolve_config)
+
+        return odat
 
     @staticmethod
     def find_proper_nthread(n_thr, n_div):
@@ -393,18 +425,24 @@ class ObsSimulator:
 
 
 def format_array(array):
-    delta = abs(array[1] - array[0])
+    if len(array) >= 2:
+        delta = abs(array[1] - array[0])
+    else:
+        delta = 0
     msg = f"[{min(array):.2f}:{max(array):.2f}] "
     msg += f"with delta = {delta:.4g} and N = {len(array)}"
     return msg
 
 
 class Convolver:
-    def __init__(self, conv_size, grid_size, beam_pa_deg=0, mode="fft"):
+    def __init__(self, grid_size, beam_maj_au=None, beam_min_au=None, vreso_kms=None, beam_pa_deg=0, mode="fft"):
         # relation : standard deviation = 1/(2 sqrt(ln(2))) * FWHM of Gaussian
         # theta_deg : cclw is positive
         self.mode = mode
         sigma_over_FWHM = 2 * np.sqrt(2 * np.log(2))
+        conv_size = [beam_maj_au, beam_min_au]
+        if vreso_kms is not None:
+            conv_size += [vreso_kms]
         stddev = np.array(conv_size) / np.array(grid_size) / sigma_over_FWHM
         beampa = np.radians(beam_pa_deg)
         self.Kernel_xy2d = aconv.Gaussian2DKernel(
@@ -418,7 +456,7 @@ class Convolver:
             )
 
     def __call__(self, image):
-        if len(image.shape) == 2:
+        if len(image.shape) == 2 or image.shape[2] == 1:
             Kernel = self.Kernel_xy2d
         elif len(image.shape) == 3:
             Kernel = self.Kernel_3d
@@ -429,6 +467,8 @@ class Convolver:
             return aconv.convolve(image, Kernel)
         elif self.mode == "fft":
             return aconv.convolve_fft(image, Kernel, allow_huge=True)
+            #from scipy.fftpack import fft, ifft
+            #return aconv.convolve_fft(image, Kernel, allow_huge=True, nan_treatment='interpolate', normalize_kernel=True, fftn=fft, ifftn=ifft)
         elif self.mode == "null":
             return image
         else:
@@ -442,56 +482,184 @@ class Convolver:
 
 #############################
 #############################
+class BaseObsData:
+#    def __str__(self):
+#        space = "  "
+#        txt = self.__class__.__name__
+#        txt += "("
+#        for k, v in asdict(self).items():
+#            txt += "\n"
+#            var = str(k) + " = "
+#            if isinstance(v, (list, np.ndarray)):
+#                #txt += "\n"
+#                #txt += space*2 + str(v).replace('\n', '\n'+space*2)
+#                space_var = " "*len(var)
+#                txt += space + var + str(v).replace('\n', '\n'+space+space_var)
+#            else:
+#                txt += space + var + str(v)
+#            txt += ","
+#        else:
+#            txt = txt[:-1]
+#            txt += "\n" + ")"
+#        return txt
+#
+    def set_dpc(self, dpc):
+        self.dpc = dpc
 
+    def add_convolution_info(self, beam_maj_au=None, beam_min_au=None, vreso_kms=None, beam_pa_deg=None):
+        self.convolve = True
+        self.beam_maj_au = beam_maj_au
+        self.beam_min_au = beam_min_au
+        self.vreso_kms = vreso_kms
+        self.beam_pa_deg = beam_pa_deg
 
-class ObsData:
+#    def read_instance(self, filepath):
+#        cls = pd.read_pickle(filepath)
+#        for k, v in cls.__dict__.items():
+#            setattr(self, k, v)
+
+    def save_instance(self, filename="obsdata.pkl", filepath=None):
+        if filepath is None:
+            filepath = os.path.join(gpath.run_dir, filename)
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+        pd.to_pickle(self, filepath)
+
+    def save_fits(self, filename="obsdata.fits", dpc=None, filepath=None):
+        if filepath is None:
+            filepath = os.path.join(gpath.run_dir, filename)
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+
+        if os.path.exists(filepath):
+            logger.info(f"remove old fits file: {filepath}")
+            os.remove(filepath)
+
+        self.data.writeFits(fname=filepath, dpc=dpc)
+        logger.info(f"Saved fits file: {filepath}")
+
+@dataclass
+class ObsData3D(BaseObsData):
     """
     Usually, obsdata is made by doing obsevation.
     But one can generate obsdata by reading fitsfile or radmcdata
     """
+#    __slots__ = ["Ippv",
+#    "Nx",
+#    "Ny",
+#    "Nv",
+#    "xau",
+#    "yau",
+#    "vkms",
+#    "dx",
+#    "dy",
+#    "dv",
+#    "Lx",
+#    "Ly",
+#    "Lv",
+#    "dpc",
+#    "convolve",
+#    "beam_maj_au",
+#    "beam_min_au",
+#    "vreso_kms",
+#    "beam_pa_deg",
+#    "datatype",
+#    ]
+#    Ippv: np.ndarray
+#    Nx: int
+#    Ny: int
+#    Nv: int
+#    xau: np.ndarray
+#    yau: np.ndarray
+#    vkms: np.ndarray
+#    dx: float
+#    dy: float
+#    dv: float
+#    Lx: float
+#    Ly: float
+#    Lv: float
+#    dpc: float
+#    convolve: bool
+#    beam_maj_au: float
+#    beam_min_au: float
+#    vreso_kms: float
+#    beam_pa_deg: float
+#    datatype: str
+    Ippv: np.ndarray = None
+    Nx: int = None
+    Ny: int = None
+    Nv: int = None
+    xau: np.ndarray = None
+    yau: np.ndarray = None
+    vkms: np.ndarray = None
+    dx: float = None
+    dy: float = None
+    dv: float = None
+    Lx: float = None
+    Ly: float = None
+    Lv: float = None
+    dpc: float = None
+    convolve: bool = False
+    beam_maj_au: float = None
+    beam_min_au: float = None
+    vreso_kms: float = None
+    beam_pa_deg: float = None
+    datatype: str = None
 
-    def __init__(
-        self,
+    def read(self,
         fitsfile=None,
         radmcdata=None,
         pklfile=None,
-        datatype=None,
-        dpc=None,
-        convolve=False,
     ):
-        self.datatype = datatype
-        self.Ippv = None
-        self.Ippv_raw = None
-        self.Nx = None
-        self.Ny = None
-        self.Nv = None
-        self.xau = None
-        self.yau = None
-        self.vkms = None
-        self.dx = None
-        self.dy = None
-        self.dv = None
-        self.Lx = None
-        self.Ly = None
-        self.Lv = None
-        self.dpc = dpc
-
-        self.convolve = convolve
-        self.beam_maj_au = None
-        self.beam_min_au = None
-        self.vreso_kms = None
-        self.beam_pa_deg = None
-        self.convolver = None
-        self.PV_list = []
-
         if fitsfile is not None:
             self.read_fits(fitsfile)
+
         elif radmcdata is not None:
             self.read_radmcdata(radmcdata)
-        elif pklfile is not None:
-            self.read_instance(pklfile)
+
+        #elif pklfile is not None:
+        #    self.read_instance(pklfile)
+
         else:
             logger.info("No input.")
+
+    def get_mom0_map(self, normalize="peak"):
+        Ipp = integrate.simps(self.Ippv, axis=0)
+        if normalize == "peak":
+            Ipp /= np.max(Ipp)
+        return Ipp
+
+    def get_PV_map(self, pangle_deg=0, poffset_au=0, normalize="peak"):
+        if self.Ippv.shape[1] > 1:
+            posline = self.position_line(
+                self.xau, PA_deg=pangle_deg, poffset_au=poffset_au
+            )
+            points = [[(pl[0], pl[1], v) for pl in posline] for v in self.vkms]
+            Ipv = interpolate.interpn(
+                (self.xau, self.yau, self.vkms),
+                self.Ippv,
+                points,
+                bounds_error=False,
+                fill_value=0,
+            )
+        else:
+            Ipv = self.Ippv[:, 0, :]
+
+        PV = PVmap(Ipv, self.xau, self.vkms, self.dpc, pangle_deg, poffset_au)
+        PV.add_convolution_info(
+            self.beam_maj_au,
+            self.beam_min_au,
+            self.vreso_kms,
+            self.beam_pa_deg,
+        )
+        PV.normalize()
+        PV.save_fitsfile()
+        # self.PV_list.append(PV)
+        return PV
+
+    def position_line(self, xau, PA_deg, poffset_au=0):
+        PA_rad = PA_deg * np.pi / 180
+        pos_x = xau * np.cos(PA_rad) - poffset_au * np.sin(PA_rad)
+        pos_y = xau * np.sin(PA_rad) + poffset_au * np.sin(PA_rad)
+        return np.stack([pos_x, pos_y], axis=-1)
 
     def read_fits(self, file_path, dpc):
         pic = iofits.open(file_path)[0]
@@ -532,7 +700,38 @@ class ObsData:
         logger.info(f"L[au]: {self.Lx} {self.Ly}")
 
     def read_radmcdata(self, data):
+        #if len(data.image.shape) == 2:
+        #    self.Ipp = data.image
+        #elif len(data.image.shape) == 3 and data.image.shape[2] == 1:
+        #    self.Ipp = data.image[:, :, 0]
+        #elif len(data.image.shape) == 3:
         self.Ippv = data.image  # .transpose(2, 1, 0)
+        self.dpc = data.dpc #or 100
+        self.Nx = data.nx
+        self.Ny = data.ny
+        self.Nv = data.nfreq
+        self.Nf = data.nfreq
+        self.xau = data.x / nc.au
+        self.yau = data.y / nc.au
+        self.freq = data.freq
+        self.freq0 = data.freq0
+        self.vkms = tools.freq_to_vkms_array(self.freq, self.freq0)
+        self.dx = data.sizepix_x / nc.au
+        self.dy = data.sizepix_y / nc.au
+        self.dv = self.vkms[1] - self.vkms[0] # if len(self.vkms) > 1 else 0
+        self.Lx = self.xau[-1] - self.xau[0]
+        self.Ly = self.yau[-1] - self.yau[0]
+        self.Lv = self.vkms[-1] - self.vkms[0] # if len(self.vkms) > 1 else 0
+
+
+class Image(BaseObsData):
+    def read_radmcdata(self, data):
+        if len(data.image.shape) == 2:
+            self.Ipp = data.image
+        elif len(data.image.shape) == 3 and data.image.shape[2] == 1:
+            self.Ipp = data.image[:, :, 0]
+        elif len(data.image.shape) == 3:
+            self.Ippv = data.image  # .transpose(2, 1, 0)
         self.dpc = data.dpc or 100
         self.Nx = data.nx
         self.Ny = data.ny
@@ -550,71 +749,11 @@ class ObsData:
         self.dv = self.vkms[1] - self.vkms[0] if len(self.vkms) > 1 else 0
         self.Lv = self.vkms[-1] - self.vkms[0] if len(self.vkms) > 1 else 0
 
-    def set_dpc(self, dpc):
-        self.dpc = dpc
-
-    def make_mom0_map(self, normalize="peak"):
-        Ipp = integrate.simps(self.Ippv, axis=0)
-        if normalize == "peak":
-            Ipp /= np.max(Ipp)
-        self.Imom0 = Ipp
-
-    def position_line(self, xau, PA_deg, poffset_au=0):
-        PA_rad = PA_deg * np.pi / 180
-        pos_x = xau * np.cos(PA_rad) - poffset_au * np.sin(PA_rad)
-        pos_y = xau * np.sin(PA_rad) + poffset_au * np.sin(PA_rad)
-        return np.stack([pos_x, pos_y], axis=-1)
-
-    def make_PV_map(self, pangle_deg=0, poffset_au=0):
-        if self.Ippv.shape[1] > 1:
-            posline = self.position_line(
-                self.xau, PA_deg=pangle_deg, poffset_au=poffset_au
-            )
-            #points = [[(v, pl[1], pl[0]) for pl in posline] for v in self.vkms]
-            points = [[(pl[0], pl[1], v) for pl in posline] for v in self.vkms]
-            Ipv = interpolate.interpn(
-                #(self.vkms, self.yau, self.xau),
-                (self.xau, self.yau, self.vkms),
-                self.Ippv,
-                points,
-                bounds_error=False,
-                fill_value=0,
-            )
-        else:
-            Ipv = self.Ippv[:, 0, :]
-
-        PV = PVmap(Ipv, self.xau, self.vkms, self.dpc, pangle_deg, poffset_au)
-        PV.add_conv_info(
-            self.beam_maj_au,
-            self.beam_min_au,
-            self.vreso_kms,
-            self.beam_pa_deg,
-        )
-        PV.normalize()
-        PV.save_fitsfile()
-        self.PV_list.append(PV)
-        return PV
-
-    def save_instance(self, filename="obsdata.pkl", filepath=None):
-        if filepath is None:
-            filepath = os.path.join(gpath.run_dir, filename)
-        os.makedirs(os.path.dirname(filepath), exist_ok=True)
-        pd.to_pickle(self, filepath)
-
-    def save_fits(self, filename="obsdata.fits", dpc=None, filepath=None):
-        if filepath is None:
-            filepath = os.path.join(gpath.run_dir, filename)
-        os.makedirs(os.path.dirname(filepath), exist_ok=True)
-
-        if os.path.exists(filepath):
-            logger.info(f"remove old fits file: {filepath}")
-            os.remove(filepath)
-
-        self.data.writeFits(fname=filepath, dpc=dpc)
-        logger.info(f"Saved fits file: {filepath}")
+class LineProfile(BaseObsData):
+    pass
 
 
-class PVmap:
+class PVmap(BaseObsData):
     def __init__(
         self,
         Ipv=None,
@@ -641,11 +780,6 @@ class PVmap:
         if fitsfile is not None:
             self.read_fits_PV(fitsfile)
 
-    def add_conv_info(self, beam_maj_au, beam_min_au, vreso_kms, beam_pa_deg):
-        self.beam_maj_au = beam_maj_au
-        self.beam_min_au = beam_min_au
-        self.vreso_kms = vreso_kms
-        self.beam_pa_deg = beam_pa_deg
 
     def normalize(self, Ipv_norm=None):
         if Ipv_norm is None:
@@ -765,10 +899,13 @@ class PVmap:
         ):
             raise Exception("reading axis is wrong.")
 
-
-def read_pkl_obsdata(self, filepath):
-    return pd.read_pickle(filepath)
-
+# Readers
+def read_obsdata(path):
+    if ".pkl" in path:
+        return tools.read_pickle(path)
+    else:
+        raise Exception("Still constructing...Sorry")
+        return ObsData3D(filepath=path)
 
 def read_fits_PV(
     cls, filepath, unit1_in_au=None, unit2_in_kms=None, unit1="", unit2=""

@@ -3,11 +3,10 @@
 import os
 import numpy as np
 import pandas as pd
-from dataclasses import dataclass
+import radmc3dPy.analyze as rmca
 from envos import tools
 import envos.nconst as nc
-from envos import global_paths as rc
-from envos.models import CircumstellarModel
+from envos import gpath
 from envos.log import set_logger
 
 logger = set_logger(__name__)
@@ -16,38 +15,79 @@ logger = set_logger(__name__)
  Classes
 """
 
-@dataclass
-class RadmcController:
-    nphot: int = 1e6
-    n_thread: int = 1
-    scattering_mode_max: int = 0
-    mc_scat_maxtauabs: float = 5.0
-    tgas_eq_tdust: bool = True
-    f_dg: float = 0.01
-    opac: str = "silicate"
-    Lstar_Lsun: float = 1.0
-    mfrac_H2: float = 0.74
-    T_const: float = 10.0
-    Rstar_Rsun: float = 1.0
-    temp_mode: str = "mctherm"
-    molname: str = None
-    molabun: float = None
-    iline: int = None
-    mol_rlim: float = 1000.0
-    run_dir: str = None
-    radmc_dir: str = None
-    storage_dir: str = None
 
-    def __post_init__(self):
-        self.run_dir = self.run_dir or rc.run_dir  # global?
-        self.radmc_dir = self.radmc_dir or rc.radmc_dir  # local
-        self.storage_dir = self.storage_dir or rc.storage_dir  # local
-        rc.make_dirs(
+class RadmcController:
+    def __init__(
+        self,
+        config=None,
+        run_dir: str = None,
+        radmc_dir: str = None,
+        storage_dir: str = None,
+        #
+    ):
+
+        if config is not None:
+            self.config = config
+            run_dir = run_dir or config.run_dir
+            radmc_dir = radmc_dir or config.radmc_dir
+            storage_dir = storage_dir or config.storage_dir
+
+            self.n_thread = config.n_thread
+            self.nphot = config.nphot
+            self.scattering_mode_max = config.scattering_mode_max
+            self.mc_scat_maxtauabs = config.mc_scat_maxtauabs
+            self.tgas_eq_tdust = config.tgas_eq_tdust
+            self.f_dg = config.f_dg
+            self.opac = config.opac
+            self.Lstar_Lsun = config.Lstar_Lsun
+            self.Rstar_Rsun = config.Rstar_Rsun
+
+            self.mfrac_H2 = config.mfrac_H2
+            self.molname = config.molname
+            self.molabun = config.molabun
+            self.iline = config.iline
+
+        self.set_dirs(run_dir, radmc_dir, storage_dir)
+
+    def set_dirs(self, run_dir=None, radmc_dir=None, storage_dir=None):
+        self.run_dir = run_dir or gpath.run_dir  # global?
+        self.radmc_dir = radmc_dir or gpath.radmc_dir  # local
+        self.storage_dir = storage_dir or gpath.storage_dir
+        gpath.make_dirs(
             run=self.run_dir, radmc=self.radmc_dir, storage=self.storage_dir
         )
 
-        if self.iline is not None:
-            self.calc_line = True
+    def set_input_params(
+        self,
+        n_thread: int = 1,
+        nphot: int = 1e6,
+        scattering_mode_max: int = 0,
+        mc_scat_maxtauabs: float = 5.0,
+        tgas_eq_tdust: bool = True,
+        f_dg: float = 0.01,
+        opac: str = "silicate",
+        Lstar_Lsun: float = 1.0,
+        Rstar_Rsun: float = 1.0,
+        #
+        mfrac_H2: float = 0.74,
+        molname: str = None,
+        molabun: float = None,
+        iline: int = None,
+    ):
+        self.n_thread = n_thread
+        self.nphot = nphot
+        self.scattering_mode_max = scattering_mode_max
+        self.mc_scat_maxtauabs = mc_scat_maxtauabs
+        self.tgas_eq_tdust = tgas_eq_tdust
+        self.f_dg = f_dg
+        self.opac = opac
+        self.Lstar_Lsun = Lstar_Lsun
+        self.Rstar_Rsun = Rstar_Rsun
+
+        self.mfrac_H2 = mfrac_H2
+        self.molname = molname
+        self.molabun = molabun
+        self.iline = iline
 
     def set_model(self, model):
         if isinstance(model, str) and os.path.isfile(model):
@@ -57,39 +97,25 @@ class RadmcController:
         else:
             raise Exception("Unknown model.")
 
-    def set_userdefined_T_func(self, func):
-        """
-        Set a user-defined function of temperature.
-        The function takes an instance of this class (i.e. self)
-        as an argument.
-        """
-        self.T_func = func
-
-    #def set_radmc_input(self):
     def set_mctherm_inpfiles(self):
+
         logger.info("Setting input files used in radmc3d")
         md = self.model
-
-        rc, tc, pc = md.rc_ax, md.tc_ax, md.pc_ax
-        rr, tt, pp = np.meshgrid(rc, tc, pc, indexing="ij")
-        self.ntot = rr.size
-        ri, ti, pi = md.ri_ax, md.ti_ax, md.pi_ax
-
-        #rhog, vr, vt, vp = md.rho, md.vr, md.vt, md.vp
-        rhog = md.rho
+        nrc = len(md.rc_ax)
+        ntc = len(md.tc_ax)
+        npc = len(md.pc_ax)
+        self.ntot = nrc * ntc * npc
+        rhog = md.rhogas
         self._rhog = rhog
         if np.max(rhog) == 0:
             raise Exception("Zero density")
         rhod = rhog * self.f_dg
-
-        lam1, lam2, lam3, lam4 = 0.1, 7, 25, 1e4
-        n12, n23, n34 = 20, 100, 30
-        lam12 = np.geomspace(lam1, lam2, n12, endpoint=False)
-        lam23 = np.geomspace(lam2, lam3, n23, endpoint=False)
-        lam34 = np.geomspace(lam3, lam4, n34, endpoint=True)
-        lam = np.concatenate([lam12, lam23, lam34])
-        nlam = lam.size
-
+        lam = [
+            *np.geomspace(0.1, 7, 20, endpoint=False),
+            *np.geomspace(7, 25, 100, endpoint=False),
+            *np.geomspace(25, 1e4, 30, endpoint=True),
+        ]
+        nlam = len(lam)
         Tstar = self.Rstar_Rsun ** (-0.5) * self.Lstar_Lsun ** 0.25 * nc.Tsun
 
         """
@@ -103,10 +129,10 @@ class RadmcController:
             "100",
             "0",
             "1 1 0",
-            f"{rc.size:d} {tc.size:d} {pc.size:d}",
-            *ri,
-            *ti,
-            *pi,
+            f"{nrc:d} {ntc:d} {npc:d}",
+            *md.ri_ax,
+            *md.ti_ax,
+            *md.pi_ax,
         )
 
         # set wavelength
@@ -121,10 +147,9 @@ class RadmcController:
             *lam,
             f"{-Tstar:13.8e}",
         )
+
         # set dust density
-        self._save_input_file(
-            "dust_density.inp", "1", f"{self.ntot:d}", "1", *rhod.ravel(order="F")
-        )
+        self.set_dust_density(rhod)
 
         # set_dust_opacity
         opacs = [self.opac]
@@ -146,31 +171,29 @@ class RadmcController:
             "radmc3d.inp", *[f"{k} = {v}" for k, v in param_dict.items()]
         )
 
-        if self.temp_mode == "mctherm":
-            # remove gas_temperature.inp and dust_temperature.inp
-            remove_file("gas_temperature.inp")
-            remove_file("dust_temperature.dat")
+        #    if self.temp_mode == "mctherm":
+        # remove gas_temperature.inp and dust_temperature.inp
+        remove_file("gas_temperature.inp")
+        remove_file("dust_temperature.dat")
 
-        elif self.temp_mode == "const":
-            self._set_constant_temperature(self.T_const)
+    #    elif self.temp_mode == "const":
+    #        self._set_constant_temperature(self.T_const)
+    #
+    #       elif self.temp_mode == "user":
+    #          self._set_userdefined_temperature(self.T_func)
+    #     else:
+    #        raise Exception(f"Unknown temp_mode: {self.temp_mode}")
 
-        elif self.temp_mode == "user":
-            self._set_userdefined_temperature(self.T_func)
-        else:
-            raise Exception(f"Unknown temp_mode: {self.temp_mode}")
-
-    def set_lineobs_inpfiles(self):
-        n_mol = self._rhog / (2 * nc.amu / self.mfrac_H2) * self.molabun
+    def set_lineobs_inpfiles(
+        self,
+    ):
+        self.set_mctherm_inpfiles()
         vr, vt, vp = self.model.vr, self.model.vt, self.model.vp
+        nmol = self._rhog / (2 * nc.amu / self.mfrac_H2) * self.molabun
         # n_mol = np.where(rr < self.mol_rlim, n_mol, 0)
 
         # set molcular number density
-        self._save_input_file(
-            f"numberdens_{self.molname}.inp",
-            "1",
-            f"{self.ntot:d}",
-            *n_mol.ravel(order="F"),
-        )
+        self.set_numberdens(nmol)
 
         # set_mol_lines
         self._copy_from_storage(f"molecule_{self.molname}.inp")
@@ -182,14 +205,7 @@ class RadmcController:
         )
 
         # set_gas_velocity
-        _zipped_vel = zip(
-            vr.ravel(order="F"),
-            vt.ravel(order="F"),
-            vp.ravel(order="F"),
-        )
-        self._save_input_file(
-            "gas_velocity.inp", "1", f"{self.ntot:d}", *_zipped_vel
-        )
+        self.set_velocity(vr, vt, vp)
 
     def _save_input_file(self, filename, *text_lines):
         filepath = os.path.join(self.radmc_dir, filename)
@@ -219,25 +235,35 @@ class RadmcController:
         dst = os.path.join(self.radmc_dir, filename)
         tools.filecopy(src, dst)
 
-    def _set_constant_temperature(self, T_const=None, vlocal_fwhm=None):
-        if T_const is not None:
-            v_fwhm = np.sqrt(T_const * (16 * np.log(2) * nc.kB) / self.mol_mass)
-        elif vlocal_fwhm is not None:
-            T_const = m_mol * vlocal_fwhm**2 /(16 * np.log(2) * nc.kB )
-        logger.info(f"Constant temperature is  {T_const}")
-        logger.info(f"v_FWHM_kms is  {vlocal_fwhm/nc.kms}")
-        T = np.full_like(self.rr, T_const)
-        self.set_temperature(T, len(T.ravel()))
+    #    def _set_constant_temperature(self, T_const=None, vlocal_fwhm=None):
+    #        if T_const is not None:
+    #            v_fwhm = np.sqrt(T_const * (16 * np.log(2) * nc.kB) / self.mol_mass)
+    #        elif vlocal_fwhm is not None:
+    #            T_const = m_mol * vlocal_fwhm**2 /(16 * np.log(2) * nc.kB )
+    #        logger.info(f"Constant temperature is  {T_const}")
+    #        logger.info(f"v_FWHM_kms is  {vlocal_fwhm/nc.kms}")
+    #        T = np.full_like(self.rr, T_const)
+    #        self.set_temperature(T)
+    #
+    #    def _set_userdefined_temperature(self):
+    #        T = self.tfunc(self)
+    #        T = T.clip(min=0.1, max=10000)
+    #        self.set_temperature(T)
 
-    def _set_userdefined_temperature(self):
-        T = self.tfunc(self)
-        T = T.clip(min=0.1, max=10000)
-        self._set_temperature(T, len(T.ravel()))
+    def set_dust_density(self, rhod):
+        self._save_input_file(
+            "dust_density.inp",
+            "1",
+            f"{rhod.size:d}",
+            "1",
+            *rhod.ravel(order="F"),
+        )
 
-    def _set_temperature(self, temp, ntot):
+    def set_temperature(self, temp):
         """
         Set gas & dust temperature
         """
+        ntot = temp.size  # len(temp.ravel())
         self._save_input_file(
             "gas_temperature.inp",
             "1",
@@ -245,12 +271,45 @@ class RadmcController:
             *temp.ravel(order="F"),
         )
         self._save_input_file(
-            "dust_temperature.inp",
+            "dust_temperature.dat",
             "1",
             f"{ntot:d}",
             "1",
             *temp.ravel(order="F"),
         )
+
+    def set_numberdens(self, nmol):
+        self._save_input_file(
+            f"numberdens_{self.molname}.inp",
+            "1",
+            f"{nmol.size:d}",
+            *nmol.ravel(order="F"),
+        )
+
+    def set_velocity(self, vr, vt, vp):
+        _zipped_vel = zip(
+            vr.ravel(order="F"),
+            vt.ravel(order="F"),
+            vp.ravel(order="F"),
+        )
+        self._save_input_file(
+            "gas_velocity.inp", "1", f"{vr.size:d}", *_zipped_vel
+        )
+
+    def clean_radmc_dir(self):
+        import glob
+        import shutil
+
+        logger.info(f"Cleaning {self.radmc_dir} which now contains:")
+        files = glob.glob(f"{self.radmc_dir}/*")
+        if len(files) == 0:
+            logger.info("    Nothing")
+        else:
+            for f in files:
+                logger.info("    " + f)
+        shutil.rmtree(self.radmc_dir)
+        os.mkdir(self.radmc_dir)
+        logger.info("Done")
 
     def run_mctherm(self):
         logger.info("Executing RADMC3D with mctherm mode")
@@ -266,17 +325,44 @@ class RadmcController:
             log_prefix="    ",
         )
 
-    def get_model(self):
-        model = self.model
-        model.set_radmcdir(self.radmc_dir)
-        #model = CircumstellarModel(radmc_dir=self.radmc_dir)
-        model.set_fdg(self.f_dg)
-        model.set_molname(self.molname)
-        return model
+        cwd = os.getcwd()
+        os.chdir(self.radmc_dir)
+        self.rmcdata = rmca.readData(ispec=self.molname)  # radmc3dData()
+        os.chdir(cwd)
 
-        #return ThermalKinematicModel(
-        #    radmc_dir=self.radmc_dir, ispec=self.molname, f_dg=self.f_dg
-        #)
+    def get_dust_density(self):
+        return self.get_value("rhodust")
+
+    def get_gas_density(self):
+        return self.get_value("rhodust") / self.f_dg
+
+    def get_mol_number_density(self):
+        return self.get_value("ndens_mol")
+
+    def get_velocity(self):
+        vr = self.get_value("gasvel", index=0)
+        vt = self.get_value("gasvel", index=1)
+        vp = self.get_value("gasvel", index=2)
+        return vr, vt, vp
+
+    def get_dust_temperature(self):
+        return self.get_value("dusttemp")
+
+    def get_gas_temperature(self):
+        if self.tgas_eq_tdust:
+            Tgas = self.get_dust_temperature()
+        else:
+            Tgas = self.get_value("gastemp")
+        return Tgas
+
+    def get_value(self, key, index=0):
+        val = getattr(self.rmcdata, key)
+        if len(val) != 0:
+            logger.debug(f"Setting {key}")
+            return val[:, :, :, index]
+        else:
+            logger.info(f"Tried to set {key} but not found.")
+            return None
 
 
 """
@@ -288,7 +374,6 @@ def remove_file(file_path):
     if os.path.exists(file_path):
         os.remove(file_path)
         logger.info(f"Removed {file_path}")
-
 
 
 def del_mctherm_files(dpath):

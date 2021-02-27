@@ -1,155 +1,109 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import numpy as np
+import tracemalloc
+import envos
+import plot_example as pe
 
-from envos.config import Config
-from envos.model_generator import ModelGenerator  # Grid, KinematicModel
-from envos.obs import ObsSimulator
-import envos.log as log
-# Above will go to: ?
-# import envos
-# envos.Config
-# envos.ModelGenerator
-# ...
+tracemalloc.start()
 
-from plot_example import *
+def synth_obs(config, read_model=0, read_odat=0):
+    if read_odat:
+        odat = envos.read_obsdata("run/lineobs.pkl")
 
-#switch = [1, 0, 0, 0]
-#calc = [1, 1, 1, 1]
-#switch = [1] * 4
+    else:
+        if read_model:
+            model = envos.read_model("run/model.pkl")
+        else:
+            mg = envos.ModelGenerator(config)
+            mg.calc_kinematic_structure()
+            mg.calc_thermal_structure()
+            model = mg.get_model()
+            model.save_pickle("model.pkl")
 
-log.enable_saving_output()
+        pe.plot_density_map(model, trajectries=False)
+        pe.plot_temperature_map(model, trajectries=False)
 
-config = Config()
+        osim = envos.ObsSimulator(config)
+        osim.set_model(model)
+        odat = osim.observe_line()
+        odat.save_instance(filename="lineobs.pkl")
 
-config.set_grid(
-    rau_lim=[1, 1000],
-    dr_to_r=0.04,
-    aspect_ratio=1 / 4
-)
+    PV = odat.get_PV_map(pangle_deg=0)
+    pe.plot_mom0_map(odat, pangle_deg=[0] )
+    pe.plot_pvdiagram(PV, f_crit=0.1)
 
-config.set_physical_parameters(
-    CR_au=130,
-    Ms_Msun=0.2,
-    Mdot_smpy=4.5e-6,
-    meanmolw=2.3,
-    cavangle_deg=40
-)
+#--------------------------------------------------------#
 
-
-config.set_model_input(
-    inenv="CM",
-    outenv="TSC",
-    #disk="exptail"
-)
-
-config.set_radmc_input(
-    nphot=1e6,
+conf = envos.Config(
     n_thread=12,
+    rau_in=10,
+    rau_out=1000,
+    dr_to_r=0.02,
+    aspect_ratio=1,
+    CR_au=200,
+    Ms_Msun=0.2,
+    T=10,
+    cavangle_deg=45,
     f_dg=0.01,
     opac="MRN20",
     Lstar_Lsun=1.0,
     molname="c18o",
     molabun=1e-17,
     iline=3,
-    mol_rlim=1000.0,
+    size_au=2000,
+    pixsize_au=4,
+    vfw_kms=6,
+    dv_kms=0.05,
+    beam_maj_au=50,
+    beam_min_au=50,
+    vreso_kms=0.1,
+    beam_pa_deg=0,
+    convmode="normal",
+    incl=90,
+    posang=0,
+    dpc=100,
 )
 
-config.set_observation_input(
-        omp=True,
-        nthread=10,
-        sizex_au=1000,
-        pixsize_au=50,
-        vwidth_kms=3,
-        dv_kms=0.2,
-        beam_maj_au=100,
-        beam_min_au=100,
-        vreso_kms=0.1,
-        beam_pa_deg=0,
-        convmode="null",
-        incl=85,
-        phi=0,
-        posang=90,
-        dpc=140,
-        iline=3, # already set radmc input
-        molname="c18o" # already set radmc input
-)
+conf = conf.replaced(fig_dir = "./run/fig_fid")
+import envos.gpath as gp
+print(conf)
+print(gp.fig_dir, gp.run_dir)
+synth_obs(conf)
+snapshot = tracemalloc.take_snapshot()
+top_stats = snapshot.statistics('lineno')
+print('[ Top 3 ]')
+for stat in top_stats[:3]:
+    print(stat)
+exit()
 
-mgen = ModelGenerator(config)
-mgen.calc_kinematic_structure()
-kstr = mgen.get_kinematic_structure()
+for M in [0.05, 0.1, 0.4, 0.8]:
+    conf = conf.replaced(Ms_Msun=M, fig_dir = f"./run/fig_M{M}")
+    synth_obs(conf)
 
-mgen.calc_thermal_structure()
-model = mgen.get_model()
-#plot_density_map(model)
-#plot_temperature_map(model)
-
-#r_crit = model.ppar.cs * model.ppar.t
-#start_points = [(r_crit, np.radians(deg)) for deg in range(0, 90, 10)]
-#streamline.calc_streamlines_from_model(
-#    model, ["rhogas", "Tgas"], ["g/cm3", "K"], start_points
-#)
-
-#osim = ObsSimulator(dpc=dpc, n_thread=12)
-osim = ObsSimulator(config)
-
-#cont = osim.observe_cont(1249)
-#plot_mom0_map(cont)
-#exit()
+for cr in [50, 100, 200, 400, 800]:
+    conf = conf.replaced(CR_au=cr, fig_dir = f"./run/fig_cr{cr}")
+    synth_obs(conf)
 
 
-odat_line = osim.observe_line()
-PV = odat_line.make_PV_map(pangle_deg=0)
-plot_pvdiagram(
-    PV,
-    dpath_fig=dpath_fig,
-    n_lv=5,
-    Ms_Msun=0.2,
-    rCR_au=150,
-    f_crit=0.1,
-    mapmode="grid",
-)
-#print(odat_line.Ippv.shape, odat_line.xau.shape)
-#print(vars(odat_line))
-#plot_lineprofile(odat_line)
 
 
-import psutil
-mem = psutil.virtual_memory()
-print("memory results:")
-print(mem.percent)
-print(mem.total)
-print(mem.used)
-print(mem.available)
+
+
+#import copy
+#conf = copy.copy(config)
+#for M in [0.05, 0.1, 0.4, 0.8]:
+#    conf.set_run_config(
+#        rundir = f"run_{M}"
+#    )
+#    conf.ppar.Ms_Msun = M
+#    do_all(conf)
+
+#tools.show_used_memory()
+
+print("\a\a\a\a \a\a\a\a")
 
 exit()
-if switch[2]:
-    dpc = 140
-    osim = ObsSimulator(dpc=dpc, n_thread=12)
-    osim.set_resolution(1000, 1000, pixsize_au=10, vwidth_kms=6, dv_kms=0.04)
-    osim.set_convolver(0.7 * dpc, 0.7 * dpc, vreso_kms=0.1)
-
-if switch[3]:
-    odat_cont = osim.observe_cont(1249, incl=85)
-    odat_line = osim.observe_line(3, "c18o", incl=85)
-    odat_line.save_instance("obs.pkl")
-    odat_line.make_mom0_map()
-else:
-    odat_line = ObsData()
-    odat_line.read_instance("run/radmc/obs.pkl")
-    odat_line.set_dpc(140)
-PV = odat_line.make_PV_map(pangle_deg=0)
-
-plot_lineprofile(odat_line)
-plot_pvdiagram(
-    PV,
-    dpath_fig=dpath_fig,
-    n_lv=5,
-    Ms_Msun=0.2,
-    rCR_au=150,
-    f_crit=0.1,
-    mapmode="grid",
-)
 
 PV = sobs.PVmap(fitsfile="PVmodel.fits", dpc=inp.obs.dpc)
 PV_ref = sobs.PVmap(fitsfile="2mm_spw1_C3H2_pv.fits", dpc=inp.obs.dpc)

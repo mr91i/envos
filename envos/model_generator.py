@@ -8,7 +8,9 @@ from envos.models import (
 )
 from envos.radmc3d import RadmcController
 from envos.log import set_logger
-
+from envos.grid import Grid
+from envos.physical_params import PhysicalParameters
+from envos import tools
 logger = set_logger(__name__)
 
 
@@ -20,19 +22,85 @@ class ModelGenerator:
         self.inenv = None
         self.outenv = None
         self.disk = None
+        self.model = CircumstellarModel()
 
         if config is not None:
-            self.grid = config.grid
-            self.ppar = config.ppar
-            self._inenv_input = config.model.inenv
-            self._outenv_input = config.model.outenv
-            self._disk_input = config.model.disk
-            self.radmc_config = config.radmc
+            self.init_from_config(config)
 
-    #        if filepath is not None:
-    #            read_model(filepath, base=self)
+    def init_from_config(self, config):
+        self.config = config
+        grid = Grid(
+            config.ri_ax, config.ti_ax, config.pi_ax,
+            rau_lim=[config.rau_in, config.rau_out],
+            theta_lim=[config.theta_in, config.theta_out],
+            phi_lim=[config.phi_in, config.phi_out],
+            nr=config.nr,
+            ntheta=config.ntheta,
+            nphi=config.nphi,
+            dr_to_r=config.dr_to_r,
+            aspect_ratio=config.aspect_ratio,
+            logr=config.logr,
+        )
+
+        self.set_grid(grid=grid)
+        self.set_physical_parameters(
+            config.T,
+            config.CR_au,
+            config.Ms_Msun,
+            config.t_yr,
+            config.Omega,
+            config.maxj,
+            config.Mdot_smpy,
+            config.meanmolw,
+            config.cavangle_deg,
+        )
+        self.set_model(
+            inenv=config.inenv, outenv=config.outenv, disk=config.disk
+        )
+
+    def set_grid(self, ri=None, ti=None, pi=None, grid=None):
+        if grid is not None:
+            self.grid = grid
+            return
+
+        self.grid = Grid(
+            ri_ax=ri,
+            ti_ax=ti,
+            pi_ax=pi,
+        )
+
+    def set_physical_parameters(
+        self,
+        T: float = None,
+        CR_au: float = None,
+        Ms_Msun: float = None,
+        t_yr: float = None,
+        Omega: float = None,
+        maxj: float = None,
+        Mdot_smpy: float = None,
+        meanmolw: float = 2.3,
+        cavangle_deg: float = 0,
+    ):
+
+        self.ppar = PhysicalParameters(
+            T=T,
+            CR_au=CR_au,
+            Ms_Msun=Ms_Msun,
+            t_yr=t_yr,
+            Omega=Omega,
+            maxj=maxj,
+            Mdot_smpy=Mdot_smpy,
+            meanmolw=meanmolw,
+            cavangle_deg=cavangle_deg,
+        )
+
+    def set_model(self, inenv=None, outenv=None, disk=None):
+        self.inenv = inenv
+        self.outenv = outenv
+        self.disk = disk
+
     def calc_kinematic_structure(
-        self, inenv="CM", disk=None, outenv=None, grid=None, ppar=None
+        self, inenv=None, outenv=None, disk=None, grid=None, ppar=None
     ):
 
         ### Set grid
@@ -48,53 +116,61 @@ class ModelGenerator:
             raise Exception("ppar is not set.")
 
         ### Set models
-        if inenv is not None:
-            self._inenv_input = inenv
-        self.set_inenv(self._inenv_input)
-
-        if outenv is not None:
-            self._outenv_input = outenv
-        self.set_outenv(self._outenv_input)
-
-        if disk is not None:
-            self._disk_input = disk
-        self.set_disk(self._disk_input)
-
         logger.info("Calculating kinematic structure")
         logger.info("Models:")
-        logger.info(f"    disk: {self._disk_input}")
-        logger.info(f"    inner-envelope: {self._inenv_input}")
-        logger.info(f"    outer-envelope: {self._outenv_input}\n")
+        logger.info(f"    inner-envelope: {inenv or self.inenv}")
+        logger.info(f"    outer-envelope: {outenv or self.outenv}")
+        logger.info(f"    disk: {disk or self.disk}\n")
+        self.set_inenv(inenv or self.inenv)
+        self.set_outenv(outenv or self.outenv)
+        self.set_disk(disk or self.disk)
+
 
         ### Make kmodel
-        conds = [np.ones_like(self.grid.rr, dtype=bool)]
-        regs = [self.inenv]
+        zeros = np.zeros_like(self.grid.rr)
+        rho = np.copy(zeros)
+        vr = np.copy(zeros)
+        vt = np.copy(zeros)
+        vp = np.copy(zeros)
+        keys = ("rho", "vr", "vt", "vp")
+        ismodel = lambda x: all(hasattr(x, k) for k in keys)
 
-        if hasattr(self.outenv, "rho"):
-            cond1 = self.outenv.rho > self.inenv.rho
-            cond2 = self.grid.rr > self.outenv.r_exp
-            conds.insert(0, cond1 & cond2)
-            regs.insert(0, self.outenv)
+        if ismodel(self.inenv):
+            print("Setting inner envelop")
+            cond = rho < self.inenv.rho
+            rho[cond] = self.inenv.rho[cond]
+            vr[cond] = self.inenv.vr[cond]
+            vt[cond] = self.inenv.vt[cond]
+            vp[cond] = self.inenv.vp[cond]
 
-        if hasattr(self.disk, "rho"):
-            conds.insert(0, self.disk.rho > self.inenv.rho)
-            regs.insert(0, self.disk)
+        if ismodel(self.outenv):
+            print("Setting outer envelop")
+            cond1 = rho < self.outenv.rho
+            cond2 = self.grid.rr > self.outenv.rin_lim
+            cond = cond1 & cond2
+            rho[cond] = self.outenv.rho[cond]
+            vr[cond] = self.outenv.vr[cond]
+            vt[cond] = self.outenv.vt[cond]
+            vp[cond] = self.outenv.vp[cond]
 
-        rho = np.select(conds, [r.rho for r in regs])
-        vr = np.select(conds, [r.vr for r in regs])
-        vt = np.select(conds, [r.vt for r in regs])
-        vp = np.select(conds, [r.vp for r in regs])
+        if ismodel(self.disk):
+            print("Setting disk")
+            print(self.disk.rho)
+            cond = rho < self.disk.rho
+            rho[cond] = self.disk.rho[cond]
+            vr[cond] = self.disk.vr[cond]
+            vt[cond] = self.disk.vt[cond]
+            vp[cond] = self.disk.vp[cond]
 
         logger.info("Calculated kinematic structure")
-        #self.kmodel = KinematicModel(self.grid, rho, vr, vt, vp)
-        self.kmodel = CircumstellarModel(grid=self.grid)
-        self.kmodel.set_density(rho)
-        self.kmodel.set_velocity(vr, vt, vp)
-
+        self.model.set_grid(self.grid)
+        self.model.set_gas_density(rho)
+        self.model.set_gas_velocity(vr, vt, vp)
+        self.model.set_physical_parameters(self.ppar)
 
     def set_inenv(self, inenv):
         if inenv is None:
-            raise Exception("No Envelope.")
+            return
 
         if hasattr(inenv, "rho"):
             self.inenv = inenv
@@ -154,45 +230,61 @@ class ModelGenerator:
         else:
             raise Exception("Unknown disk type")
 
-    def get_kinematic_structure(self):
-        return self.kmodel
-
     def calc_thermal_structure(self):
         logger.info("Calculating thermal structure")
-        conf = self.radmc_config
-        radmc = RadmcController(**conf.__dict__)
+        # conf = self.radmc_config
+        radmc = RadmcController(config=self.config)
+        radmc.clean_radmc_dir()
 
-#         radmc = RadmcController(
-#             nphot=conf.nphot,
-#             n_thread=conf.n_thread,
-#             scattering_mode_max=conf.scattering_mode_max,
-#             mc_scat_maxtauabs=conf.mc_scat_maxtauabs,
-#             f_dg=conf.f_dg,
-#             opac=conf.opac,
-#             Lstar_Lsun=conf.Lstar_Lsun,
-#             mfrac_H2=conf.mfrac_H2,
-#             T_const=conf.T_const,
-#             Rstar_Rsun=conf.Rstar_Rsun,
-#             temp_mode=conf.temp_mode,
-#             molname=conf.molname,
-#             molabun=conf.molabun,
-#             iline=conf.iline,
-#             mol_rlim=conf.mol_rlim,
-#             run_dir=conf.run_dir,
-#             radmc_dir=conf.radmc_dir,
-#             storage_dir=conf.storage_dir,
-#         )
-        radmc.set_model(self.kmodel)
+        #         radmc = RadmcController(
+        #             nphot=conf.nphot,
+        #             n_thread=conf.n_thread,
+        #             scattering_mode_max=conf.scattering_mode_max,
+        #             mc_scat_maxtauabs=conf.mc_scat_maxtauabs,
+        #             f_dg=conf.f_dg,
+        #             opac=conf.opac,
+        #             Lstar_Lsun=conf.Lstar_Lsun,
+        #             mfrac_H2=conf.mfrac_H2,
+        #             T_const=conf.T_const,
+        #             Rstar_Rsun=conf.Rstar_Rsun,
+        #             temp_mode=conf.temp_mode,
+        #             molname=conf.molname,
+        #             molabun=conf.molabun,
+        #             iline=conf.iline,
+        #             mol_rlim=conf.mol_rlim,
+        #             run_dir=conf.run_dir,
+        #             radmc_dir=conf.radmc_dir,
+        #             storage_dir=conf.storage_dir,
+        #         )
+        radmc.set_model(self.model)
         radmc.set_mctherm_inpfiles()
         radmc.run_mctherm()
-        radmc.set_lineobs_inpfiles()
-        self.tkmodel = radmc.get_model()
-        self.tkmodel.add_physical_parameters(self.ppar)
-        self.tkmodel.save("tkmodel.pkl")
 
-    def read_model(self):
-        # will be cahnged
-        self.tkmodel = ThermalKinematicModel("run/tkmodel.pkl")
+        rho = radmc.get_gas_density()
+        if not np.allclose(rho, self.model.rhogas, rtol=1e-07, atol=1e-20):
+            logger.error(
+                "Input value mismatches with that read by radmc3d: gas density"
+            )
+            raise Exception
+
+        Tgas = radmc.get_gas_temperature()
+        self.model.set_gas_temperature(Tgas)
+
+    #        self.model.save("tkmodel.pkl")
+
+    # radmc.set_lineobs_inpfiles()
+
+    # self.model = radmc.get_model()
+    # self.tkmodel.add_physical_parameters(self.ppar)
+    # self.tkmodel.save("tkmodel.pkl")
 
     def get_model(self):
-        return self.tkmodel
+        return self.model
+
+
+def read_model(path):
+    if ".pkl" in path:
+        return tools.read_pickle(path)
+    else:
+        raise Exception("Still constructing...Sorry")
+        return CircumstellarModel(filepath=path)

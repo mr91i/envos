@@ -4,6 +4,7 @@ import sys
 import shutil
 import numpy as np
 import envos.nconst as nc
+import pandas
 
 from envos.log import set_logger
 
@@ -13,6 +14,17 @@ logger = set_logger(__name__)
 
 # def mkdir(dpath):
 #    os.mkdirs(dpath, exist_ok=True)
+
+
+
+def read_pickle(filepath):
+    logger.info("Reading pickle data")
+    cls = pandas.read_pickle(filepath)
+    logger.info(cls)
+    return cls
+
+
+#######
 
 def freq_to_vkms_array(freq, freq0):
     return nc.c / 1e5 * (freq0 - freq) / freq0
@@ -51,13 +63,49 @@ def find_roots(x, y1, y2):
         ]
     )
 
+def show_used_memory():
+    import psutil
+    mem = psutil.virtual_memory()
+    logger.info("Used memory = %.3f GiB", mem.used/(1024**3))
+
+def compute_object_size(o, handlers={}):
+    import sys
+    from itertools import chain
+    from collections import deque
+
+    dict_handler = lambda d: chain.from_iterable(d.items())
+    all_handlers = {tuple: iter,
+                    list: iter,
+                    deque: iter,
+                    dict: dict_handler,
+                    set: iter,
+                    frozenset: iter,
+                   }
+    all_handlers.update(handlers)     # user handlers take precedence
+    seen = set()                      # track which object id's have already been seen
+    default_size = sys.getsizeof(0)       # estimate sizeof object without __sizeof__
+
+    def sizeof(o):
+        if id(o) in seen:       # do not double count the same object
+            return 0
+        seen.add(id(o))
+        s = sys.getsizeof(o, default_size)
+
+        for typ, handler in all_handlers.items():
+            if isinstance(o, typ):
+                s += sum(map(sizeof, handler(o)))
+                break
+        return s
+
+    return sizeof(o)
+
 
 def shell(
     cmd,
     cwd=None,
     log=True,
     dryrun=False,
-    skiperror=False,
+    skip_error=False,
     error_keyword=None,
     logger=logger,
     log_prefix="",
@@ -108,12 +156,12 @@ def shell(
     retcode = proc.wait()
 
     if (retcode != 0) or (error_flag == 1):
-        e = subprocess.CalledProcessError
+        e = subprocess.CalledProcessError(retcode, cmd)
         if skip_error:
             logger.warning("Skip error:")
             logger.warning("    %s" % e)
         else:
-            logger.exception(e)
+            logger.error(e)
             raise e
 
 
@@ -154,6 +202,23 @@ def filecopy(src, dst, error_already_exist=False):
 
     else:
         logger.debug("Sucsess copying")
+
+# def _instance_pickle(filepath, base=None):
+#     if ".pkl" in filepath:
+#         dtype = "pickle"
+#
+#     if dtype == "pickle":
+#         cls = pd.read_pickle(filepath)
+#         if base is None:
+#             return cls
+#         else:
+#             for k, v in cls.__dict__.items():
+#                 setattr(base, k, v)
+
+def setattr_from_pickle(cls, filepath):
+    readcls = pandas.read_pickle(filepath)
+    for k, v in readcls.__dict__.items():
+        setattr(cls, k, v)
 
 
 #  def shell(
