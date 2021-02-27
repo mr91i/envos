@@ -5,6 +5,7 @@ import shutil
 import numpy as np
 import envos.nconst as nc
 import pandas
+from dataclasses import dataclass, asdict
 
 from envos.log import set_logger
 
@@ -98,6 +99,29 @@ def compute_object_size(o, handlers={}):
         return s
 
     return sizeof(o)
+
+def dataclass_str(self):
+    space = "  "
+    txt = self.__class__.__name__
+    txt += "("
+    for k, v in asdict(self).items():
+        txt += "\n"
+        var = str(k) + " = "
+        if isinstance(v, (list, np.ndarray)):
+            #txt += "\n"
+            #txt += space*2 + str(v).replace('\n', '\n'+space*2)
+            space_var = " "*len(var)
+            txt += space + var + str(v).replace('\n', '\n'+space+space_var)
+        elif isinstance(v, str):
+            txt += space + var + f"\"{str(v)}\""
+        else:
+            txt += space + var + str(v)
+        txt += ","
+    else:
+        txt = txt[:-1]
+        txt += "\n" + ")"
+    return txt
+
 
 
 def shell(
