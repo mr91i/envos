@@ -156,7 +156,7 @@ def _add_stream_handler(logger):
 def _add_file_handler(logger):
     global file_level
 
-    import envos.global_paths as gp
+    import envos.gpath as gp
 
     gp.make_dirs(run=gp.run_dir)
     file_handler = logging.FileHandler(gp.logfile, "a", "utf-8")
