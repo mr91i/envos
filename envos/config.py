@@ -1,310 +1,171 @@
 import numpy as np
-from typing import Callable, Any
-from dataclasses import dataclass
-from envos.grid import Grid
-from envos.physical_params import PhysicalParameters
+from dataclasses import dataclass, asdict, replace
 from envos.log import set_logger
+from envos import gpath
+import textwrap
+
 logger = set_logger(__name__)
+
 
 @dataclass
 class Config:
-
-    class Subconfig:
-        def __init__(self, **kwargs):
-            for key, value in kwargs.items():
-                setattr(self, key, value)
-
-        def check_input(self, dic, except_keys=[]):
-            for key in dic.keys():
-                if key in except_keys:
-                    continue
-                if not hasattr(self, key):
-                    logger.warn(f"{key} has not been set.")
-
-
-    def make_subconfig(self, **kwargs):
-        subconf = Config.Subconfig(**kwargs)
-        # setattr(self, name, subconf)
-        return subconf
-
-    def set_run_config(
-        self,
-        storagedir: str = None,
-        rundir: str = None,
-        figdir: str = None,
-        radmcdir: str = None,
-        logpath: str = None,
-        level_stdout: str = None,
-        level_logfile: str = None,
-    ):
-
-        self.rc = RunConfig(
-            storagedir=storagedir,
-            rundir=rundir,
-            figdir=figdir,
-            radmcdir=radmcdir,
-            logpath=logpath,
-            level_stdout=level_stdout,
-            level_logfile=level_logfile,
-        )
-
-    def set_grid(
-        self,
-        ri_ax=None,
-        ti_ax=None,
-        pi_ax=None,
-        *,
-        rau_lim=None,
-        theta_lim=(0, np.pi / 2),
-        phi_lim=(0, 2 * np.pi),
-        nr=None,
-        ntheta=None,
-        nphi=1,
-        dr_to_r=None,
-        aspect_ratio=1.0,
-        logr=True
-    ):
-
-        self.grid = Grid(
-            ri_ax=ri_ax,
-            ti_ax=ti_ax,
-            pi_ax=pi_ax,
-            rau_lim=rau_lim,
-            theta_lim=theta_lim,
-            phi_lim=phi_lim,
-            nr=nr,
-            ntheta=ntheta,
-            nphi=nphi,
-            dr_to_r=dr_to_r,
-            aspect_ratio=aspect_ratio,
-            logr=logr,
-        )
-
-    def set_physical_parameters(
-        self,
-        T: float = None,
-        CR_au: float = None,
-        Ms_Msun: float = None,
-        t_yr: float = None,
-        Omega: float = None,
-        maxj: float = None,
-        Mdot_smpy: float = None,
-        meanmolw: float = 2.3,
-        cavangle_deg: float = 0,
-    ):
-
-        self.ppar = PhysicalParameters(
-            T=T,
-            CR_au=CR_au,
-            Ms_Msun=Ms_Msun,
-            t_yr=t_yr,
-            Omega=Omega,
-            maxj=maxj,
-            Mdot_smpy=Mdot_smpy,
-            meanmolw=meanmolw,
-            cavangle_deg=cavangle_deg,
-        )
-
-    def set_model_input(
-        self,
-        inenv="CM",
-        outenv=None,
-        disk=None,
-        rot_ccw: bool = False,
-        usr_density_func: Callable = None,
-    ):
-        self.model = ModelConfig(
-            inenv=inenv,
-            outenv=outenv,
-            disk=disk,
-            rot_ccw=rot_ccw,
-            usr_density_func=usr_density_func,
-        )
-
-    def set_radmc_input(
-        self,
-        nphot: int = 1e6,
-        n_thread: int = 1,
-        scattering_mode_max: int = 0,
-        mc_scat_maxtauabs: float = 5.0,
-        tgas_eq_tdust: bool = True,
-        f_dg: float = 0.01,
-        opac: str = "silicate",
-        Lstar_Lsun: float = 1.0,
-        mfrac_H2: float = 0.74,
-        T_const: float = 10.0,
-        Rstar_Rsun: float = 1.0,
-        temp_mode: str = "mctherm",
-        molname: str = None,
-        molabun: float = None,
-        iline: int = None,
-        mol_rlim: float = 1000.0,
-        run_dir: str = None,
-        radmc_dir: str = None,
-        storage_dir: str = None,
-    ):
-
-        #self.radmc = RadmcConfig(
-        self.radmc = self.make_subconfig(
-            nphot=nphot,
-            n_thread=n_thread,
-            scattering_mode_max=scattering_mode_max,
-            mc_scat_maxtauabs=mc_scat_maxtauabs,
-            tgas_eq_tdust=tgas_eq_tdust,
-            f_dg=f_dg,
-            opac=opac,
-            Lstar_Lsun=Lstar_Lsun,
-            mfrac_H2=mfrac_H2,
-            T_const=T_const,
-            Rstar_Rsun=Rstar_Rsun,
-            temp_mode=temp_mode,
-            molname=molname,
-            molabun=molabun,
-            iline=iline,
-            mol_rlim=mol_rlim,
-            run_dir=run_dir,
-            radmc_dir=radmc_dir,
-            storage_dir=storage_dir,
-        )
-        self.radmc.check_input(locals(), ["self"])
-
-    def set_observation_input(
-        self,
-        dpc: float,
-        omp: bool = False,
-        nthread: int = 1,
-        sizex_au: float = None,
-        sizey_au: float = None,
-        pixsize_au: float = None,
-        npix: int = None,
-        npixx: int = None,
-        npixy: int = None,
-        vwidth_kms: float = None,
-        dv_kms: float = None,
-        beam_maj_au: float = None,
-        beam_min_au: float = None,
-        vreso_kms: float = None,
-        beam_pa_deg: float = None,
-        convmode: str = "fft",
-        lam: float = None,
-        incl: float = None,
-        phi: float = None,
-        posang: float = None,
-        iline: int = None,
-        molname: str = None,
-    ):
-        self.obs = ObsConfig(
-            dpc=dpc,
-            omp=omp,
-            nthread=nthread,
-            sizex_au=sizex_au,
-            sizey_au=sizey_au,
-            pixsize_au=pixsize_au,
-            npix=npix,
-            npixx=npixx,
-            npixy=npixy,
-            vwidth_kms=vwidth_kms,
-            dv_kms=dv_kms,
-            beam_maj_au=beam_maj_au,
-            beam_min_au=beam_min_au,
-            vreso_kms=vreso_kms,
-            beam_pa_deg=beam_pa_deg,
-            convmode=convmode,
-            lam=lam,
-            incl=incl,
-            phi=phi,
-            posang=posang,
-            iline=iline,
-            molname=molname,
-        )
-
-
-@dataclass
-class RunConfig:
-    storagedir: str
-    rundir: str
-    figdir: str
-    radmcdir: str
-    logpath: str
-    level_stdout: str
-    level_logfile: str
-
-
-@dataclass
-class ModelConfig:  # (Input):
-    inenv: Any
-    outenv: Any
-    disk: Any
-    rot_ccw: bool
-    usr_density_func: Callable
-
-
-@dataclass
-class RadmcConfig:
-    nphot: int
-    n_thread: int
-    scattering_mode_max: int
-    mc_scat_maxtauabs: float
-    tgas_eq_tdust: bool
-    f_dg: float
-    opac: str
-    Lstar_Lsun: float
-    mfrac_H2: float
-    T_const: float
-    Rstar_Rsun: float
-    temp_mode: str
-    molname: str
-    molabun: float
-    iline: int
-    mol_rlim: float
-    run_dir: str
-    radmc_dir: str
-    storage_dir: str
-
-
-@dataclass
-class ObsConfig:
-    dpc: float
-    omp: bool
-    nthread: int
-    sizex_au: float
-    sizey_au: float
-    pixsize_au: float
-    npix: int
-    npixx: int
-    npixy: int
-    vwidth_kms: float
-    dv_kms: float
-    beam_maj_au: float
-    beam_min_au: float
-    vreso_kms: float
-    beam_pa_deg: float
-    convmode: str
-    lam: float
-    incl: float
-    phi: float
-    posang: float
-    iline: int
-    molname: str
-
-
-#    Tenv: float = None
-#    Mdot_smpy: float =  None
-#    CR_au: float =  None
-#    Ms_Msun: float = None
-#    t_yr: float =  None
-#    Omega: float =  None
-#    maxj: float =  None
-#    meanmolwe: float = 2.3
-#    cavangle_deg: float = 0
-#    Tdisk: float = 30
-#    frac_Md: float = 0.1
-
-
-def initialize_running(run_config):
     """
-    - make run_dir, fig_dir, ..
-    - set them to global_paths
-    - set file_handler of logging
+    Contains all running configurations.
+    When one needs to change a parameter,
+    one can directly change it in the configure instance.
+
+    Parameters
+    ----------
+    rau_ax: list
+        Radial coorinate of cell interface.
+        One can directly input coordinates.
+
+    nr : int
+        number of cells in radial axis
+    ntheta : int
+        number of cells in theta axis
+    nphi : int
+        number of cells in phi axis
+
+
     """
-    pass
+
+    # General input
+    storage_dir: str = None
+    run_dir: str = None
+    fig_dir: str = None
+    radmc_dir: str = None
+    log_path: str = None
+    level_stdout: str = None
+    level_logfile: str = None
+    n_thread: int = 1
+
+    # Grid input
+    ri_ax: list = None
+    ti_ax: list = None
+    pi_ax: list = None
+
+    rau_in: float = 10
+    rau_out: float = 1000
+    theta_in: float = 0
+    theta_out: float = np.pi / 2
+    phi_in: float = 0
+    phi_out: float = 2 * np.pi
+    nr: int = None
+    ntheta: int = None
+    nphi: int = 1
+    dr_to_r: float = None
+    aspect_ratio: float = 1.0
+    logr: bool = True
+
+    # Model input
+    T: float = 10
+    CR_au: float = 100
+    Ms_Msun: float = 1.0
+    t_yr: float = None
+    Omega: float = None
+    maxj: float = None
+    Mdot_smpy: float = None
+    meanmolw: float = 2.3
+    cavangle_deg: float = 0
+    inenv: str = "CM"
+    outenv: str = None
+    disk: str = None
+    rot_ccw: bool = False
+    # usr_density_func: Callable = None
+
+    # RADMC-3D input
+    nphot: int = 1e6
+    f_dg: float = 0.01
+    opac: str = "silicate"
+    Lstar_Lsun: float = 1.0
+    mfrac_H2: float = 0.74
+    Rstar_Rsun: float = 1.0
+    # temp_mode: str = "mctherm"
+    molname: str = "c18o"
+    molabun: float = ""
+    iline: int = 3
+    scattering_mode_max: int = 0
+    mc_scat_maxtauabs: float = 5.0
+    tgas_eq_tdust: bool = True
+    # mol_rlim: float = 1000.0
+
+    # Observarion input
+    dpc: float = 100
+    size_au: float = 1000
+    sizex_au: float = None
+    sizey_au: float = None
+    pixsize_au: float = 10
+    vfw_kms: float = 3
+    dv_kms: float = 0.02
+    convmode: str = "fft"
+    beam_maj_au: float = 50
+    beam_min_au: float = 50
+    vreso_kms: float = 0.1
+    beam_pa_deg: float = 0
+    incl: float = 0
+    phi: float = 0
+    posang: float = 0
+
+    def __str__(self):
+        nchar_max = 19
+        neglist = []
+        space = "  "
+        txt = self.__class__.__name__
+        txt += "("
+        for k, v in asdict(self).items():
+            if v is None:
+                neglist += [k]
+                continue
+
+            txt += "\n"
+            var = str(k).ljust(nchar_max) + " = "
+            if isinstance(v, (list, np.ndarray)):
+                # txt += "\n"
+                # txt += space*2 + str(v).replace('\n', '\n'+space*2)
+                space_var = " " * len(var)
+                txt += (
+                    space
+                    + var
+                    + str(v).replace("\n", "\n" + space + space_var)
+                )
+            else:
+                txt += space + var + str(v)
+            # txt += ","
+        else:
+            # txt = txt[:-1]
+            txt += "\n"
+            txt += space + "-" * (nchar_max * 2 + 3) + "\n"
+            txt += space + "Nelected parameters:\n"
+            # txtng = ""
+            # for k in neglist:
+            #    if
+            #        txtng
+            #    txtng +=
+
+            # txt += space +  "\n".join(textwrap.wrap(", ".join(neglist), 80))
+            txt += space * 2 + textwrap.fill(", ".join(neglist), 70).replace(
+                "\n", "\n" + space * 2
+            )
+            txt += "\n" + ")"
+        return txt
+
+    def __post_init__(self):
+
+        if self.storage_dir is not None:
+            gpath.storage_dir = self.storage_dir
+
+        if self.run_dir is not None:
+            gpath.run_dir = self.run_dir
+
+        if self.fig_dir is not None:
+            gpath.fig_dir = self.fig_dir
+
+        if self.radmc_dir is not None:
+            gpath.radmc_dir = self.radmc_dir
+
+        if self.log_path is not None:
+            gpath.log_path = self.log_path
+
+    def replaced(self, **changes):
+        return replace(self, **changes)
