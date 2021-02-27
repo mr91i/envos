@@ -26,7 +26,13 @@ oden: Observation simulatior for Disk-Envelope system
 
 3. Put the opacity table and molecular line data that you want to use in RADMC-3D, into storage directory.
 
-4. Find python packages needed to run this code with running example code, and install them. (I will list the packages in the future) 
+4. Find python packages needed to run this code with running example code, and install them.
+4. Install the following packages needed to run this code.
+- astropy        >= 4.2
+- matplotlib     >= 3.3.4
+- numpy          >= 1.20.1
+- pandas         >= 1.1.5
+- scipy          >= 1.6.1
 
 
 ## Tutorial
