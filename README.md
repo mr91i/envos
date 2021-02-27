@@ -25,9 +25,8 @@ oden: Observation simulatior for Disk-Envelope system
 
 2. To run this code, one need to install RADMC-3D (Dullemond et al. 2012; website: [https://www.ita.uni-heidelberg.de/~dullemond/software/radmc-3d/](https://www.ita.uni-heidelberg.de/~dullemond/software/radmc-3d/)) and radmc3dPy. Download RADMC-3D and radmc3dPy from [github](https://github.com/dullemond/radmc3d-2.0) and install them following [a HTML manual](https://www.ita.uni-heidelberg.de/~dullemond/software/radmc-3d/manual_radmc3d/index.html) or [a PDF version](https://www.ita.uni-heidelberg.de/~dullemond/software/radmc-3d/radmc3d.pdf).
 
-3. Put the opacity table and molecular line data that you want to use in RADMC-3D, into `storage` directory.  
-    e.g., `storage/dustkappa_silicate.inp`, `storage/molecule_c18o.inp`  
-    dustkappa_XXX.inp and molecule_XXX.inp file can be found in directories of RADMC-3D package. One can also get any molecule_XXX.inp from [*Atomic and Molecular Database*](https://home.strw.leidenuniv.nl/~moldata/).
+3. Put the opacity table and molecular line data that you want to use in RADMC-3D, into `storage` directory(e.g., `storage/dustkappa_silicate.inp`, `storage/molecule_c18o.inp`)    
+    dustkappa_XXX.inp and molecule_XXX.inp file can be found in directories of RADMC-3D package. One can also get any molecule_XXX.inp from [*Leiden Atomic and Molecular Database*](https://home.strw.leidenuniv.nl/~moldata/).
  
     
 4. Install the following ptyhon packages needed to run this code.
