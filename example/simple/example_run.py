@@ -3,7 +3,8 @@
 import envos
 
 config = envos.Config(
-    n_thread=10,
+    run_dir="./run",
+    n_thread=1,
     rau_in=10,
     rau_out=1000,
     dr_to_r=0.1,
@@ -56,3 +57,8 @@ odat = osim.observe_line()
 PV = odat.get_PV_map(pangle_deg=0)
 
 print(PV)
+
+# To visualize the PV diagram, one can use "envos.plot_tools"
+# which provide functions to plot results.
+envos.plot_tools.plot_pvdiagram(PV)
+
