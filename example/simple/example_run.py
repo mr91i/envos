@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import envos
+#import radmc3dPy
+#print(radmc3dPy.__file__)
+#exit()
 
 config = envos.Config(
     run_dir="./run",

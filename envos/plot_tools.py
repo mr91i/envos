@@ -7,9 +7,6 @@ import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mt
 import matplotlib.colors as mc
-import time
-from skimage.feature import peak_local_max
-
 
 from envos import gpath
 from envos import nconst as nc
@@ -210,6 +207,7 @@ def plot_pvdiagram(
     Ms_Msun=None,
     rCR_au=None,
     f_crit=0.1,
+    mass_estimate=False,
     mass_ip=False,
     mass_vp=False,
     mapmode="grid",
@@ -217,21 +215,10 @@ def plot_pvdiagram(
     subax=False,
 ):
 
-    #  if normalize == "peak":
-    #      if Imax > 0:
-    #          Ipv /= Imax
-    #          ctlim = [1/n_lv, 1]
-    #          n_lv -= 1
-    #      else:
-    #          ctlim = [0, 0.1]
-    #      unit = r'[$I_{\rm max}$]'
-    #  else:
-    #      ctlim = [0, Imax] if not self.Imax else [0, self.Imax]
     Ipv = PV.Ipv
     xau = PV.xau
     # xas = xau / PV.dpc
     vkms = PV.vkms
-    # ctlim = [0, np.max(Ipv)]
 
     plt.figure(figsize=(8,6))
     lvs = np.linspace(np.min(Ipv), np.max(Ipv), 11)
@@ -251,15 +238,16 @@ def plot_pvdiagram(
     # ax.minorticks_on()
     ax.tick_params("both", direction="inout")
 
-    add_mass_estimate_plot(
-    xau,
-    vkms,
-    Ipv,
-    Ms_Msun=Ms_Msun,
-    rCR_au=rCR_au,
-    f_crit=f_crit,
-    mass_ip=True,
-    mass_vp=True)
+    if mass_estimate:
+        add_mass_estimate_plot(
+        xau,
+        vkms,
+        Ipv,
+        Ms_Msun=Ms_Msun,
+        rCR_au=rCR_au,
+        f_crit=f_crit,
+        mass_ip=True,
+        mass_vp=True)
 
     if PV.convolve:
         draw_beamsize(
@@ -443,6 +431,8 @@ def add_mass_estimate_plot(
     mass_ip=False,
     mass_vp=False,
 ):
+    from skimage.feature import peak_local_max
+
     overplot = {
         "KeplerRotation": False,
         "ire_fit": False,

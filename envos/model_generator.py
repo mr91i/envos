@@ -7,6 +7,7 @@ from envos.models import (
     ExptailDisk,
 )
 from envos.radmc3d import RadmcController
+exit()
 from envos.log import set_logger
 from envos.grid import Grid
 from envos.physical_params import PhysicalParameters

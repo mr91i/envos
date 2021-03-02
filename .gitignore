@@ -22,5 +22,5 @@ fig_*
 # output of nohup
 nohup.out
 
-**/__pycache__
+__pycache__
 run/

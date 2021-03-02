@@ -156,7 +156,7 @@ class Config:
             gpath.storage_dir = self.storage_dir
 
         if self.run_dir is not None:
-            gpath.run_dir = self.run_dir
+            gpath.set_rundir(self.run_dir, update=True)
 
         if self.fig_dir is not None:
             gpath.fig_dir = self.fig_dir

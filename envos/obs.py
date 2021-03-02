@@ -611,7 +611,7 @@ class ObsData3D(BaseObsData):
             Ipp /= np.max(Ipp)
         return Ipp
 
-    def get_PV_map(self, pangle_deg=0, poffset_au=0, normalize="peak"):
+    def get_PV_map(self, pangle_deg=0, poffset_au=0, normalize="peak", save=False):
         if self.Ippv.shape[1] > 1:
             posline = self.position_line(
                 self.xau, PA_deg=pangle_deg, poffset_au=poffset_au
@@ -635,7 +635,8 @@ class ObsData3D(BaseObsData):
             self.beam_pa_deg,
         )
         PV.normalize()
-        PV.save_fitsfile()
+        if save:
+            PV.save_fitsfile()
         # self.PV_list.append(PV)
         return PV
 
