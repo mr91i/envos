@@ -8,17 +8,18 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mt
 import matplotlib.colors as mc
 
-from envos import gpath
-from envos import nconst as nc
-from envos import log
-from envos import streamline
-from envos import tools
-from myplot import mpl_setting, color
+from . import gpath
+from . import nconst as nc
+from . import log
+from . import streamline
+from . import tools
+# from myplot import mpl_setting, color
 
 logger = log.set_logger(__name__)
 matplotlib.use("Agg")
 # os.makedirs(gpath.fig_dir, exist_ok=True)
-
+color_def = ["#3498db", "#e74c3c", "#1abc9c", "#9b59b6", "#f1c40f", "#34495e",
+         "#446cb3", "#d24d57", "#27ae60", "#663399", "#f7ca18", "#bdc3c7", "#2c3e50"]
 
 """
 Plotting functions
@@ -508,7 +509,7 @@ def add_mass_estimate_plot(
         xau_peak = xau[i0+ipeak]
         vkms_peak = vkms[j0+jpeak]
 
-        draw_cross_pointer(xau_peak, vkms_peak, color.c_def[1], lw=1.5, s=18, ls=":")
+        draw_cross_pointer(xau_peak, vkms_peak, color_def[1], lw=1.5, s=18, ls=":")
         M_CR = calc_M(abs(xau_peak), vkms_peak, fac=1)
         txt_Mip = rf"$M_{{\rm ipeak}}$={M_CR:.3f}"
 
@@ -526,7 +527,7 @@ def add_mass_estimate_plot(
 
         x_crit = tools.find_roots(x_vmax, vkms, v_crit)[-1]
         M_CB = calc_M(abs(x_crit), v_crit, fac=1 / 2)
-        draw_cross_pointer(x_crit, v_crit, color.c_def[0], lw=1.5, s=18, ls=":")
+        draw_cross_pointer(x_crit, v_crit, color_def[0], lw=1.5, s=18, ls=":")
         txt_Mvp = rf"$M_{{\rm vmax,\,{f_crit*100:.0f}\%}}$={M_CB:.3f}"
 
     if mass_ip or mass_vp:
