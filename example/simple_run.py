@@ -33,6 +33,8 @@ config = envos.Config(
     dpc=100,
 )
 
+print(config)
+
 mg = envos.ModelGenerator(config)
 mg.calc_kinematic_structure()
 mg.calc_thermal_structure()

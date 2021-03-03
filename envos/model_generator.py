@@ -174,7 +174,7 @@ class ModelGenerator:
 
         if hasattr(inenv, "rho"):
             self.inenv = inenv
-        elif inenv == "CM":
+        elif inenv == "UCM":
             self.inenv = CassenMoosmanInnerEnvelope(
                 self.grid,
                 self.ppar.Mdot,
