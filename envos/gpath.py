@@ -80,7 +80,7 @@ def make_dirs(radmc=None, run=None, storage=None, fig=None):
 ##############################################################################
 
 home_dir = os.path.normpath(os.path.join(os.path.dirname(__file__), ".."))
-storage_dir = joinpath(home_dir, "storage")
+storage_dir = joinpath(home_dir, "envos/storage")
 
 run_dir = joinpath("./", "run")
 radmc_dir = joinpath(run_dir, "radmc")
