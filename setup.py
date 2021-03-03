@@ -9,7 +9,7 @@ setup(
     author='Shoji Mori',
     author_email='shoji9m@gmail.com',
     url='https://github.com/mr91i/envos',
-#    packages=find_packages("envos"),
+    packages=find_packages(),
 #    package_dir={'': 'envos'},
     python_requires='>=3.6, <4',
 
