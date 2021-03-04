@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import os
+import re
+import shutil
+import glob
 import numpy as np
 import pandas as pd
 import copy
@@ -380,7 +383,11 @@ class ObsSimulator:
         # logger.info("execute: " + cmd)
         dpath_sub = f"{self.radmc_dir}/{dn}"
         os.makedirs(dpath_sub, exist_ok=True)
-        os.system(f"cp {self.radmc_dir}/{{*.inp,*.dat}} {dpath_sub}/")
+        #os.system(f"cp {self.radmc_dir}/{{*.inp,*.dat}} {dpath_sub}/")
+        for f in glob.glob(f"{self.radmc_dir}/*"):
+            if re.search(r'.*\.(inp|dat)$', f):
+                shutil.copy2(f, f"{dpath_sub}/" )
+
         log = logger.isEnabledFor(logging.INFO) and p == 0
         tools.shell(
             cmd,
