@@ -33,11 +33,23 @@ config = envos.Config(
     dpc=100,
 )
 
+# Printing a Config class shows all arguments set in the instance, 
+# including implicitly set arguments.
 print(config)
 
+
+# ModelGenerator generates a physical model with calculating 
+# density, velocity, and temperature structure. The simplest way 
+# to pass the argumets to ModelGenerator is just to pass a config class.
 mg = envos.ModelGenerator(config)
+
+# Calculate density and velocity structure. 
 mg.calc_kinematic_structure()
+
+# Calculate temperature structure.
 mg.calc_thermal_structure()
+
+# Generate the physical model as a `Circumstellar Model` object. 
 model = mg.get_model()
 
 # Once you save a data file as:
@@ -45,10 +57,25 @@ model = mg.get_model()
 # you can read the model as
 #   model = envos.read_model("run/model.pkl")
 
+# "Circumstellar Model" object is printed as a readable format.
+# For n-dimension array, to be readable, only shape, min, and max are printed.
+# Learn what variables are available, and check if the calculation is done collectly. 
 print(model)
 
+
+# ObsSimulator executes the calculation of synthetic observation.
+# ObsSimulator can also get recieve a `Config` object. 
 osim = envos.ObsSimulator(config)
+
+# ObsSimulator set radmc-3d input files again when it recieves a physical model,
+# unless input files used in calculaitng the thermal structure is used.
+# For example, if you want to understand which region corresponds to which intensity feature,
+# limiting emitting regions after calculating the temperture structure may help you. 
 osim.set_model(model)
+
+# observe_line() calculates the radiative transfer with ray tracing method,
+# and returns a ObsData3D object, which contains intensity distribution in 
+# 3-dimension (longitude, latitude, and velocity; i.e., 3D data cube).
 odat = osim.observe_line()
 
 # Once you save a data file as:
@@ -56,11 +83,14 @@ odat = osim.observe_line()
 # you can read the data as:
 #   odat = envos.read_obsdata("run/lineobs.pkl")
 
+# ObsData3D class can generate intensity profile in the position-velocity dimension
+# assuming a line for slicing. get_PV_map returns PVmap class.
 PV = odat.get_PV_map(pangle_deg=0)
 
+# PVmap class is also printed as a readable format. 
 print(PV)
 
-# To visualize the PV diagram, one can use "envos.plot_tools"
+# To visualize the PV diagram, you can use "envos.plot_tools"
 # which provide functions to plot results.
 envos.plot_tools.plot_pvdiagram(PV)
 
