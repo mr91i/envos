@@ -1,6 +1,6 @@
 # **envos**
 
-**Env**elope **O**bservation **S**imulator.  
+**Env**elope **O**bservation **S**imulator, developed by Shoji Mori.    
 This code executes synthetic observation with calculating physical model of young circumstellar system (i.e. envelope and disk). 
 
 ## Features
