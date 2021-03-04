@@ -107,11 +107,16 @@ def dataclass_str(self):
     for k, v in asdict(self).items():
         txt += "\n"
         var = str(k) + " = "
-        if isinstance(v, (list, np.ndarray)):
+        if isinstance(v, list):
             #txt += "\n"
             #txt += space*2 + str(v).replace('\n', '\n'+space*2)
             space_var = " "*len(var)
             txt += space + var + str(v).replace('\n', '\n'+space+space_var)
+
+        if isinstance(v, np.ndarray):
+            info = f"array(shape={np.shape(v)}, min={np.min(v)}, max={np.max(v)})"
+            txt += space +  var + info
+
         elif isinstance(v, str):
             txt += space + var + f"\"{str(v)}\""
         else:
