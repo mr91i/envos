@@ -1,3 +1,4 @@
+from . import header
 from .config import Config
 from .model_generator import ModelGenerator, read_model  # Grid, KinematicModel
 from .obs import ObsSimulator, read_obsdata
