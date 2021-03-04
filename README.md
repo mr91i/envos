@@ -35,15 +35,16 @@ This code executes synthetic observation with calculating physical model of youn
 
      4. Install radmc3dPy also following the manual. 
 
-     5. Check if it works, e.g. execute `python -c "import radmc3dPy"` in command line.   
+     5. Check if it works  
+     e.g., execute `python -c "import radmc3dPy"` in command line.   
 
 
 2. Install envos.
 
-    1. Download envos from this github repository
+    1. Download envos from this github repository  
     `git clone https://github.com/mr91i/envos.git` 
 
-    2. Execute setup.py in envos directory
+    2. Execute setup.py in envos directory  
     `python setup.py install`
     
     3. Check if it works, e.g., execute a example script in `examples` ditectory.
