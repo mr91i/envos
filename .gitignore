@@ -25,3 +25,5 @@ nohup.out
 __pycache__
 run/
 envos.egg-info/
+build/
+dist/
