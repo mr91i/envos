@@ -1,34 +1,63 @@
-# envos.py
+# **envos**
 
-**En**velope **O**bservation **S**imulator.
-This code executes synthetic observation with creating an envelope model.
+**Env**elope **O**bservation **S**imulator, developed by Shoji Mori.    
+This code executes synthetic observation with calculating physical model of young circumstellar system (i.e. envelope and disk). 
 
-<!--
-[](
-project name list\
-pmodes\
-envos: Envelope Observation Simulator\
-endo: Envelope-Disk ystem for Observation\
-osimen: Observation Simulator for Model of Envelope\
-osiire: Observation SImulator for Infalling Rotating Envelope\
-obsend: pipeline for synthetic OBServation of ENvelope Disk systems\
-obento: pipeline for synthetic OBServation of ENvelope Disk systems\
-somen : Synthetic Observation for  Model of Envelope\
-oden: Observation simulatior for Disk-Envelope system
-)
--->
+## Features
+
+- Temperature structure is calculated consistently with the density structure given by user.
+- Calculation of temperature structure and sysnthetic observation is done by RADMC-3D (Dullemond et al. 2012; website: [https://www.ita.uni-heidelberg.de/~dullemond/software/radmc-3d/](https://www.ita.uni-heidelberg.de/~dullemond/software/radmc-3d/)), which is commonly used in astronomical studies. 
+- All source codes are written in Python3.
+
+## Requirements
+- Python packages (automatically installed when installing envos)
+    - numpy
+    - scipy
+    - dataclasses
+    - pandas
+    - astropy
+    - matplotlib (for using RADMC-3D)
+
+- To use RADMC-3D
+     - Fortran compiler (e.g. `gfortan`, `intel fortran`)
+     - (optional) Fortran openMP library
+
+
 
 ## Setup
-1. Download envos from this github repository:  
-`git clone https://github.com/mr91i/envos.git` 
+1. Install RADMC-3D and radmc3dPy. 
 
-2. Execute setup.py in envos directory:
-`python setup.py install`
+     1. Download the installing source code from [github](https://github.com/dullemond/radmc3d-2.0).
+      
+     2. Install RADMC-3D following [a HTML manual](https://www.ita.uni-heidelberg.de/~dullemond/software/radmc-3d/manual_radmc3d/index.html) or [a PDF version](https://www.ita.uni-heidelberg.de/~dullemond/software/radmc-3d/radmc3d.pdf).
+
+     3. Check if it works following the RADMC-3D manual, e.g. execute a example run.
+
+     4. Install radmc3dPy also following the manual. 
+
+     5. Check if it works  
+     e.g., execute `python -c "import radmc3dPy"` in command line.   
 
 
-3. To run this code, one need to install RADMC-3D (Dullemond et al. 2012; website: [https://www.ita.uni-heidelberg.de/~dullemond/software/radmc-3d/](https://www.ita.uni-heidelberg.de/~dullemond/software/radmc-3d/)) and radmc3dPy. Download RADMC-3D and radmc3dPy from [github](https://github.com/dullemond/radmc3d-2.0) and install them following [a HTML manual](https://www.ita.uni-heidelberg.de/~dullemond/software/radmc-3d/manual_radmc3d/index.html) or [a PDF version](https://www.ita.uni-heidelberg.de/~dullemond/software/radmc-3d/radmc3d.pdf).
+2. Install envos.
 
-4. Put the opacity table and molecular line data that you want to use in RADMC-3D, into `storage` directory(e.g., `storage/dustkappa_silicate.inp`, `storage/molecule_c18o.inp`)dustkappa_XXX.inp and molecule_XXX.inp file can be found in directories of RADMC-3D package. One can also get any molecule_XXX.inp from [*Leiden Atomic and Molecular Database*](https://home.strw.leidenuniv.nl/~moldata/).
+    1. Download envos from this github repository  
+    `git clone https://github.com/mr91i/envos.git` 
+
+    2. Execute setup.py in envos directory  
+    `python setup.py install`
+    
+    3. Check if it works, e.g., execute a example script in `examples` ditectory.
+
+
+<!--
+
+    * Put the dust opacity table and molecular line table that you want to use in RADMC-3D, into a directory.  Initially, (e.g., `storage/dustkappa_MRN20.inp`, `storage/molecule_c18o.inp`)dustkappa_XXX.inp and molecule_XXX.inp file can be found in directories of RADMC-3D package. One can also get any molecule_XXX.inp from [*Leiden Atomic and Molecular Database*](https://home.strw.leidenuniv.nl/~moldata/))
+
+-->
+
+
+
  
 
 
