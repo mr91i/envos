@@ -3,6 +3,7 @@ Setup file for package `envos`.
 """
 from setuptools import setup, find_packages
 
+
 setup(
     name='envos',
     version='0.1.0',
@@ -17,5 +18,5 @@ setup(
     package_dir={'envos': 'envos'},
     package_data={'envos': ['storage/*.inp']},
     python_requires='>=3.6, <4',
-
+    zip_safe= False,
 )
