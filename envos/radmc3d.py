@@ -51,11 +51,14 @@ class RadmcController:
 
     def set_dirs(self, run_dir=None, radmc_dir=None, storage_dir=None):
         self.run_dir = run_dir or gpath.run_dir  # global?
+        gpath.make_dirs(run=self.run_dir)
+
         self.radmc_dir = radmc_dir or gpath.radmc_dir  # local
+        gpath.make_dirs(radmc=self.radmc_dir)
+
         self.storage_dir = storage_dir or gpath.storage_dir
-        gpath.make_dirs(
-            run=self.run_dir, radmc=self.radmc_dir, storage=self.storage_dir
-        )
+        if self.storage_dir is not gpath.storage_dir:
+            gpath.make_dirs(storage=self.storage_dir)
 
     def set_input_params(
         self,
