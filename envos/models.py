@@ -39,6 +39,14 @@ class ModelBase:
 @dataclass
 class CircumstellarModel(ModelBase):
     grid: Any = None
+    rc_ax: np.ndarray = None
+    tc_ax: np.ndarray = None
+    pc_ax: np.ndarray = None
+    rr: np.ndarray = None
+    tt: np.ndarray = None
+    pp: np.ndarray = None
+    R: np.ndarray = None
+    z: np.ndarray = None
     ppar: Any = None
     rhogas: np.ndarray = None
     rhodust: np.ndarray = None
