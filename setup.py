@@ -2,7 +2,8 @@
 Setup file for package `envos`.
 """
 from setuptools import setup, find_packages
-
+print(find_packages(where="my-envos"))
+exit()
 setup(
     name='envos',
     version='0.1.0',

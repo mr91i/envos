@@ -3,6 +3,7 @@
 import os
 import numpy as np
 import pandas as pd
+import radmc3dPy
 import radmc3dPy.analyze as rmca
 from envos import tools
 import envos.nconst as nc
