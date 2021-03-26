@@ -67,6 +67,33 @@ def plot_midplane_numberdensity_profile(km):
     plt.yscale("log")
     savefig("ndens_prof.pdf")
 
+def plot_midplane_velocity_map(model, rlim=600):
+    rax = model.rc_ax
+    tax = model.tc_ax
+    pax = model.pc_ax if len(model.pc_ax) != 1 else np.linspace(-np.pi, np.pi, 91)
+    rr, tt, pp = np.meshgrid(rax, tax, pax, indexing='ij')
+    R, z = rr * [np.sin(tt), np.cos(tt)]
+    x, y = R * [np.cos(pp), np.sin(pp)]
+    vx = model.vr * np.cos(pp) - model.vp * np.sin(pp)
+    vy = model.vr * np.sin(pp) + model.vp * np.cos(pp)
+
+    vls = x/rr * model.vp + y/rr*model.vr
+
+    lvs = np.linspace(-1.7, 1.7, 18)
+    print(x.shape, y.shape, vls.shape)
+    #img  = plt.contourf(x[:,-1,:]/nc.au, y[:,-1,:]/nc.au, vls[:,-1,:]/1e5, lvs,  cmap=plt.get_cmap('seismic'))
+    img  = plt.contourf(x[:,-1,:]/nc.au, y[:,-1,:]/nc.au, vls[:,-1,:]/1e5, lvs,  cmap=plt.get_cmap('RdBu_r'))
+    plt.xlim(-rlim, rlim)
+    plt.ylim(-rlim, rlim)
+    plt.xlabel("x [au]")
+    plt.ylabel("Distance along Line-of-Sight [au]")
+    cbar = plt.colorbar(img, extend="both", ticks= np.linspace(-2, 2, 11) )
+    cbar.set_label(r'$V_{\rm LOS}$ [km s$^{-1}$]')
+    cbar.ax.minorticks_off()
+    savefig("v_los.pdf")
+
+
+
 
 def plot_temperature_map(
     m,
@@ -139,7 +166,7 @@ def plot_mom0_map(
 ):
     def position_line(length, pangle_deg, poffset_au=0):
         line = np.linspace(-length/2, length/2, 10)
-        pangle_rad = pangle_deg * np.pi / 180
+        pangle_rad = (pangle_deg + 90)* np.pi / 180
         pos_x = line * np.cos(pangle_rad) - poffset_au * np.sin(pangle_rad)
         pos_y = line * np.sin(pangle_rad) + poffset_au * np.sin(pangle_rad)
         return pos_x, pos_y
@@ -150,7 +177,7 @@ def plot_mom0_map(
     plt.figure(figsize=(8,6))
     img = plt.pcolormesh(
         obsdata.xau, obsdata.yau , Ipp.T,
-        cmap=make_listed_cmap("magma", len(lvs)-1),
+        cmap=make_listed_cmap("magma", len(lvs)-1, extend="neither"),
         norm=mc.BoundaryNorm(lvs, len(lvs)-1, clip=False),
         shading="nearest", rasterized=True
     )
@@ -214,30 +241,36 @@ def plot_pvdiagram(
     mapmode="grid",
     oplot={},
     subax=False,
+    figsize=(8,6),
+    xlim=(-700, 700),
+    ylim=(-2, 2)
 ):
+    print("hi")
 
     Ipv = PV.Ipv
     xau = PV.xau
     # xas = xau / PV.dpc
     vkms = PV.vkms
 
-    plt.figure(figsize=(8,6))
+    plt.figure(figsize=figsize)
     lvs = np.linspace(np.min(Ipv), np.max(Ipv), 11)
     img = plt.pcolormesh(xau, vkms, Ipv,
-        cmap=make_listed_cmap("cividis", len(lvs)-1),
+        cmap=make_listed_cmap("cividis", len(lvs)-1, extend="neither"),
         norm=mc.BoundaryNorm(lvs, len(lvs)-1, clip=False),
         shading="nearest", rasterized=True)
-    plt.xlim(-700, 700)
-    plt.ylim(-3, 3)
+
+    plt.xlim(*xlim)
+    plt.ylim(*ylim)
     plt.xlabel("Position [au]")
-    plt.ylabel(r"Velocity [km s$^{-1}$]")
+    plt.ylabel(r"Line-of-Sight Velocity [km s$^{-1}$]")
     cbar = plt.colorbar(img)
     cbar.set_label(r"Intensity [$I_{\rm max}$]")
 
     ax = plt.gca()
     draw_center_line()
     # ax.minorticks_on()
-    ax.tick_params("both", direction="inout")
+    #ax.tick_params("both", direction="inout")
+    ax.tick_params(direction="inout")
 
     if mass_estimate:
         add_mass_estimate_plot(
@@ -275,12 +308,19 @@ def plot_pvdiagram(
 """
 plotting tools
 """
-def make_listed_cmap(cmap_name, ncolors):
-    cmap = plt.get_cmap(cmap_name, ncolors+2)
+def make_listed_cmap(cmap_name, ncolors, extend="both"):
+    if extend=="both":
+        io = 1
+        iu = 1
+    elif extend=="neither":
+        io = 0
+        iu = 0
+    cmap = plt.get_cmap(cmap_name, ncolors + io + iu)
     colors = cmap.colors
-    lcmap = mc.ListedColormap(colors[1:-1])
-    lcmap.set_under(colors[0])
-    lcmap.set_over(colors[-1])
+    clist = colors[1 if iu else 0: -1 if io else None]
+    lcmap = mc.ListedColormap(clist)
+    #lcmap.set_under(colors[0])
+    #lcmap.set_over(colors[-1])
     return lcmap
 
 def add_streams(km, rlim, r0=None):
@@ -359,7 +399,7 @@ def vertical_integral(value_rt, R_rt, z_rt, R_ax, z_ax, log=False):
 
 
 def draw_center_line():
-    draw_cross_pointer(0, 0, c="k", lw=.5, ls="-", s=0, alpha=0.5, zorder=1)
+    draw_cross_pointer(0, 0, c="k", lw=1, ls="-", s=0, alpha=0.5, zorder=1)
 
 def draw_cross_pointer(x, y, c="k", lw=2, ls=":", s=10, alpha=1, zorder=1):
     plt.axhline(y=y, lw=lw, ls=ls, c=c, alpha=alpha, zorder=zorder)
