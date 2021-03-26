@@ -285,7 +285,7 @@ class ObsSimulator:
             "npixy": self.npixy,
             "zoomau": [*self.zoomau_x, *self.zoomau_y],
             "iline": self.iline,
-            "option": "noscat nostar nodust",
+            "option": "noscat nostar nodust", #  doppcatch",
         }
 
         v_calc_points = np.linspace(

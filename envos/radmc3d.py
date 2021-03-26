@@ -125,13 +125,14 @@ class RadmcController:
         Setting Radmc Parameters
         """
         # set grid
+        coord_info = "1 1 " + ("1" if npc >= 2 else "0")
         self._save_input_file(
             "amr_grid.inp",
             "1",
             "0",
             "100",
             "0",
-            "1 1 0",
+            coord_info,
             f"{nrc:d} {ntc:d} {npc:d}",
             *md.ri_ax,
             *md.ti_ax,
