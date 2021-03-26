@@ -7,10 +7,10 @@ import glob
 import numpy as np
 import pandas as pd
 import copy
-import logging
+from logging import INFO
 import contextlib
 import multiprocessing
-from scipy import integrate, interpolate
+from scipy import integrate, interpolate, signal
 from dataclasses import dataclass, asdict
 
 import astropy.io.fits as iofits
@@ -235,6 +235,7 @@ class ObsSimulator:
             odat.Ipp = self.convolver(odat.Ipp)
             odat.add_convolution_info(**self.convolve_config)
 
+
         return odat
 
     def observe_line_profile(self, zoomau=None, iline=None, molname=None, incl=None, phi=None, posang=None):
@@ -388,7 +389,7 @@ class ObsSimulator:
             if re.search(r'.*\.(inp|dat)$', f):
                 shutil.copy2(f, f"{dpath_sub}/" )
 
-        log = logger.isEnabledFor(logging.INFO) and p == 0
+        log = logger.isEnabledFor(INFO) and p == 0
         tools.shell(
             cmd,
             cwd=dpath_sub,
@@ -443,33 +444,45 @@ def format_array(array):
 
 
 class Convolver:
+    """
+    shape of 3d-image is (ix_max, jy_max, kv_max)
+    Kernel
+
+    """
+
     def __init__(self, grid_size, beam_maj_au=None, beam_min_au=None, vreso_kms=None, beam_pa_deg=0, mode="fft"):
         # relation : standard deviation = 1/(2 sqrt(ln(2))) * FWHM of Gaussian
         # theta_deg : cclw is positive
         self.mode = mode
         sigma_over_FWHM = 2 * np.sqrt(2 * np.log(2))
-        conv_size = [beam_maj_au, beam_min_au]
+        conv_size = [beam_maj_au+1e-100, beam_min_au+1e-100]
         if vreso_kms is not None:
-            conv_size += [vreso_kms]
+            conv_size += [vreso_kms+1e-100]
         stddev = np.array(conv_size) / np.array(grid_size) / sigma_over_FWHM
         beampa = np.radians(beam_pa_deg)
         self.Kernel_xy2d = aconv.Gaussian2DKernel(
-            stddev[0], stddev[1], beampa
+            x_stddev=stddev[0], y_stddev=stddev[1], theta=beampa
         )._array
         if len(conv_size) == 3 and (conv_size[2] is not None):
             Kernel_v1d = aconv.Gaussian1DKernel(stddev[2])._array
             self.Kernel_3d = np.multiply(
-                self.Kernel_xy2d[np.newaxis, :, :],
-                Kernel_v1d[:, np.newaxis, np.newaxis],
+                #self.Kernel_xy2d[np.newaxis, :, :],
+                self.Kernel_xy2d[:, :, np.newaxis],
+                Kernel_v1d[np.newaxis, np.newaxis, :],
             )
 
     def __call__(self, image):
         if len(image.shape) == 2 or image.shape[2] == 1:
             Kernel = self.Kernel_xy2d
+            logger.info("Convolving image with 2d-Kernael")
         elif len(image.shape) == 3:
             Kernel = self.Kernel_3d
+            logger.info("Convolving image with 3d-Kernael")
         else:
             raise Exception("Unknown data.image shape: ", image.shape)
+
+        logger.info("Kernel shape is %s", Kernel.shape)
+        logger.info("Image shape is %s", image.shape)
 
         if self.mode == "normal":
             return aconv.convolve(image, Kernel)
@@ -477,6 +490,9 @@ class Convolver:
             return aconv.convolve_fft(image, Kernel, allow_huge=True)
             #from scipy.fftpack import fft, ifft
             #return aconv.convolve_fft(image, Kernel, allow_huge=True, nan_treatment='interpolate', normalize_kernel=True, fftn=fft, ifftn=ifft)
+        elif self.mode == "scipy":
+            return signal.convolve(image, Kernel, mode="same", method='auto')
+
         elif self.mode == "null":
             return image
         else:
@@ -618,7 +634,7 @@ class ObsData3D(BaseObsData):
             Ipp /= np.max(Ipp)
         return Ipp
 
-    def get_PV_map(self, pangle_deg=0, poffset_au=0, normalize="peak", save=False):
+    def get_PV_map(self, pangle_deg=0, poffset_au=0, Inorm="max", save=False):
         if self.Ippv.shape[1] > 1:
             posline = self.position_line(
                 self.xau, PA_deg=pangle_deg, poffset_au=poffset_au
@@ -641,7 +657,7 @@ class ObsData3D(BaseObsData):
             self.vreso_kms,
             self.beam_pa_deg,
         )
-        PV.normalize()
+        PV.normalize(Inorm)
         if save:
             PV.save_fitsfile()
         # self.PV_list.append(PV)
@@ -768,11 +784,17 @@ class PVmap(BaseObsData):
 
     def normalize(self, Ipv_norm=None):
         if Ipv_norm is None:
+            self.Ipv /= 1
+            self.unit_I = r"[Jy pixel$^{{-1}}$]" # rf"[{Ipv_norm} Jy pixel$^{{-1}}$]]"
+        elif Ipv_norm == "max":
             self.Ipv /= np.max(self.Ipv)
             self.unit_I = r"[$I_{\rm max}$]"
-        else:
+        elif isinstance(Ipv_norm, float):
             self.Ipv /= Ipv_norm
-            self.unit_I = rf"[{Ipv_norm} Jy pixel$^{{-1}}$]]"
+            self.unit_I = f"[{Ipv_norm}"+ r"Jy pixel$^{-1}$]"
+        else:
+            return None
+
 
     def trim(self, range_x=None, range_v=None):
         if range_x is not None:
