@@ -29,8 +29,8 @@ Plotting functions
 def plot_density_map(
     model,
     rlim=700,
-    streams=True,
-    trajectries=True,
+    streams=False, #True,
+    trajectries=False, #True,
 ):
     lvs = np.linspace(-19, -16, 10)[2:]
     img = plt.pcolormesh(
@@ -46,7 +46,7 @@ def plot_density_map(
     plt.ylim(0, rlim)
     plt.xlabel("R [au]")
     plt.ylabel("z [au]")
-    cbar = plt.colorbar(img, format="%.1f", extend="both")
+    cbar = plt.colorbar(img, format="%.1f", extend="both", pad=0.02)
     cbar.set_label(r"Log Gas Density [g cm$^{-3}$]")
     cbar.ax.minorticks_off()
 
@@ -71,23 +71,27 @@ def plot_midplane_velocity_map(model, rlim=600):
     rax = model.rc_ax
     tax = model.tc_ax
     pax = model.pc_ax if len(model.pc_ax) != 1 else np.linspace(-np.pi, np.pi, 91)
+    #pax = np.linspace(-np.pi, np.pi, 91)
     rr, tt, pp = np.meshgrid(rax, tax, pax, indexing='ij')
     R, z = rr * [np.sin(tt), np.cos(tt)]
     x, y = R * [np.cos(pp), np.sin(pp)]
-    vx = model.vr * np.cos(pp) - model.vp * np.sin(pp)
-    vy = model.vr * np.sin(pp) + model.vp * np.cos(pp)
+    #vx = model.vr * np.cos(pp) - model.vp * np.sin(pp)
+    #vy = model.vr * np.sin(pp) + model.vp * np.cos(pp)
 
     vls = x/rr * model.vp + y/rr*model.vr
 
     lvs = np.linspace(-1.7, 1.7, 18)
-    print(x.shape, y.shape, vls.shape)
     #img  = plt.contourf(x[:,-1,:]/nc.au, y[:,-1,:]/nc.au, vls[:,-1,:]/1e5, lvs,  cmap=plt.get_cmap('seismic'))
-    img  = plt.contourf(x[:,-1,:]/nc.au, y[:,-1,:]/nc.au, vls[:,-1,:]/1e5, lvs,  cmap=plt.get_cmap('RdBu_r'))
+#    img  = plt.contourf(x[:,-1,:]/nc.au, y[:,-1,:]/nc.au, vls[:,-1,:]/1e5)
+    img  = plt.tricontourf(x[:,-1,:].flatten()/nc.au, y[:,-1,:].flatten()/nc.au, vls[:,-1,:].flatten()/1e5, lvs,  cmap=plt.get_cmap('RdBu_r'), extend="both", )
+
+    #img  = plt.contourf(x[:,-1,:]/nc.au, y[:,-1,:]/nc.au, vls[:,-1,:]/1e5, lvs,  cmap=plt.get_cmap('RdBu_r'))
+    #img  = plt.scatter(x[:,-1,:]/nc.au, y[:,-1,:]/nc.au, c=vls[:,-1,:]/1e5, cmap=plt.get_cmap('RdBu_r'), alpha=0.5)
     plt.xlim(-rlim, rlim)
     plt.ylim(-rlim, rlim)
     plt.xlabel("x [au]")
     plt.ylabel("Distance along Line-of-Sight [au]")
-    cbar = plt.colorbar(img, extend="both", ticks= np.linspace(-2, 2, 11) )
+    cbar = plt.colorbar(img, ticks= np.linspace(-2, 2, 11) , pad=0.02)
     cbar.set_label(r'$V_{\rm LOS}$ [km s$^{-1}$]')
     cbar.ax.minorticks_off()
     savefig("v_los.pdf")
@@ -98,8 +102,8 @@ def plot_midplane_velocity_map(model, rlim=600):
 def plot_temperature_map(
     m,
     rlim=700,
-    streams=True,
-    trajectries=True,
+    streams=False, #True,
+    trajectries=False, #True,
 ):
     lvs = np.linspace(10, 100, 10)
     cmap = plt.get_cmap("inferno", len(lvs))
@@ -127,7 +131,7 @@ def plot_temperature_map(
     plt.ylim(0, rlim)
     plt.xlabel("R [au]")
     plt.ylabel("z [au]")
-    cbar = plt.colorbar(img, extend="both")
+    cbar = plt.colorbar(img, extend="both", pad=0.02)
     cbar.set_label(r"Gas Temperature [K]")
     cbar.ax.minorticks_off()
     # cbar.ax.yaxis.set_major_formatter(mt.ScalarFormatter())
@@ -171,7 +175,8 @@ def plot_mom0_map(
         pos_y = line * np.sin(pangle_rad) + poffset_au * np.sin(pangle_rad)
         return pos_x, pos_y
         #return np.stack([pos_x, pos_y], axis=-1)
-    Ipp = integrate.simps(obsdata.Ippv, obsdata.vkms, axis=2)
+    #Ipp = integrate.simps(obsdata.Ippv, obsdata.vkms, axis=2)
+    Ipp = np.sum(obsdata.Ippv, axis=2) * (obsdata.vkms[1] - obsdata.vkms[0])
     Ipp /= np.max(Ipp)
     lvs = np.linspace(0, np.max(Ipp), 11)
     plt.figure(figsize=(8,6))
@@ -185,7 +190,7 @@ def plot_mom0_map(
     plt.ylim(-700, 700)
     plt.xlabel("x [au]")
     plt.ylabel("y [au]")
-    cbar = plt.colorbar(img)
+    cbar = plt.colorbar(img, pad=0.02)
     cbar.set_label(r"Normalized Integrated Intesity")
 
     ax = plt.gca()
@@ -234,6 +239,7 @@ def plot_pvdiagram(
     n_lv=5,
     Ms_Msun=None,
     rCR_au=None,
+    incl=90,
     f_crit=0.1,
     mass_estimate=False,
     mass_ip=False,
@@ -263,7 +269,7 @@ def plot_pvdiagram(
     plt.ylim(*ylim)
     plt.xlabel("Position [au]")
     plt.ylabel(r"Line-of-Sight Velocity [km s$^{-1}$]")
-    cbar = plt.colorbar(img)
+    cbar = plt.colorbar(img, pad=0.02)
     cbar.set_label(r"Intensity [$I_{\rm max}$]")
 
     ax = plt.gca()
@@ -280,6 +286,7 @@ def plot_pvdiagram(
         Ms_Msun=Ms_Msun,
         rCR_au=rCR_au,
         f_crit=f_crit,
+        incl=incl,
         mass_ip=True,
         mass_vp=True)
 
@@ -308,6 +315,13 @@ def plot_pvdiagram(
 """
 plotting tools
 """
+def add_colorbar(label=None, fmt=None, extend="both", pad=0.02, minticks=False):
+    cbar = plt.colorbar(img, format=fmt, extend="both", pad=pad)
+    cbar.set_label(label)
+    if minticks:
+        cbar.ax.minorticks_off()
+
+
 def make_listed_cmap(cmap_name, ncolors, extend="both"):
     if extend=="both":
         io = 1
@@ -468,6 +482,7 @@ def add_mass_estimate_plot(
     xau, vkms, Ipv,
     Ms_Msun,
     rCR_au,
+    incl=90,
     f_crit=None,
     mass_ip=False,
     mass_vp=False,
@@ -549,9 +564,16 @@ def add_mass_estimate_plot(
         xau_peak = xau[i0+ipeak]
         vkms_peak = vkms[j0+jpeak]
 
+
         draw_cross_pointer(xau_peak, vkms_peak, color_def[1], lw=1.5, s=18, ls=":")
-        M_CR = calc_M(abs(xau_peak), vkms_peak, fac=1)
+        M_CR = calc_M(abs(xau_peak), vkms_peak/np.sin(np.deg2rad(incl)), fac=1)
         txt_Mip = rf"$M_{{\rm ipeak}}$={M_CR:.3f}"
+
+        logger.info("Mass estimation with intensity peak:")
+        logger.info(f" x_ipeak = {xau_peak} au")
+        logger.info(f" V_ipeak = {vkms_peak} km/s")
+        logger.info(f" V_ipeak/sin i = {vkms_peak/np.sin(np.deg2rad(incl))} km/s")
+        logger.info(f" M_ipeak = {M_CR} Msun")
 
     if mass_vp:
         ## M_vpeak
@@ -566,9 +588,15 @@ def add_mass_estimate_plot(
             v_crit = v_crit[-1]
 
         x_crit = tools.find_roots(x_vmax, vkms, v_crit)[-1]
-        M_CB = calc_M(abs(x_crit), v_crit, fac=1 / 2)
+        M_CB = calc_M(abs(x_crit), v_crit/np.sin(np.deg2rad(incl)) , fac=1 / 2)
         draw_cross_pointer(x_crit, v_crit, color_def[0], lw=1.5, s=18, ls=":")
         txt_Mvp = rf"$M_{{\rm vmax,\,{f_crit*100:.0f}\%}}$={M_CB:.3f}"
+
+        logger.info("Mass estimation with maximum velocity:")
+        logger.info(f" x_vmax = {x_crit} au")
+        logger.info(f" V_vmax = {v_crit} km/s")
+        logger.info(f" V_vmax/sin(i) = {v_crit/np.sin(np.deg2rad(incl))} km/s")
+        logger.info(f" M_vmax = {M_CB} Msun")
 
     if mass_ip or mass_vp:
         plt.text(
