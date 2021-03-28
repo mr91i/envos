@@ -171,6 +171,14 @@ class RadmcController:
             "iranfreqmode": 1,
             "mc_scat_maxtauabs": self.mc_scat_maxtauabs,
             "tgas_eq_tdust": int(self.tgas_eq_tdust),
+            #"camera_maxdphi": 0.0,
+            #"camera_refine_criterion": 0.7,
+            #"camera_min_drr":0.001,
+            #"camera_min_dangle":0.0001,
+            #"camera_max_dangle": 0.001,
+            #"optimized_motion":1,
+            #"camera_spher_cavity_relres":0.01,
+            #"camera_diagnostics_subpix": 1,
         }
         self._save_input_file(
             "radmc3d.inp", *[f"{k} = {v}" for k, v in param_dict.items()]
