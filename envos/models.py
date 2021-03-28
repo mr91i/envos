@@ -154,9 +154,9 @@ class SimpleBallisticInnerEnvelope(ModelBase):
         self.set_cylindrical_velocity()
 
     def calc_kinematic_structure(self, Mdot, CR, M, cavangle):
-        vff = np.sqrt(2 * G * self.Ms / self.rr)
-        CB = self.CR / 2
-        rho_prof = self.Mdot / (4 * np.pi * self.rr ** 2 * vff)
+        vff = np.sqrt(2 * G * M / self.rr)
+        CB = CR / 2
+        rho_prof = Mdot / (4 * np.pi * self.rr ** 2 * vff)
         mu_cav = np.cos(cavangle)
         cavmask = np.array(np.cos(self.tt) <= mu_cav, dtype=float)
         cbmask = np.array(self.rr >= CB, dtype=float)
@@ -164,7 +164,7 @@ class SimpleBallisticInnerEnvelope(ModelBase):
         self.vr = -vff * np.sqrt((1 - CB / self.rr).clip(0))
         self.vt = np.zeros_like(self.rr)
         self.vp = vff / np.sqrt(self.rr / CB)
-        self.mu0 = self.mu
+        self.mu0 = np.cos(self.tt)
 
 
 class TerebeyOuterEnvelope(ModelBase):
