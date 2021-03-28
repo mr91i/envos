@@ -67,6 +67,17 @@ def plot_midplane_numberdensity_profile(km):
     plt.yscale("log")
     savefig("ndens_prof.pdf")
 
+def plot_midplane_velocity_profile(model):
+    plt.plot(model.rc_ax/nc.au, -model.vr[:, -1, 0]/1e5, label=r"$- v_r$")
+    plt.plot(model.rc_ax/nc.au,  model.vt[:, -1, 0]/1e5, label=r"$v_{\theta}$")
+    plt.plot(model.rc_ax/nc.au,  model.vp[:, -1, 0]/1e5, label=r"$v_{\phi}$")
+    plt.xlim(0, 300)
+    plt.ylim(0, 3)
+    plt.xlabel("Distance from Star [au]")
+    plt.ylabel("Velocity [km s$^{-1}$]")
+    plt.legend()
+    savefig("v_prof.pdf")
+
 def plot_midplane_velocity_map(model, rlim=600):
     rax = model.rc_ax
     tax = model.tc_ax
