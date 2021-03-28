@@ -1,6 +1,6 @@
 import numpy as np
 from dataclasses import dataclass, asdict, replace
-from envos.log import set_logger
+from envos.log import set_logger, enable_saving_output
 from envos import gpath
 import textwrap
 
@@ -35,7 +35,7 @@ class Config:
     run_dir: str = None
     fig_dir: str = None
     radmc_dir: str = None
-    log_path: str = None
+    logfile: str = None
     level_stdout: str = None
     level_logfile: str = None
     n_thread: int = 1
@@ -89,6 +89,7 @@ class Config:
     mc_scat_maxtauabs: float = 5.0
     tgas_eq_tdust: bool = True
     # mol_rlim: float = 1000.0
+    lineobs_option: str = ""
 
     # Observarion input
     dpc: float = 100
@@ -164,8 +165,16 @@ class Config:
         if self.radmc_dir is not None:
             gpath.radmc_dir = self.radmc_dir
 
-        if self.log_path is not None:
-            gpath.log_path = self.log_path
+        if self.logfile is not None:
+            print("set logfile")
+            gpath.logfile = self.logfile
+            enable_saving_output()
 
     def replaced(self, **changes):
         return replace(self, **changes)
+
+    def log(self):
+        logger.info(self.__str__())
+
+
+
