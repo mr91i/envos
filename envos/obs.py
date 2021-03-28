@@ -89,6 +89,7 @@ class ObsSimulator:
         self.posang = config.posang
         self.iline = config.iline
         self.molname = config.molname
+        self.lineobs_option = config.lineobs_option
 
 
         self.set_resolution(
@@ -286,7 +287,7 @@ class ObsSimulator:
             "npixy": self.npixy,
             "zoomau": [*self.zoomau_x, *self.zoomau_y],
             "iline": self.iline,
-            "option": "noscat nostar nodust", #  doppcatch",
+            "option": "noscat nostar nodust " + self.lineobs_option + " ", #+ (" doppcatch " if ,
         }
 
         v_calc_points = np.linspace(
