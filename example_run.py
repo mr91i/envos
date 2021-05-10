@@ -4,7 +4,7 @@ import envos
 
 config = envos.Config(
     run_dir="./run",
-    n_thread=10,
+    n_thread=1,
     rau_in=10,
     rau_out=1000,
     dr_to_r=0.1,
@@ -27,7 +27,7 @@ config = envos.Config(
     beam_min_au=50,
     vreso_kms=0.2,
     beam_pa_deg=0,
-    convmode="normal",
+    convmode="scipy",
     incl=90,
     posang=0,
     dpc=100,
