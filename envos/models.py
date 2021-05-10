@@ -13,6 +13,7 @@ from . import tools
 
 logger = set_logger(__name__)
 
+print("I am in models")
 
 class ModelBase:
     def read_grid(self, grid):

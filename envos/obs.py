@@ -26,6 +26,8 @@ from envos.radmc3d import RadmcController
 
 logger = set_logger(__name__)
 
+print("I am in obs")
+
 # np.set_printoptions(edgeitems=5)
 #####################################
 
@@ -323,7 +325,11 @@ class ObsSimulator:
             args = [(i, cmdfunc(i)) for i in range(self.n_thread)]
 
             with multiprocessing.Pool(self.n_thread) as pool:
+                 
+                # print(args, vars(pool))
+            
                 results = pool.starmap(self._subcalc, args)
+                # exit()
 
             self._check_multiple_returns(results)
             self.data = self._combine_multiple_returns(results)
@@ -381,6 +387,7 @@ class ObsSimulator:
         return np.array(vrange_list)
 
     def _subcalc(self, p, cmd):
+        # print("no", p)
         dn = f"proc{p:d}"
         # logger.info("execute: " + cmd)
         dpath_sub = f"{self.radmc_dir}/{dn}"
@@ -391,6 +398,8 @@ class ObsSimulator:
                 shutil.copy2(f, f"{dpath_sub}/" )
 
         log = logger.isEnabledFor(INFO) and p == 0
+        print(cmd)
+        # exit()
         tools.shell(
             cmd,
             cwd=dpath_sub,
