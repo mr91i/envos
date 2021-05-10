@@ -168,7 +168,7 @@ def _add_file_handler(logger):
 
     import envos.gpath as gp
     gp.make_dirs(run=gp.run_dir)
-    print(logger.name, gp.logfile)
+    #print(logger.name, gp.logfile)
     os.makedirs( os.path.dirname(gp.logfile), exist_ok=True)
     file_handler = logging.FileHandler(gp.logfile, "a", "utf-8")
     fmt = MyFormatter("file")

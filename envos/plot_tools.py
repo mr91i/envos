@@ -33,6 +33,9 @@ def plot_density_map(
     trajectries=False, #True,
 ):
     lvs = np.linspace(-19, -16, 10)[2:]
+    #lvs = np.linspace(np.floor(np.log10(np.min(model.rhogas))), np.ceil(np.log10(np.min(model.rhogas))), 10)[:]
+    #lvs = np.linspace(np.floor(np.log10(np.min(model.rhogas))), np.ceil(np.log10(np.min(model.rhogas))), 10)[:]
+    print(lvs)
     img = plt.pcolormesh(
         model.R[:, :, 0] / nc.au,
         model.z[:, :, 0] / nc.au,
@@ -59,20 +62,31 @@ def plot_density_map(
     savefig("density.pdf")
 
 
-def plot_midplane_numberdensity_profile(km):
-    plt.plot(km.rc_ax, km.rho[:, -1, 0] / km.meanmolw)
+def plot_midplane_numberdensity_profile(model):
+    #rho_0 =
+    plt.plot(model.rc_ax, model.rho[:, -1, 0] / model.meanmolw)
     plt.xlim(10, 1000)
     plt.ylim(10, 1000)
     plt.xscale("log")
     plt.yscale("log")
     savefig("ndens_prof.pdf")
 
+def plot_midplane_temperature_profile(model):
+    plt.plot(model.rc_ax/nc.au, model.Tgas[:, -1, 0])
+    plt.xlim(10, 1000)
+    plt.ylim(1, 1000)
+    plt.xscale("log")
+    plt.yscale("log")
+    plt.xlabel("Distance from Star [au]")
+    plt.ylabel("Temperature [K]")
+    savefig("T_prof.pdf")
+
 def plot_midplane_velocity_profile(model):
     plt.plot(model.rc_ax/nc.au, -model.vr[:, -1, 0]/1e5, label=r"$- v_r$", ls="-")
     plt.plot(model.rc_ax/nc.au,  model.vt[:, -1, 0]/1e5, label=r"$v_{\theta}$", ls=":")
     plt.plot(model.rc_ax/nc.au,  model.vp[:, -1, 0]/1e5, label=r"$v_{\phi}$", ls="--", )
-    plt.xlim(0, 300)
-    plt.ylim(0, 3)
+    plt.xlim(0, 400)
+    plt.ylim(0, 2.5)
     plt.xlabel("Distance from Star [au]")
     plt.ylabel("Velocity [km s$^{-1}$]")
     plt.legend()
@@ -91,10 +105,28 @@ def plot_midplane_velocity_map(model, rlim=600):
 
     vls = x/rr * model.vp + y/rr*model.vr
 
-    lvs = np.linspace(-1.7, 1.7, 18)
+    #lvs = np.linspace(-1.7, 1.7, 18)
+    print( np.max(vls/1e5) )
+
+    #Vmax_lvs = np.max(abs(vls[:,-1,:]/1e5))
+    #imax = int(np.ceil( (Vmax_lvs - 0.1)/0.2 ))
+    #lvs = np.linspace(-imax*0.2-0.1, imax*0.2+0.1, imax*2+2)
+
+    Vmax = np.max(vls[:,-1,:]/1e5)
+    lvs_half = np.arange(0.1, Vmax+0.2, 0.2)
+    lvs = np.concatenate([-lvs_half[::-1], lvs_half[0:]])
+
+    #print(lvs)
+    #exit()
+
     #img  = plt.contourf(x[:,-1,:]/nc.au, y[:,-1,:]/nc.au, vls[:,-1,:]/1e5, lvs,  cmap=plt.get_cmap('seismic'))
 #    img  = plt.contourf(x[:,-1,:]/nc.au, y[:,-1,:]/nc.au, vls[:,-1,:]/1e5)
     img  = plt.tricontourf(x[:,-1,:].flatten()/nc.au, y[:,-1,:].flatten()/nc.au, vls[:,-1,:].flatten()/1e5, lvs,  cmap=plt.get_cmap('RdBu_r'), extend="both", )
+
+    emis = np.hstack([ model.rhogas[:,-1,:] * model.Tgas[:,-1,:] ]*91)
+    print( model.rhogas[:,-1,:].shape, emis.shape )
+    cont = plt.tricontour(x[:,-1,:].flatten()/nc.au, y[:,-1,:].flatten()/nc.au, (100*emis/np.max(emis)).flatten(), 3, cmap=plt.get_cmap('Greys'), extend="both", linewidths=1)
+    cont.clabel(fmt=f'%1.0f%%', fontsize=8)
 
     #img  = plt.contourf(x[:,-1,:]/nc.au, y[:,-1,:]/nc.au, vls[:,-1,:]/1e5, lvs,  cmap=plt.get_cmap('RdBu_r'))
     #img  = plt.scatter(x[:,-1,:]/nc.au, y[:,-1,:]/nc.au, c=vls[:,-1,:]/1e5, cmap=plt.get_cmap('RdBu_r'), alpha=0.5)
@@ -102,7 +134,11 @@ def plot_midplane_velocity_map(model, rlim=600):
     plt.ylim(-rlim, rlim)
     plt.xlabel("x [au]")
     plt.ylabel("Distance along Line-of-Sight [au]")
-    cbar = plt.colorbar(img, ticks= np.linspace(-2, 2, 11) , pad=0.02)
+
+    ticks_half = np.arange(0, Vmax+0.4, 0.4)
+    ticks = np.concatenate([-ticks_half[::-1], ticks_half[1:]])
+
+    cbar = plt.colorbar(img, ticks=ticks, pad=0.02)
     cbar.set_label(r'$V_{\rm LOS}$ [km s$^{-1}$]')
     cbar.ax.minorticks_off()
     savefig("v_los.pdf")
@@ -260,7 +296,9 @@ def plot_pvdiagram(
     subax=False,
     figsize=(8,6),
     xlim=(-700, 700),
-    ylim=(-2, 2)
+    ylim=(-2, 2),
+    show_beam=True,
+    discrete=True,
 ):
     print("hi")
 
@@ -270,11 +308,18 @@ def plot_pvdiagram(
     vkms = PV.vkms
 
     plt.figure(figsize=figsize)
-    lvs = np.linspace(np.min(Ipv), np.max(Ipv), 11)
-    img = plt.pcolormesh(xau, vkms, Ipv,
-        cmap=make_listed_cmap("cividis", len(lvs)-1, extend="neither"),
-        norm=mc.BoundaryNorm(lvs, len(lvs)-1, clip=False),
-        shading="nearest", rasterized=True)
+    #lvs = np.linspace(np.min(Ipv), np.max(Ipv), 11)
+    lvs = np.linspace(0, np.max(Ipv), 11)
+    if discrete:
+        img = plt.pcolormesh(xau, vkms, Ipv,
+            cmap=make_listed_cmap("cividis", len(lvs)-1, extend="neither"),
+            norm=mc.BoundaryNorm(lvs, len(lvs)-1, clip=False),
+            shading="nearest", rasterized=True)
+    else:
+        img = plt.pcolormesh(xau, vkms, Ipv,
+            cmap=plt.get_cmap("cividis"),
+            norm=mc.Normalize(vmin=0, vmax=np.max(Ipv)),
+            shading="nearest", rasterized=True)
 
     plt.xlim(*xlim)
     plt.ylim(*ylim)
@@ -301,7 +346,7 @@ def plot_pvdiagram(
         mass_ip=True,
         mass_vp=True)
 
-    if PV.convolve:
+    if PV.convolve and show_beam:
         draw_beamsize(
             plt.gca(),
             "PV",
@@ -597,6 +642,9 @@ def add_mass_estimate_plot(
             v_crit = vkms[0]
         else:
             v_crit = v_crit[-1]
+
+
+
 
         x_crit = tools.find_roots(x_vmax, vkms, v_crit)[-1]
         M_CB = calc_M(abs(x_crit), v_crit/np.sin(np.deg2rad(incl)) , fac=1 / 2)
