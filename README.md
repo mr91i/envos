@@ -65,108 +65,109 @@ Read and run `example_run.py`.
 ## Parameters 
 
 ### General input
-- run_dir
+- `run_dir`  
 実行ディレクトリの位置を指定する
-fig_dir
+- `fig_dir`  
 画像を保存するディレクトリを指定する
-n_thread
+- `n_thread`  
 使用するスレッドの数。デフォルトは1。2以上に設定した場合、温度計算と模擬観測計算でOpenMPを使用する。ただしRADMC-3Dのインストールの際に、OpenMPの利用を可能にしておく必要がある。
 
-# Grid input
+### Grid parameters
 グリッドの生成方法は２通りある。一つはメッシュのr, θ, φ座標をリストで渡す方法。
 もう一つはパラメーターからグリッドを生成する。
-ri_ax, ti_ax, pi_ax
+- `ri_ax`, `ti_ax`, `pi_ax`  
 それぞれメッシュのr, θ, φ座標のlist-like object。cell centerの座標ではなく、cell interfaceの座標。これらが与えられた時以下のパラメーターは無視される。
-rau_in, rau_out 
+- `rau_in`, `rau_out`  
 r 方向の内側/外側境界の座標。単位はau。
-theta_in, theta_out
+- `theta_in`, `theta_out`  
 θ方向の内側/外側境界の座標。単位はradian。デフォルトは0からπ/2。
-phi_in, phi_out
+- `phi_in`, `phi_out`  
 φ方向の内側/外側境界の座標。単位はradian。デフォルトは0から2π。
-nr
+- `nr`  
 r方向のセル数
-ntheta
+- `ntheta`  
 θ方向のセル数
-nphi
+- `nphi`  
 φ方向のセル数
-dr_to_r
+- `dr_to_r`  
 logrがTrueの時、あるrにおけるr方向のセルの長さとrの比がdr_to_rになる。例えば、dr_to_r = 0.1なら、100auにおけるr方向の解像度は1au。
-aspect_ratio
+- `aspect_ratio`  
 r方向のセルの長さ(= dr)に対する、θ方向のセルの長さ(=r dθ)の比を与える。
-logr
-r方向のメッシュをlog scaleにする。デフォルトでTrue。
+- `logr`  
+Bool. r方向のメッシュをlog scaleにする。デフォルトでTrue。
 
-# Model input
-T, CR_au, Ms_Msun, t_yr, Omega, maxj, Mdot_smpy 
-Ulrich モデルのパラメーターは、降着率[Msun/yr] Mdot_smpy、中心星質量[Msun] Ms_Msun、分子雲コアの回転角速度[s^-1] Omega。ただし、Mdotは分子雲コアの温度[K] Tから、Msは収縮開始後の時間[yr] t_yrから、Omegaは遠心力半径[au] CR_auや赤道面の比角運動量maxj [cm^2 s^-1]からでも与えられる。
-meanmolw
-エンベロープガスのmean molecular weight。デフォルトは 2.3。
-cavangle_deg
-初期の極角[deg]
-inenv
+### Model parameters
+- `T`, `CR_au`, `Ms_Msun`, `t_yr`, `Omega`, `maxj`, `Mdot_smpy`  
+UCMモデルは３つのパラメーターから与えられる: 降着率\[Msun/yr\] `Mdot_smpy`、中心星質量\[Msun\] `Ms_Msun`、分子雲コアの回転角速度\[s^-1\] `Omega`.
+ただし、Mdotは分子雲コアの温度[K] `T`から、`Ms_Msun`は収縮開始後の時間\[yr\] `t_yr`から、Omegaは遠心力半径\[au\] `CR_au`や赤道面の比角運動量`maxj` \[cm^2 s^-1\]からでも与えられる。
+- `meanmolw`  
+Mean molecular weight。デフォルトは 2.3。
+- `cavangle_deg`  
+Polar angle \[deg\] within which the density is deprecated, mimicking outflow cavities.
+- `inenv`  
 "UCM"かInnerEnvelopeインスタンス
-outenv
+- `outenv`  
    “TSC”かOuterEnvelopeインスタンス
-disk
+- `disk`  
    “exptail”かDiskインスタンス
-rot_ccw
+- `rot_ccw`  
 回転方向を反転させるかどうか。デフォルトはFalse。
 
-# RADMC-3D input
-nphot
+### RADMC-3D parameters
+- `nphot`  
 温度計算時に使われるphoton数 
-f_dg
-ダストガス比
-opac
-オパシティの名前。storage/dustkappa_xxx.inpのxxx。
-Lstar_Lsun
-星の光度[Lsun]
-mfrac_H2
+- `f_dg`  
+Dust-to-gas mass ratio
+- `opac`  
+Name of opacity table. xxx in storage/dustkappa_xxx.inp.
+- `Lstar_Lsun`  
+星の光度\[Lsun\]
+- `mfrac_H2`  
 H2分子がガス中の質量を占める割合。デフォルトは0.74
-molname
+- `molname`  
 使用する輝線テーブルの名前。storage/molecule_xxx.inpのxxx
-molabun
+- `molabun`  
 H2分子に対する注目する分子の存在度
-iline
+- `iline`  
 テーブル内の何番目の遷移か。1始まり。
-scattering_mode_max
+- `scattering_mode_max`  
 1以上でscatteringあり。詳しくはRADMC3Dのマニュアルを参照。
-mc_scat_maxtauabs
+- `mc_scat_maxtauabs`  
 scatteringする光子の最大光学的深さ。詳しくはRADMC3Dのマニュアルを参照。
-tgas_eq_tdust
+- `tgas_eq_tdust`  
 ガス温度とダスト温度を一緒にする。デフォルトでTrue。Falseは未対応。
 
-# Observarion input
-dpc
+### Observarion parameters
+- `dpc`  
 天体までの距離
-size_au
-縦と横の観測範囲[au] 。これが与えられる時、sizex_auとsizey_auは無視される。
-sizex_au
-縦の観測範囲[au]
-sizey_au
-横の観測範囲[au]
-pixsize_au
-ピクセルの大きさ[au]
-vfw_kms
-速度の全幅[km/s]
-dv_kms
-速度分解能[km/s]
-convmode
-"normal" or "fft"
-beam_maj_au
-ビームの長半径[au]
-beam_min_au
-ビームの短半径[au]
-vreso_kms
-速度の畳み込み幅
-beam_pa_deg
-ビームの位置角[deg]
-incl
-極軸から測った傾斜角[deg]。incl=0: face-on, incl=90: edge-on
-phi
-経度[deg]
-posang
-カメラの位置角[deg]
+- `size_au`  
+縦と横の観測範囲\[au\] 。これが与えられる時、sizex_auとsizey_auは無視される。
+- `sizex_au`  
+縦の観測範囲\[au\]
+- `sizey_au`  
+横の観測範囲\[au\]
+- `pixsize_au`  
+ピクセルの大きさ\[au\]
+- `vfw_kms`  
+速度の全幅\[km/s\]
+- `dv_kms`  
+速度分解能\[km/s\]
+- `convmode`  
+"normal", "fft", "scipy"
+- `beam_maj_au`  
+ビームの長半径\[au\] 
+- `beam_min_au`  
+ビームの短半径\[au\]
+- `vreso_kms`  
+Full velocity width of convolution \[km/s\]
+- `beam_pa_deg`  
+ビームの位置角\[deg\]
+- `incl`  
+Angle \[deg\] between polar axis and line of sight (incl=0: face-on, incl=90: edge-on)
+- `phi`  
+経度\[deg\]
+- `posang`  
+カメラの位置角\[deg\]
 
 
 
