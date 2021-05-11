@@ -1,15 +1,16 @@
 # **envos**
 
+## 1. Introduction
 **Env**elope **O**bservation **S**imulator, developed by Shoji Mori.    
 This code executes synthetic observation with calculating physical model of young circumstellar systems (i.e. envelope and disk). 
 
-## Features
+## 2. Features
 - Density and velocity structures  
 - Temperature structure is calculated consistently with the density structure given by user.
 - Calculation of temperature structure and sysnthetic observation is done by RADMC-3D (Dullemond et al. 2012; website: [https://www.ita.uni-heidelberg.de/~dullemond/software/radmc-3d/](https://www.ita.uni-heidelberg.de/~dullemond/software/radmc-3d/)), which is commonly used in astronomical studies. 
 - All source codes are written in Python3 (ver. >= 3.6).
 
-## Requirements
+## 3. Requirements
 - Python packages
     - numpy
     - scipy
@@ -22,30 +23,37 @@ This code executes synthetic observation with calculating physical model of youn
      - Fortran compiler (e.g. `gfortan`, `intel fortran`)
      - (optional) Fortran openMP library
 
-## Setup
-### 1. Install RADMC-3D and radmc3dPy  
+## 4. Setup
+### 4.1 Install *RADMC-3D* and *radmc3dPy*  
 1. Download the installing source code from [github](https://github.com/dullemond/radmc3d-2.0).  
 `git clone https://github.com/dullemond/radmc3d-2.0.git`
 
 2. Install RADMC-3D following [a HTML manual](https://www.ita.uni-heidelberg.de/~dullemond/software/radmc-3d/manual_radmc3d/index.html) or [a PDF version](https://www.ita.uni-heidelberg.de/~dullemond/software/radmc-3d/radmc3d.pdf).  
     1. `cd radmc3d-2.0/src`
     2. Edit Makefile if you need
-    3. `make`: generating an executable file `radmc3d`
-    4. `make install`: distribute `radmc3d` and radmc_tools in `$HOME/bin` in the default
-    5. Add the path `$HOME/bin` to your \*rc file (e.g., ~/.bashrc)  
+    3. Generating an executable file `radmc3d`  
+       `make`
+    5. Distribute `radmc3d` and radmc_tools in `$HOME/bin` in the default
+       `make install`
+    7. Add the path `$HOME/bin` to your \*rc file (e.g., ~/.bashrc)  
        e.g. `echo export PATH=$HOME/bin:$PATH >> ~/.bashrc ` in command line
-    6. reread the \*rc file e.g. `source ~/.bashrc` 
+    6. Reload the \*rc file  
+       `source ~/.bashrc` 
 
-3. Check if `radmc3d` works following the RADMC-3D manual, e.g. execute a example run.
+3. Check if `radmc3d` works following the RADMC-3D manual, executing example runs  
+    1. Move to `radmc3d-2.0/examples/run_simple_1`  
+    2. `python problem_setup.py`  
+    3. `radmc3d mctherm`
+    4. Also `radmc3d mctherm setthread 2` to check multithreading 
 
 4. Install `radmc3dPy` also following the manual. 
-    1. move to `radmc3d-2.0/python/radmc3dPy`  
-    2. execute setup.py: `python setup.py install --user`  
+    1. Move to `radmc3d-2.0/python/radmc3dPy`  
+    2. Execute setup.py: `python setup.py install --user`  
   
 5. Check if `radmc3dPy` works (e.g. execute `python -c "import radmc3dPy"` in command line)   
 
 
-### 2. Install envos  
+### 4.2 Install *envos*  
 1. Download `envos` from this github repository  
 `git clone https://github.com/mr91i/envos.git` 
 
@@ -58,13 +66,17 @@ This code executes synthetic observation with calculating physical model of youn
 
 -->
 
-## Tutorial
+## 5. Tutorial
 Read and run `example_run.py`.
 
 
-## Parameters 
+## 6. Parameters 
+Easiest way to controll envos is to use a class `envos.Config`.
+In `envos.Config`, basic parameters user uses in envos are set. 
+Users create the instance of the `envos.Config` class setting below parameters and pass it to envos's classes.
 
-### General input
+
+### 6.1 General input
 - `run_dir`  
 実行ディレクトリの位置を指定する
 - `fig_dir`  
@@ -72,11 +84,13 @@ Read and run `example_run.py`.
 - `n_thread`  
 使用するスレッドの数。デフォルトは1。2以上に設定した場合、温度計算と模擬観測計算でOpenMPを使用する。ただしRADMC-3Dのインストールの際に、OpenMPの利用を可能にしておく必要がある。
 
-### Grid parameters
+### 6.2 Grid parameters
 グリッドの生成方法は２通りある。一つはメッシュのr, θ, φ座標をリストで渡す方法。
 もう一つはパラメーターからグリッドを生成する。
+1. Directly set axes
 - `ri_ax`, `ti_ax`, `pi_ax`  
 それぞれメッシュのr, θ, φ座標のlist-like object。cell centerの座標ではなく、cell interfaceの座標。これらが与えられた時以下のパラメーターは無視される。
+2. Generate axes inputting parameters
 - `rau_in`, `rau_out`  
 r 方向の内側/外側境界の座標。単位はau。
 - `theta_in`, `theta_out`  
@@ -96,7 +110,7 @@ r方向のセルの長さ(= dr)に対する、θ方向のセルの長さ(=r dθ)
 - `logr`  
 Bool. r方向のメッシュをlog scaleにする。デフォルトでTrue。
 
-### Model parameters
+### 6.3 Model parameters
 - `T`, `CR_au`, `Ms_Msun`, `t_yr`, `Omega`, `maxj`, `Mdot_smpy`  
 UCMモデルは３つのパラメーターから与えられる: 降着率\[Msun/yr\] `Mdot_smpy`、中心星質量\[Msun\] `Ms_Msun`、分子雲コアの回転角速度\[s^-1\] `Omega`.
 ただし、Mdotは分子雲コアの温度[K] `T`から、`Ms_Msun`は収縮開始後の時間\[yr\] `t_yr`から、Omegaは遠心力半径\[au\] `CR_au`や赤道面の比角運動量`maxj` \[cm^2 s^-1\]からでも与えられる。
@@ -113,7 +127,7 @@ Polar angle \[deg\] within which the density is deprecated, mimicking outflow ca
 - `rot_ccw`  
 回転方向を反転させるかどうか。デフォルトはFalse。
 
-### RADMC-3D parameters
+### 6.4 RADMC-3D parameters
 - `nphot`  
 温度計算時に使われるphoton数 
 - `f_dg`  
@@ -137,7 +151,7 @@ scatteringする光子の最大光学的深さ。詳しくはRADMC3Dのマニュ
 - `tgas_eq_tdust`  
 ガス温度とダスト温度を一緒にする。デフォルトでTrue。Falseは未対応。
 
-### Observarion parameters
+### 6.5 Observarion parameters
 - `dpc`  
 天体までの距離
 - `size_au`  
