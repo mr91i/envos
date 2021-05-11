@@ -26,7 +26,7 @@ from envos.radmc3d import RadmcController
 
 logger = set_logger(__name__)
 
-print("I am in obs")
+# print("I am in obs")
 
 # np.set_printoptions(edgeitems=5)
 #####################################
