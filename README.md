@@ -44,7 +44,7 @@ This code executes synthetic observation with calculating physical model of youn
     1. Move to `radmc3d-2.0/examples/run_simple_1`  
     2. `python problem_setup.py`  
     3. `radmc3d mctherm`
-    4. Also `radmc3d mctherm setthread 2` to check multithreading 
+    4. Also `radmc3d mctherm setthreads 2` to check multithreading 
 
 4. Install `radmc3dPy` also following the manual. 
     1. Move to `radmc3d-2.0/python/radmc3dPy`  
