@@ -36,25 +36,20 @@ This code executes synthetic observation with calculating physical model of youn
        e.g. `echo export PATH=$HOME/bin:$PATH >> ~/.bashrc ` in command line
     6. reread the \*rc file e.g. `source ~/.bashrc` 
 
- 3. Check if `radmc3d` works following the RADMC-3D manual, e.g. execute a example run.
+3. Check if `radmc3d` works following the RADMC-3D manual, e.g. execute a example run.
 
- 4. Install `radmc3dPy` also following the manual. 
+4. Install `radmc3dPy` also following the manual. 
     1. move to `radmc3d-2.0/python/radmc3dPy`  
-    2. `python setup.py install --user`  
+    2. execute setup.py: `python setup.py install --user`  
   
- 5. Check if works  
- e.g., execute `python -c "import radmc3dPy"` in command line.   
+5. Check if `radmc3dPy` works (e.g. execute `python -c "import radmc3dPy"` in command line)   
 
 
 ### 2. Install envos.
+1. Download `envos` from this github repository  
+`git clone https://github.com/mr91i/envos.git` 
 
-    1. Download envos from this github repository  
-    `git clone https://github.com/mr91i/envos.git` 
-
-    2. Execute setup.py in envos directory  
-    `python setup.py install`
-    
-    3. Check if it works, e.g., execute a example script in `examples` ditectory.
+2. Check if it works e.g., execute an example script `python3 example_run.py`.
 
 
 <!--
@@ -63,12 +58,9 @@ This code executes synthetic observation with calculating physical model of youn
 
 -->
 
-
-
- 
-
-
 ## Tutorial
-Copy `example/simple_run.py` to your working directory. Read and run the example file.
+Read and run `example_run.py`.
+
+
 
 
