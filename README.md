@@ -33,7 +33,7 @@ This code executes synthetic observation with calculating physical model of youn
     2. Edit Makefile if you need
     3. Generating an executable file `radmc3d`  
        `make`
-    5. Distribute `radmc3d` and radmc_tools in `$HOME/bin` in the default
+    5. Distribute `radmc3d` and radmc_tools in `$HOME/bin` in the default  
        `make install`
     7. Add the path `$HOME/bin` to your \*rc file (e.g., ~/.bashrc)  
        e.g. `echo export PATH=$HOME/bin:$PATH >> ~/.bashrc ` in command line
