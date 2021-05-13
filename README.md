@@ -153,22 +153,25 @@ scatteringする光子の最大光学的深さ。詳しくはRADMC3Dのマニュ
 ガス温度とダスト温度を一緒にする。デフォルトでTrue。Falseは未対応。
 
 ### 6.5 Observarion parameters
-- `dpc`  
-天体までの距離
-- `size_au`  
-縦と横の観測範囲\[au\] 。これが与えられる時、sizex_auとsizey_auは無視される。
-- `sizex_au`  
+- `dpc`: float  
+Distance from observer to object.
+- `size_au`: float  
+Length of one side of a square observation area, \[au\].
+When `size_au` is given, `sizex_au` and `sizex_au` are neglected.
+- `sizex_au`: float  
 縦の観測範囲\[au\]
 - `sizey_au`  
 横の観測範囲\[au\]
 - `pixsize_au`  
-ピクセルの大きさ\[au\]
+Pixel size \[au\]
 - `vfw_kms`  
-速度の全幅\[km/s\]
+Total velocity width, \[km/s\].
 - `dv_kms`  
-速度分解能\[km/s\]
-- `convmode`  
-"normal", "fft", "scipy"
+Velocity resolution, \[km/s\]
+- `convmode`: str  
+    - "normal": a standard convolution function in *astropy*
+    - "fft": a convolution function in *astropy*, using fast foulier transform. This is faster than `normal` but requires bigger memory. 
+    - "scipy": a convolution function in *scipy*, slightly faster and cheeper than `fft`. 
 - `beam_maj_au`  
 ビームの長半径\[au\] 
 - `beam_min_au`  
@@ -184,6 +187,7 @@ Angle \[deg\] between polar axis and line of sight (incl=0: face-on, incl=90: ed
 - `posang`  
 カメラの位置角\[deg\]
 
+## 7. Functions/Classes 
 
 
 
