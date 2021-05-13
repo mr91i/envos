@@ -42,13 +42,14 @@ This code executes synthetic observation with calculating physical model of youn
 
 3. Check if `radmc3d` works following the RADMC-3D manual, executing example runs  
     1. Move to `radmc3d-2.0/examples/run_simple_1`  
-    2. `python problem_setup.py`  
-    3. `radmc3d mctherm`
-    4. Also `radmc3d mctherm setthreads 2` to check multithreading 
+    2. `python problem_setup.py`   
+    4. `radmc3d mctherm`
+    5. Also `radmc3d mctherm setthreads 2` to check multithreading 
 
 4. Install `radmc3dPy` also following the manual. 
     1. Move to `radmc3d-2.0/python/radmc3dPy`  
     2. Execute setup.py: `python setup.py install --user`  
+       \*\* This `python` should also be python3. If you use python2, `radmc3dPy` will be installed into python2 libraries.  
   
 5. Check if `radmc3dPy` works (e.g. execute `python -c "import radmc3dPy"` in command line)   
 
