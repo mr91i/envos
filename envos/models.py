@@ -106,6 +106,9 @@ class CircumstellarModel(ModelBase):
     def set_radmcdir(self, radmcdir):
         self.radmcdir = radmcdir
 
+    def set_mu0(self, mu0):
+        self.mu0 = mu0
+
 
 class CassenMoosmanInnerEnvelope(ModelBase):
     def __init__(self, grid, Mdot, CR, Ms, cavangle=0):
