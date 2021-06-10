@@ -325,9 +325,9 @@ class ObsSimulator:
             args = [(i, cmdfunc(i)) for i in range(self.n_thread)]
 
             with multiprocessing.Pool(self.n_thread) as pool:
-                 
+
                 # print(args, vars(pool))
-            
+
                 results = pool.starmap(self._subcalc, args)
                 # exit()
 
@@ -354,6 +354,13 @@ class ObsSimulator:
         self.data.freq0 = self.mol.freq[iline - 1]
         odat = ObsData3D(datatype="line")
         odat.read(radmcdata=self.data)
+        odat.add_obs_info(
+            iline=iline,
+            molname=molname,
+            incl=incl,
+            phi=phi,
+            posang=posang
+        )
 
         if self.conv:
             odat.Ippv = self.convolver(odat.Ippv)
@@ -534,6 +541,14 @@ class BaseObsData:
         self.vreso_kms = vreso_kms
         self.beam_pa_deg = beam_pa_deg
 
+    def add_obs_info(self, iline=None, molname=None, incl=None, phi=None, posang=None):
+        self.obsinfo_flag = True
+        self.iline = iline
+        self.molname = molname
+        self.incl = incl
+        self.phi = phi
+        self.posang = posang
+
 #    def read_instance(self, filepath):
 #        cls = pd.read_pickle(filepath)
 #        for k, v in cls.__dict__.items():
@@ -624,6 +639,7 @@ class ObsData3D(BaseObsData):
     vreso_kms: float = None
     beam_pa_deg: float = None
     datatype: str = None
+    obsinfo_flag: bool = False
 
     def read(self,
         fitsfile=None,
@@ -671,6 +687,14 @@ class ObsData3D(BaseObsData):
             self.vreso_kms,
             self.beam_pa_deg,
         )
+        if self.obsinfo_flag:
+            PV.add_obs_info(
+                iline=self.iline,
+                molname=self.molname,
+                incl=self.incl,
+                phi=self.phi,
+                posang=self.posang
+            )
         PV.normalize(Inorm)
         if save:
             PV.save_fitsfile()
