@@ -71,11 +71,13 @@ def plot_density_map(
 
 def plot_midplane_density_profile(model):
     #rho_0 =
-    plt.plot(model.rc_ax, model.rhogas[:, -1, 0])
+    plt.plot(model.rc_ax/nc.au, model.rhogas[:, -1, 0])
     plt.xlim(10, 1000)
-    plt.ylim(1e2, 1e7)
+    plt.ylim(1e-19, 1e-15)
     plt.xscale("log")
     plt.yscale("log")
+    plt.xlabel("Distance from Star [au]")
+    plt.ylabel("Temperature [K]")
     savefig("dens_prof.pdf")
 
 def plot_midplane_temperature_profile(model):
