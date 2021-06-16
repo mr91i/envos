@@ -55,7 +55,7 @@ def plot_density_map(
     plt.xlabel("R [au]")
     plt.ylabel("z [au]")
     cbar = plt.colorbar(img, format="%.1f", extend="both", pad=0.02)
-    cbar.set_label(r"Log Gas Density [g cm$^{-3}$]")
+    cbar.set_label(r"log Gas Density [g cm$^{-3}$]")
     cbar.ax.minorticks_off()
 
     if trajectries:
@@ -77,7 +77,7 @@ def plot_midplane_density_profile(model):
     plt.xscale("log")
     plt.yscale("log")
     plt.xlabel("Distance from Star [au]")
-    plt.ylabel("Temperature [K]")
+    plt.ylabel("Gas Density [g cm$^{-3}$]")
     savefig("dens_prof.pdf")
 
 def plot_midplane_temperature_profile(model):
