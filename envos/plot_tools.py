@@ -24,7 +24,7 @@ matplotlib.use("Agg")
 # os.makedirs(gpath.fig_dir, exist_ok=True)
 color_def = ["#3498db", "#e74c3c", "#1abc9c", "#9b59b6", "#f1c40f", "#34495e",
          "#446cb3", "#d24d57", "#27ae60", "#663399", "#f7ca18", "#bdc3c7", "#2c3e50"]
-
+eps=1e-3
 """
 Plotting functions
 """
@@ -39,8 +39,7 @@ def plot_density_map(
 
     lvs = np.linspace(-19, -16, 10)
     rho = model.rhogas
-    lvs = np.arange(1/5*np.floor( 5*np.min( np.log10(rho[rho != 0.0])) ), np.log10(np.max(rho)) + 1/5, 1/5 )
-
+    lvs = np.arange(1/5*np.floor(5*np.min(np.log10(rho[rho != 0.0])) ) -1/5, np.log10(np.max(rho)) + 1/5 + 1e-3, 1/5)
     img = plt.pcolormesh(
         model.R[:, :, 0] / nc.au,
         model.z[:, :, 0] / nc.au,
@@ -62,16 +61,14 @@ def plot_density_map(
         add_trajectries(model)
 
     if streams:
-        #mu0 = model.mu0 if hasattr(model, "mu0") else None
         add_streams(model, rlim, use_mu0=hasattr(model, "mu0"))
-        #add_streams(model, rlim)
 
     savefig("density.pdf")
 
 
 def plot_midplane_density_profile(model):
-    #rho_0 =
-    plt.plot(model.rc_ax/nc.au, model.rhogas[:, -1, 0])
+    index_mid = np.argmin(np.abs( model.tc_ax - np.pi/2))
+    plt.plot(model.rc_ax/nc.au, model.rhogas[:, index_mid, 0])
     plt.xlim(10, 1000)
     plt.ylim(1e-19, 1e-15)
     plt.xscale("log")
@@ -81,7 +78,8 @@ def plot_midplane_density_profile(model):
     savefig("dens_prof.pdf")
 
 def plot_midplane_temperature_profile(model):
-    plt.plot(model.rc_ax/nc.au, model.Tgas[:, -1, 0])
+    index_mid = np.argmin(np.abs( model.tc_ax - np.pi/2))
+    plt.plot(model.rc_ax/nc.au, model.Tgas[:, index_mid, 0])
     plt.xlim(10, 1000)
     plt.ylim(1, 1000)
     plt.xscale("log")
@@ -91,10 +89,11 @@ def plot_midplane_temperature_profile(model):
     savefig("T_prof.pdf")
 
 def plot_midplane_velocity_profile(model):
-    cav = np.where(model.rhogas != 0, 1, 0)[:,-1, 0]
-    plt.plot(model.rc_ax/nc.au, -model.vr[:, -1, 0]*cav/1e5, label=r"$- v_r$", ls="-")
-    plt.plot(model.rc_ax/nc.au,  model.vt[:, -1, 0]*cav/1e5, label=r"$v_{\theta}$", ls=":")
-    plt.plot(model.rc_ax/nc.au,  model.vp[:, -1, 0]*cav/1e5, label=r"$v_{\phi}$", ls="--", )
+    index_mid = np.argmin(np.abs( model.tc_ax - np.pi/2))
+    cav = np.where(model.rhogas != 0, 1, 0)[:,index_mid, 0]
+    plt.plot(model.rc_ax/nc.au, -model.vr[:, index_mid, 0]*cav/1e5, label=r"$- v_r$", ls="-")
+    plt.plot(model.rc_ax/nc.au,  model.vt[:, index_mid, 0]*cav/1e5, label=r"$v_{\theta}$", ls=":")
+    plt.plot(model.rc_ax/nc.au,  model.vp[:, index_mid, 0]*cav/1e5, label=r"$v_{\phi}$", ls="--", )
     #vmax = np.max(np.array([-model.vr, model.vt, model.vp]) * cav)
     #vlev_max = np.round(vmax)
     plt.xlim(0, 400)
@@ -116,24 +115,23 @@ def plot_midplane_velocity_map(model, rlim=300):
     cav = np.where(model.rhogas != 0, 1, 0)
     vls *= cav
 
-    Vmax = np.max(vls[:,-1,:]/1e5)
+    index_mid = np.argmin(np.abs( model.tc_ax - np.pi/2))
+    Vmax = np.max(vls[:, index_mid, :]/1e5)
     lvs_half = np.arange(0.1, Vmax+0.2, 0.2)
     lvs = np.concatenate([-lvs_half[::-1], lvs_half[0:]])
 
-    #print(lvs)
-    #exit()
-
-    #img  = plt.contourf(x[:,-1,:]/nc.au, y[:,-1,:]/nc.au, vls[:,-1,:]/1e5, lvs,  cmap=plt.get_cmap('seismic'))
-#    img  = plt.contourf(x[:,-1,:]/nc.au, y[:,-1,:]/nc.au, vls[:,-1,:]/1e5)
-    img  = plt.tricontourf(x[:,-1,:].flatten()/nc.au, y[:,-1,:].flatten()/nc.au, vls[:,-1,:].flatten()/1e5, lvs,  cmap=plt.get_cmap('RdBu_r'), extend="both", )
-
-    emis =  model.rhogas[:,-1,:] * model.Tgas[:,-1,:]  if len(model.pc_ax) != 1  else np.hstack([ model.rhogas[:,-1,:] * model.Tgas[:,-1,:] ]*91)
-    #print( model.rhogas[:,-1,:].shape, emis.shape )
-    cont = plt.tricontour(x[:,-1,:].flatten()/nc.au, y[:,-1,:].flatten()/nc.au, (100*emis/np.max(emis)).flatten(), 3, cmap=plt.get_cmap('Greys'), extend="both", linewidths=1)
+    img  = plt.tricontourf(x[:,index_mid,:].ravel()/nc.au,
+                           y[:,index_mid,:].ravel()/nc.au,
+                           vls[:,index_mid,:].ravel()/1e5,
+                           lvs, cmap=plt.get_cmap('RdBu_r'), extend="both", )
+    emis =  model.rhogas[:,index_mid,:] * model.Tgas[:,index_mid,:] \
+              if len(model.pc_ax) != 1 \
+              else np.hstack([ model.rhogas[:,index_mid,:] * model.Tgas[:,index_mid,:] ]*91)
+    cont = plt.tricontour(x[:,index_mid,:].ravel()/nc.au,
+                          y[:,index_mid,:].ravel()/nc.au,
+                          (100*emis/np.max(emis)).ravel(),
+                          3, cmap=plt.get_cmap('Greys'), extend="both", linewidths=1)
     cont.clabel(fmt=f'%1.0f%%', fontsize=8)
-
-    #img  = plt.contourf(x[:,-1,:]/nc.au, y[:,-1,:]/nc.au, vls[:,-1,:]/1e5, lvs,  cmap=plt.get_cmap('RdBu_r'))
-    #img  = plt.scatter(x[:,-1,:]/nc.au, y[:,-1,:]/nc.au, c=vls[:,-1,:]/1e5, cmap=plt.get_cmap('RdBu_r'), alpha=0.5)
     plt.xlim(-rlim, rlim)
     plt.ylim(-rlim, rlim)
     plt.xlabel("x [au]")
@@ -146,9 +144,6 @@ def plot_midplane_velocity_map(model, rlim=300):
     cbar.set_label(r'$V_{\rm LOS}$ [km s$^{-1}$]')
     cbar.ax.minorticks_off()
     savefig("v_los.pdf")
-
-
-
 
 def plot_temperature_map(
     m,
@@ -465,7 +460,7 @@ def add_trajectries(km):
 
 
 def vertical_integral(value_rt, R_rt, z_rt, R_ax, z_ax, log=False):
-    points = np.stack((R_rt.flatten(), z_rt.flatten()), axis=-1)
+    points = np.stack((R_rt.ravel(), z_rt.ravel()), axis=-1)
     npoints = np.stack(np.meshgrid(R_ax, z_ax), axis=-1)
     if log:
         fltr = np.logical_and.reduce(
@@ -474,8 +469,8 @@ def vertical_integral(value_rt, R_rt, z_rt, R_ax, z_ax, log=False):
                 np.isfinite(np.log10(value_rt)),
             )
         )
-        fltr = fltr.flatten()
-        v = value_rt.flatten()
+        fltr = fltr.ravel()
+        v = value_rt.ravel()
         ret = 10 ** interpolate.griddata(
             np.log10(points[fltr]),
             np.log10(v[fltr]),
@@ -484,7 +479,7 @@ def vertical_integral(value_rt, R_rt, z_rt, R_ax, z_ax, log=False):
         )
     else:
         ret = interpolate.griddata(
-            points, value_rt.flatten(), npoints, method="linear"
+            points, value_rt.ravel(), npoints, method="linear"
         )
     s = np.array([integrate.simps(r, z_ax) for r in np.nan_to_num(ret)])
     return s
