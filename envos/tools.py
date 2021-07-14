@@ -19,9 +19,9 @@ logger = set_logger(__name__)
 
 
 def read_pickle(filepath):
-    logger.info("Reading pickle data")
+    logger.debug("Reading pickle data")
     cls = pandas.read_pickle(filepath)
-    logger.info(cls)
+    logger.debug(cls)
     return cls
 
 
