@@ -146,13 +146,27 @@ class ModelGenerator:
 
         if ismodel(self.outenv):
             print("Setting outer envelop")
-            cond1 = rho < self.outenv.rho
-            cond2 = self.grid.rr > self.outenv.rin_lim
-            cond = cond1 & cond2
-            rho[cond] = self.outenv.rho[cond]
-            vr[cond] = self.outenv.vr[cond]
-            vt[cond] = self.outenv.vt[cond]
-            vp[cond] = self.outenv.vp[cond]
+            if 0:
+                fac = np.exp(-(self.outenv.rin_lim/self.grid.rr)**2)
+                rho *= (self.outenv.rho/rho ) ** fac
+                vr *= (self.outenv.vr / vr) ** fac
+                vt *= (self.outenv.vt/vt) ** fac
+                vp *= (self.outenv.vp/vp) ** fac
+            elif 1:
+                fac = np.exp(-(0.3*self.outenv.rin_lim/self.grid.rr)**2 )
+                rho += (self.outenv.rho - rho )* fac * np.where(rho!=0, 1, 0)
+                vr += (self.outenv.vr - vr) * fac
+                vt += (self.outenv.vt - vt) * fac
+                vp += (self.outenv.vp - vp) * fac
+
+            else:
+                cond1 = rho < self.outenv.rho
+                cond2 = self.grid.rr > 1/5* self.outenv.rin_lim
+                cond = cond1 & cond2
+                rho[cond] = self.outenv.rho[cond]
+                vr[cond] = self.outenv.vr[cond]
+                vt[cond] = self.outenv.vt[cond]
+                vp[cond] = self.outenv.vp[cond]
 
         if ismodel(self.disk):
             print("Setting disk")
@@ -237,26 +251,6 @@ class ModelGenerator:
         radmc = RadmcController(config=self.config)
         radmc.clean_radmc_dir()
 
-        #         radmc = RadmcController(
-        #             nphot=conf.nphot,
-        #             n_thread=conf.n_thread,
-        #             scattering_mode_max=conf.scattering_mode_max,
-        #             mc_scat_maxtauabs=conf.mc_scat_maxtauabs,
-        #             f_dg=conf.f_dg,
-        #             opac=conf.opac,
-        #             Lstar_Lsun=conf.Lstar_Lsun,
-        #             mfrac_H2=conf.mfrac_H2,
-        #             T_const=conf.T_const,
-        #             Rstar_Rsun=conf.Rstar_Rsun,
-        #             temp_mode=conf.temp_mode,
-        #             molname=conf.molname,
-        #             molabun=conf.molabun,
-        #             iline=conf.iline,
-        #             mol_rlim=conf.mol_rlim,
-        #             run_dir=conf.run_dir,
-        #             radmc_dir=conf.radmc_dir,
-        #             storage_dir=conf.storage_dir,
-        #         )
         radmc.set_model(self.model)
         radmc.set_mctherm_inpfiles()
         radmc.run_mctherm()
@@ -270,14 +264,6 @@ class ModelGenerator:
 
         Tgas = radmc.get_gas_temperature()
         self.model.set_gas_temperature(Tgas)
-
-    #        self.model.save("tkmodel.pkl")
-
-    # radmc.set_lineobs_inpfiles()
-
-    # self.model = radmc.get_model()
-    # self.tkmodel.add_physical_parameters(self.ppar)
-    # self.tkmodel.save("tkmodel.pkl")
 
     def get_model(self):
         return self.model
