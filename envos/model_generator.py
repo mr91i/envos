@@ -73,7 +73,7 @@ class ModelGenerator:
                 pi_ax=pi,
             )
         else:
-            logger.log("Failed in making grid.")
+            logger.error("Failed in making grid.")
 
         self.model.set_grid(self.grid)
 
@@ -159,7 +159,7 @@ class ModelGenerator:
         ismodel = lambda x: all(hasattr(x, k) for k in keys)
 
         if ismodel(self.inenv):
-            print("Setting inner envelop")
+            logger.info("Setting inner envelop")
             cond = rho < self.inenv.rho
             rho[cond] = self.inenv.rho[cond]
             vr[cond] = self.inenv.vr[cond]
@@ -167,7 +167,7 @@ class ModelGenerator:
             vp[cond] = self.inenv.vp[cond]
 
         if ismodel(self.outenv):
-            print("Setting outer envelop")
+            logger.info("Setting outer envelop")
             cond1 = rho < self.outenv.rho
             cond2 = self.grid.rr > self.outenv.rin_lim
             cond = cond1 & cond2
@@ -177,8 +177,7 @@ class ModelGenerator:
             vp[cond] = self.outenv.vp[cond]
 
         if ismodel(self.disk):
-            print("Setting disk")
-            print(self.disk.rho)
+            logger.info("Setting disk")
             cond = rho < self.disk.rho
             rho[cond] = self.disk.rho[cond]
             vr[cond] = self.disk.vr[cond]

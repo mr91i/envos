@@ -13,8 +13,6 @@ from . import tools
 
 logger = set_logger(__name__)
 
-# print("I am in models")
-
 class ModelBase:
     def read_grid(self, grid):
         for k, v in grid.__dict__.items():
@@ -119,7 +117,7 @@ class CassenMoosmanInnerEnvelope(ModelBase):
         self.mu0 = None
         self.read_grid(grid)
         self.calc_kinematic_structure(Mdot, CR, Ms, cavangle)
-        self.set_cylindrical_velocity()
+        #self.set_cylindrical_velocity()
 
     def calc_kinematic_structure(self, Mdot, CR, Ms, cavangle):
         csol = np.frompyfunc(self._sol_with_cubic, 2, 1)
@@ -155,7 +153,7 @@ class SimpleBallisticInnerEnvelope(ModelBase):
         self.mu0 = None
         self.read_grid(grid)
         self.calc_kinematic_structure(Mdot, CR, M, cavangle)
-        self.set_cylindrical_velocity()
+        #self.set_cylindrical_velocity()
 
     def calc_kinematic_structure(self, Mdot, CR, M, cavangle):
         vff = np.sqrt(2 * G * M / self.rr)
@@ -179,7 +177,7 @@ class TerebeyOuterEnvelope(ModelBase):
         self.vp = None
         self.read_grid(grid)
         self.calc_kinematic_structure(t, cs, Omega, cavangle)
-        self.set_cylindrical_velocity()
+        #self.set_cylindrical_velocity()
         self.rin_lim = 0
 
     def calc_kinematic_structure(self, t, cs, Omega, cavangle):
@@ -219,7 +217,7 @@ class ExptailDisk(Disk):
         Sigma = self.get_Sigma(Mdisk, Rd, index)
         cs_disk = np.sqrt(kB * Td / (meanmolw * amu))
         self.calc_kinematic_structure_from_Sigma(Sigma, Ms, cs_disk)
-        self.set_cylindrical_velocity()
+        #self.set_cylindrical_velocity()
 
     def get_Sigma(self, Mdisk, Rd, ind):
         Sigma0 = Mdisk / (2 * np.pi * Rd ** 2) / (1 - 2 / np.e)
