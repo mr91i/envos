@@ -66,13 +66,15 @@ class ModelGenerator:
     def set_grid(self, ri=None, ti=None, pi=None, grid=None):
         if grid is not None:
             self.grid = grid
-            return
+        elif ri is not None:
+            self.grid = Grid(
+                ri_ax=ri,
+                ti_ax=ti,
+                pi_ax=pi,
+            )
+        else:
+            logger.log("Failed in making grid.")
 
-        self.grid = Grid(
-            ri_ax=ri,
-            ti_ax=ti,
-            pi_ax=pi,
-        )
         self.model.set_grid(self.grid)
 
     def get_meshgrid(self):
@@ -115,32 +117,37 @@ class ModelGenerator:
     def set_gas_velocity(self, vr, vt, vp):
         self.model.set_gas_velocity(vr, vt, vp)
 
-    def calc_kinematic_structure(
-        self, inenv=None, outenv=None, disk=None, grid=None, ppar=None
-    ):
+
+
+    def calc_kinematic_structure(self):
 
         ### Set grid
-        if grid is not None:
-            self.grid = grid
+        #if grid is not None:
+        #    self.grid = grid
         if self.grid is None:
             raise Exception("grid is not set.")
 
         ### Set physical parameters
-        if ppar is not None:
-            self.ppar = ppar
+        #if ppar is not None:
+        #    self.ppar = ppar
         if self.ppar is None:
             raise Exception("ppar is not set.")
 
         ### Set models
         logger.info("Calculating kinematic structure")
         logger.info("Models:")
-        logger.info(f"    inner-envelope: {inenv or self.inenv}")
-        logger.info(f"    outer-envelope: {outenv or self.outenv}")
-        logger.info(f"    disk: {disk or self.disk}\n")
-        self.set_inenv(inenv or self.inenv)
-        self.set_outenv(outenv or self.outenv)
-        self.set_disk(disk or self.disk)
-
+        #logger.info(f"    inner-envelope: {inenv or self.inenv}")
+        #logger.info(f"    outer-envelope: {outenv or self.outenv}")
+        #logger.info(f"    disk: {disk or self.disk}\n")
+        #self.set_inenv(inenv or self.inenv)
+        #self.set_outenv(outenv or self.outenv)
+        #self.set_disk(disk or self.disk)
+        logger.info(f"    inner-envelope: {self.inenv}")
+        logger.info(f"    outer-envelope: {self.outenv}")
+        logger.info(f"    disk: {self.disk}\n")
+        self.set_inenv(self.inenv)
+        self.set_outenv(self.outenv)
+        self.set_disk(self.disk)
 
         ### Make kmodel
         zeros = np.zeros_like(self.grid.rr)
@@ -179,8 +186,8 @@ class ModelGenerator:
             vp[cond] = self.disk.vp[cond]
 
         logger.info("Calculated kinematic structure")
-        if grid is not None:
-            self.model.set_grid(self.grid)
+        #if grid is not None:
+        #self.model.set_grid(self.grid)
         self.model.set_gas_density(rho)
         self.model.set_gas_velocity(vr, vt, vp)
         self.model.set_physical_parameters(self.ppar)
