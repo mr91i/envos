@@ -29,20 +29,25 @@ class ModelGenerator:
 
     def init_from_config(self, config):
         self.config = config
-        grid = Grid(
-            config.ri_ax, config.ti_ax, config.pi_ax,
-            rau_lim=[config.rau_in, config.rau_out],
-            theta_lim=[config.theta_in, config.theta_out],
-            phi_lim=[config.phi_in, config.phi_out],
-            nr=config.nr,
-            ntheta=config.ntheta,
-            nphi=config.nphi,
-            dr_to_r=config.dr_to_r,
-            aspect_ratio=config.aspect_ratio,
-            logr=config.logr,
-        )
 
-        self.set_grid(grid=grid)
+        try:
+            grid = Grid(
+                config.ri_ax, config.ti_ax, config.pi_ax,
+                rau_lim=[config.rau_in, config.rau_out],
+                theta_lim=[config.theta_in, config.theta_out],
+                phi_lim=[config.phi_in, config.phi_out],
+                nr=config.nr,
+                ntheta=config.ntheta,
+                nphi=config.nphi,
+                dr_to_r=config.dr_to_r,
+                aspect_ratio=config.aspect_ratio,
+                logr=config.logr,
+            )
+            self.set_grid(grid=grid)
+        except Exception as e:
+            logger.info("Failed to generate grid.")
+            logger.info(e.args)
+
         self.set_physical_parameters(
             config.T,
             config.CR_au,
@@ -68,6 +73,11 @@ class ModelGenerator:
             ti_ax=ti,
             pi_ax=pi,
         )
+        self.model.set_grid(self.grid)
+
+    def get_meshgrid(self):
+        return self.grid.rr, self.grid.tt, self.grid.pp
+
 
     def set_physical_parameters(
         self,
@@ -98,6 +108,12 @@ class ModelGenerator:
         self.inenv = inenv
         self.outenv = outenv
         self.disk = disk
+
+    def set_gas_density(self, rho):
+        self.model.set_gas_density(rho)
+
+    def set_gas_velocity(self, vr, vt, vp):
+        self.model.set_gas_velocity(vr, vt, vp)
 
     def calc_kinematic_structure(
         self, inenv=None, outenv=None, disk=None, grid=None, ppar=None
@@ -163,7 +179,8 @@ class ModelGenerator:
             vp[cond] = self.disk.vp[cond]
 
         logger.info("Calculated kinematic structure")
-        self.model.set_grid(self.grid)
+        if grid is not None:
+            self.model.set_grid(self.grid)
         self.model.set_gas_density(rho)
         self.model.set_gas_velocity(vr, vt, vp)
         self.model.set_physical_parameters(self.ppar)
