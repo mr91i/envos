@@ -38,7 +38,7 @@ def plot_density_map(
     trajectries=False, #True,
 ):
 
-    lvs = np.linspace(-19, -16, 10)
+    lvs = np.linspace(-19, -16, 100)
     rho = model.rhogas
     #lvs = np.arange(1/5*np.floor(5*np.min(np.log10(rho[rho != 0.0])) ) -1/5, np.log10(np.max(rho)) + 1/5 + 1e-3, 1/5)
     img = plt.pcolormesh(
@@ -72,8 +72,9 @@ def plot_density_map(
 def plot_midplane_density_profile(model):
     index_mid = np.argmin(np.abs( model.tc_ax - np.pi/2))
     plt.plot(model.rc_ax/nc.au, model.rhogas[:, index_mid, 0])
-    plt.xlim(10, 1000)
-    plt.ylim(1e-19, 1e-15)
+    #plt.xlim(np.min(model.rc_ax/nc.au), np.max(model.rc_ax/nc.au))
+    #plt.ylim(np.min(model.rhogas[:, index_mid, 0])*0.9, np.max(model.rhogas[:, index_mid, 0])*1.1)
+    #plt.ylim(1e-19, 1e-15)
     plt.xscale("log")
     plt.yscale("log")
     plt.xlabel("Distance from Star [au]")
@@ -83,15 +84,15 @@ def plot_midplane_density_profile(model):
 def plot_midplane_temperature_profile(model):
     index_mid = np.argmin(np.abs( model.tc_ax - np.pi/2))
     plt.plot(model.rc_ax/nc.au, model.Tgas[:, index_mid, 0])
-    plt.xlim(10, 1000)
-    plt.ylim(1, 1000)
+    #plt.xlim(10, 1000)
+    #plt.ylim(1, 1000)
     plt.xscale("log")
     plt.yscale("log")
     plt.xlabel("Distance from Star [au]")
     plt.ylabel("Temperature [K]")
     savefig("T_prof.pdf")
 
-def plot_midplane_velocity_profile(model, rlim=400):
+def plot_midplane_velocity_profile(model, rlim=400, ylim=(-0.5,3)):
     index_mid = np.argmin(np.abs( model.tc_ax - np.pi/2))
     cav = np.where(model.rhogas != 0, 1, 0)[:,index_mid, 0]
     plt.plot(model.rc_ax/nc.au, -model.vr[:, index_mid, 0]*cav/1e5, label=r"$- v_r$", ls="-")
@@ -100,7 +101,7 @@ def plot_midplane_velocity_profile(model, rlim=400):
     #vmax = np.max(np.array([-model.vr, model.vt, model.vp]) * cav)
     #vlev_max = np.round(vmax)
     plt.xlim(0, rlim)
-    plt.ylim(0, 3)
+    plt.ylim(ylim)
     plt.xlabel("Distance from Star [au]")
     plt.ylabel("Velocity [km s$^{-1}$]")
     plt.legend()

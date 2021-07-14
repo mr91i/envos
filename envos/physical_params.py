@@ -50,16 +50,16 @@ class PhysicalParameters:
     def __init__(
         self,
         *,
-        T: float = None,
-        CR_au: float = None,
         Ms_Msun: float = None,
-        t_yr: float = None,
+        T: float = None,
+        Mdot_smpy: float = None,
+        CR_au: float = None,
+        t_yr: float = None, # to be deleted
         Omega: float = None,
         jmid: float = None,
-        Mdot_smpy: float = None,
+        rexp_au: float = None,
         meanmolw: float = 2.3,
         cavangle_deg: float = 0,
-        rexp_au: float = None,
     ):
         self.meanmolw = meanmolw
         self.rexp = None
@@ -107,6 +107,7 @@ class PhysicalParameters:
             jmid = (rexp * m0 / 2)**2 * Omega
             CR = jmid ** 2 / (nc.G * Ms)
             self.rexp = rexp
+            self.t = rexp / self.cs
         elif CR_au is not None:
             CR = CR_au * nc.au
             jmid = np.sqrt(CR * nc.G * Ms)
@@ -120,12 +121,12 @@ class PhysicalParameters:
 
     def log(self):
         logger.info("Model Parameters:")
+        self._logp("Ms", "Msun", self.Ms, nc.Msun)
+        self._logp("Mdot", "Msun/yr", self.Mdot, nc.Msun / nc.yr)
         self._logp("Tenv", "K", self.T)
         self._logp("cs", "km/s", self.cs, nc.kms)
         self._logp("t", "yr", self.t, nc.yr)
-        self._logp("Ms", "Msun", self.Ms, nc.Msun)
         self._logp("Omega", "s^-1", self.Omega)
-        self._logp("Mdot", "Msun/yr", self.Mdot, nc.Msun / nc.yr)
         self._logp("jmid", "au*km/s", self.jmid, nc.kms * nc.au)
         self._logp("jmid", "pc*km/s", self.jmid, nc.kms * nc.pc)
         self._logp("CR", "au", self.CR, nc.au)
@@ -144,13 +145,8 @@ class PhysicalParameters:
     @staticmethod
     def _logp(name, unit, value, unitval=1):
         if value is not None:
-            valstr = f"= {value/unitval:10.2g} "
+            valstr = f"= {value/unitval:10.2g} " + unit.ljust(8)
         else:
             valstr = "= None"
 
-        logger.info(
-            "    "
-            + name.ljust(12)
-            + valstr
-            + unit.ljust(8)
-        )
+        logger.info("    " + name.ljust(12) + valstr)

@@ -379,7 +379,6 @@ class TscSolver:
     #    np.savetxt(path, vals, header=" ".join(soldict.keys())  )
     def print_result_constants(self):
         logger.info(f"result: K={self.K}, ΔQ={self.Delta_Q}, m*={self.Ms}")
-        print(f"result: K={self.K}, ΔQ={self.Delta_Q}, m*={self.Ms}")
 
     def save_table(self, filename=FILENAME, path=None):
         path = path or os.path.join(gpath.storage_dir, filename)
@@ -461,7 +460,7 @@ def get_tsc(r, theta, t, cs, Omega, mode="read", filename=FILENAME):
     if mode == "read":
         _sol = read_table(filename=filename)
         if _sol is None:
-            logger.info("Failed to read data. Solve TSC equations.")
+            logger.info("Failed to load the table of TSC solution (probably just due to missing the file), and so solve TSC equations. After solving, the solution will be saved in the storage directory. From the next time, the table will be loaded to save computational costs.")
             mode = "solve"
 
     if mode == "solve":
