@@ -59,12 +59,13 @@ class Config:
     logr: bool = True
 
     # Model input
-    T: float = 10
-    CR_au: float = 100
-    Ms_Msun: float = 1.0
+    T: float = None #10
+    CR_au: float = None # 100
+    Ms_Msun: float = None # 1.0
     t_yr: float = None
     Omega: float = None
-    maxj: float = None
+    jmid: float = None
+    rexp_au: float = None
     Mdot_smpy: float = None
     meanmolw: float = 2.3
     cavangle_deg: float = 0

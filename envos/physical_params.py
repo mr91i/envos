@@ -10,7 +10,7 @@ def calc_dependent_params(
         Ms_Msun: float = None,
         t_yr: float = None,
         Omega: float = None,
-        maxj: float = None,
+        jmid: float = None,
         Mdot_smpy: float = None,
         meanmolw: float = None,
     ):
@@ -33,16 +33,16 @@ def calc_dependent_params(
 
     if CR_au is not None:
         CR = CR_au * nc.au
-        maxj = np.sqrt(CR * nc.G * Ms)
-        Omega = maxj / (0.5 * cs * m0 * t) ** 2
-    elif maxj is not None:
-        CR = maxj ** 2 / (nc.G * Ms)
-        Omega = maxj / (0.5 * cs * m0 * t) ** 2
+        jmid = np.sqrt(CR * nc.G * Ms)
+        Omega = jmid / (0.5 * cs * m0 * t) ** 2
+    elif jmid is not None:
+        CR = jmid ** 2 / (nc.G * Ms)
+        Omega = jmid / (0.5 * cs * m0 * t) ** 2
     elif Omega is not None:
-        maxj = (0.5 * cs * m0 * t) ** 2 * Omega
-        CR = maxj ** 2 / (nc.G * Ms)
+        jmid = (0.5 * cs * m0 * t) ** 2 * Omega
+        CR = jmid ** 2 / (nc.G * Ms)
 
-    return {"T":T, "cs":cs, "Mdot":Mdot, "Ms":Ms, "t":t, "CR": CR, "maxj": maxj, "Omega": Omega}
+    return {"T":T, "cs":cs, "Mdot":Mdot, "Ms":Ms, "t":t, "CR": CR, "jmid": jmid, "Omega": Omega}
 
 
 
@@ -55,22 +55,24 @@ class PhysicalParameters:
         Ms_Msun: float = None,
         t_yr: float = None,
         Omega: float = None,
-        maxj: float = None,
+        jmid: float = None,
         Mdot_smpy: float = None,
         meanmolw: float = 2.3,
         cavangle_deg: float = 0,
+        rexp_au: float = None,
     ):
         self.meanmolw = meanmolw
+        self.rexp = None
 
-        self._calc_T_cs_Mdot(self.meanmolw, T, Mdot_smpy)
-        self._calc_Ms_t(self.Mdot, Ms_Msun, t_yr)
-        self._calc_CR_maxj_Omega(self.cs, self.Ms, self.t, CR_au, maxj, Omega)
+        self.calc_Mdot(self.meanmolw, T, Mdot_smpy)
+        self.calc_Ms(self.Mdot, Ms_Msun, t_yr)
+        self.calc_jmid(self.cs, self.Ms, self.t, CR_au, jmid, Omega, rexp_au)
 
         self.cavangle = np.radians(cavangle_deg)
         self.r_inlim_tsc = self.cs * self.Omega ** 2 * self.t ** 3
         self.log()
 
-    def _calc_T_cs_Mdot(self, meanmolw, T=None, Mdot_smpy=None):
+    def calc_Mdot(self, meanmolw, T=None, Mdot_smpy=None):
         m0 = 0.975
         if T is not None:
             cs = np.sqrt(nc.kB * T / (meanmolw * nc.amu))
@@ -83,7 +85,7 @@ class PhysicalParameters:
         self.cs = cs
         self.Mdot = Mdot
 
-    def _calc_Ms_t(self, Mdot, Ms_Msun=None, t_yr=None):
+    def calc_Ms(self, Mdot, Ms_Msun=None, t_yr=None):
         if Ms_Msun is not None:
             Ms = Ms_Msun * nc.Msun
             t = Ms / Mdot
@@ -93,22 +95,27 @@ class PhysicalParameters:
         self.Ms = Ms
         self.t = t
 
-    def _calc_CR_maxj_Omega(
-        self, cs, Ms, t, CR_au=None, maxj=None, Omega=None
+    def calc_jmid(
+        self, cs, Ms, t, CR_au=None, jmid=None, Omega=None, rexp_au=None
     ):
         m0 = 0.975
-        if CR_au is not None:
+        if jmid is not None:
+            CR = jmid ** 2 / (nc.G * Ms)
+            Omega = jmid / (0.5 * cs * m0 * t) ** 2
+        elif (rexp_au is not None) and (Omega is not None):
+            rexp = rexp_au * nc.au
+            jmid = (rexp * m0 / 2)**2 * Omega
+            CR = jmid ** 2 / (nc.G * Ms)
+            self.rexp = rexp
+        elif CR_au is not None:
             CR = CR_au * nc.au
-            maxj = np.sqrt(CR * nc.G * Ms)
-            Omega = maxj / (0.5 * cs * m0 * t) ** 2
-        elif maxj is not None:
-            CR = maxj ** 2 / (nc.G * Ms)
-            Omega = maxj / (0.5 * cs * m0 * t) ** 2
+            jmid = np.sqrt(CR * nc.G * Ms)
+            Omega = jmid / (0.5 * cs * m0 * t) ** 2
         elif Omega is not None:
-            maxj = (0.5 * cs * m0 * t) ** 2 * Omega
-            CR = maxj ** 2 / (nc.G * Ms)
+            jmid = (0.5 * cs * m0 * t) ** 2 * Omega
+            CR = jmid ** 2 / (nc.G * Ms)
         self.CR = CR
-        self.maxj = maxj
+        self.jmid = jmid
         self.Omega = Omega
 
     def log(self):
@@ -119,12 +126,14 @@ class PhysicalParameters:
         self._logp("Ms", "Msun", self.Ms, nc.Msun)
         self._logp("Omega", "s^-1", self.Omega)
         self._logp("Mdot", "Msun/yr", self.Mdot, nc.Msun / nc.yr)
-        self._logp("maxj", "au*km/s", self.maxj, nc.kms * nc.au)
-        self._logp("maxj", "pc*km/s", self.maxj, nc.kms * nc.pc)
+        self._logp("jmid", "au*km/s", self.jmid, nc.kms * nc.au)
+        self._logp("jmid", "pc*km/s", self.jmid, nc.kms * nc.pc)
         self._logp("CR", "au", self.CR, nc.au)
         self._logp("CB", "au", self.CR / 2, nc.au)
         self._logp("meanmolw", "", self.meanmolw)
         self._logp("cavangle", "deg", np.rad2deg(self.cavangle))
+        self._logp("rexp", "au", self.rexp, nc.au)
+        self._logp("cs*t", "au", self.cs * self.t, nc.au)
         self._logp("Omega*t", "", self.Omega * self.t)
         self._logp(
             "rinlim_tsc", "au", self.cs * self.Omega ** 2 * self.t ** 3, nc.au
@@ -134,9 +143,14 @@ class PhysicalParameters:
 
     @staticmethod
     def _logp(name, unit, value, unitval=1):
+        if value is not None:
+            valstr = f"= {value/unitval:10.2g} "
+        else:
+            valstr = "= None"
+
         logger.info(
             "    "
             + name.ljust(12)
-            + f"= {value/unitval:10.2g} "
+            + valstr
             + unit.ljust(8)
         )
