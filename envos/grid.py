@@ -26,7 +26,7 @@ class Grid:
             self.ri_ax = ri_ax
             self.ti_ax = ti_ax
             self.pi_ax = pi_ax
-        else:
+        elif (rau_lim is not None) and (theta_lim is not None) and (phi_lim is not None):
             self.calc_interface_coord(
                 rau_lim=rau_lim,
                 theta_lim=theta_lim,
@@ -38,6 +38,8 @@ class Grid:
                 aspect_ratio=aspect_ratio,
                 logr=logr,
             )
+        else:
+            return None
 
         self.set_cellcenter_axes()
         self.set_meshgrid()
