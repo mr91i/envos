@@ -180,7 +180,7 @@ class TerebeyOuterEnvelope(ModelBase):
         self.read_grid(grid)
         self.calc_kinematic_structure(t, cs, Omega, cavangle)
         self.set_cylindrical_velocity()
-        self.rin_lim = 0
+        self.rin_lim = cs * Omega ** 2 * t ** 3
 
     def calc_kinematic_structure(self, t, cs, Omega, cavangle):
         res = tsc.get_tsc(self.rc_ax, self.tc_ax, t, cs, Omega, mode="read")
@@ -193,7 +193,6 @@ class TerebeyOuterEnvelope(ModelBase):
         P2 = 1 - 3 / 2 * np.sin(self.tt) ** 2
         r_exp_shu = cs * Omega ** 2 * t ** 3
         self.r_exp = r_exp_shu * 0.4 / (1 + self.Delta * P2)
-        self.rin_lim = cs * Omega ** 2 * t ** 3
 
 class Disk(ModelBase):
     def calc_kinematic_structure_from_Sigma(self, Sigma, Ms, cs_disk):

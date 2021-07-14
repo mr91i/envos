@@ -137,11 +137,12 @@ class ModelGenerator:
 
         if ismodel(self.inenv):
             print("Setting inner envelop")
-            cond = rho < self.inenv.rho
+            cond = rho <= self.inenv.rho
             rho[cond] = self.inenv.rho[cond]
             vr[cond] = self.inenv.vr[cond]
             vt[cond] = self.inenv.vt[cond]
             vp[cond] = self.inenv.vp[cond]
+            self.model.set_mu0(self.inenv.mu0)
 
         if ismodel(self.outenv):
             print("Setting outer envelop")
