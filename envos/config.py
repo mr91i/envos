@@ -68,7 +68,7 @@ class Config:
     Mdot_smpy: float = None
     meanmolw: float = 2.3
     cavangle_deg: float = 0
-    inenv: str = "UCM"
+    inenv: str = "UCM" # {"UCM", "Simple"}
     outenv: str = None
     disk: str = None
     rot_ccw: bool = False
