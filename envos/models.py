@@ -81,8 +81,8 @@ class CircumstellarModel(ModelBase):
     def set_grid(self, grid):
         self.read_grid(grid)
 
-    def set_gas_density(self, density):
-        self.rhogas = density
+    def set_gas_density(self, rho):
+        self.rhogas = rho
 
     def set_gas_velocity(self, vr, vt, vp):
         self.vr = vr
@@ -191,9 +191,9 @@ class TerebeyOuterEnvelope(ModelBase):
         self.vp = res["vp"][:, :, np.newaxis]
         self.Delta = res["Delta"]
         P2 = 1 - 3 / 2 * np.sin(self.tt) ** 2
-        r_exp_shu = cs * Omega ** 2 * t ** 3
-        self.r_exp = r_exp_shu * 0.4 / (1 + self.Delta * P2)
-        self.rin_lim = cs * Omega ** 2 * t ** 3
+        # updated 2021/7/14
+        #self.rin_lim = cs * Omega ** 2 * t ** 3 * 0.4 / (1 + self.Delta * P2)
+        self.rin_lim = cs * Omega ** 2 * t ** 3 * 0.4 / (1 + self.Delta * P2)
 
 class Disk(ModelBase):
     def calc_kinematic_structure_from_Sigma(self, Sigma, Ms, cs_disk):
