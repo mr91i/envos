@@ -33,13 +33,14 @@ Plotting functions
 def plot_density_map(
     model,
     rlim=500,
+    r0=None,
     streams=False, #True,
     trajectries=False, #True,
 ):
 
     lvs = np.linspace(-19, -16, 10)
     rho = model.rhogas
-    lvs = np.arange(1/5*np.floor(5*np.min(np.log10(rho[rho != 0.0])) ) -1/5, np.log10(np.max(rho)) + 1/5 + 1e-3, 1/5)
+    #lvs = np.arange(1/5*np.floor(5*np.min(np.log10(rho[rho != 0.0])) ) -1/5, np.log10(np.max(rho)) + 1/5 + 1e-3, 1/5)
     img = plt.pcolormesh(
         model.R[:, :, 0] / nc.au,
         model.z[:, :, 0] / nc.au,
@@ -56,12 +57,14 @@ def plot_density_map(
     cbar = plt.colorbar(img, format="%.1f", extend="both", pad=0.02)
     cbar.set_label(r"log Gas Density [g cm$^{-3}$]")
     cbar.ax.minorticks_off()
+    plt.gca().set_aspect('equal', adjustable='box')
+    #plt.axis('square')
 
     if trajectries:
         add_trajectries(model)
 
     if streams:
-        add_streams(model, rlim, use_mu0=hasattr(model, "mu0"))
+        add_streams(model, rlim, r0=r0, use_mu0=hasattr(model, "mu0"))
 
     savefig("density.pdf")
 
@@ -88,7 +91,7 @@ def plot_midplane_temperature_profile(model):
     plt.ylabel("Temperature [K]")
     savefig("T_prof.pdf")
 
-def plot_midplane_velocity_profile(model):
+def plot_midplane_velocity_profile(model, rlim=400):
     index_mid = np.argmin(np.abs( model.tc_ax - np.pi/2))
     cav = np.where(model.rhogas != 0, 1, 0)[:,index_mid, 0]
     plt.plot(model.rc_ax/nc.au, -model.vr[:, index_mid, 0]*cav/1e5, label=r"$- v_r$", ls="-")
@@ -96,12 +99,35 @@ def plot_midplane_velocity_profile(model):
     plt.plot(model.rc_ax/nc.au,  model.vp[:, index_mid, 0]*cav/1e5, label=r"$v_{\phi}$", ls="--", )
     #vmax = np.max(np.array([-model.vr, model.vt, model.vp]) * cav)
     #vlev_max = np.round(vmax)
-    plt.xlim(0, 400)
+    plt.xlim(0, rlim)
     plt.ylim(0, 3)
     plt.xlabel("Distance from Star [au]")
     plt.ylabel("Velocity [km s$^{-1}$]")
     plt.legend()
     savefig("v_prof.pdf")
+
+def plot_midplane_density_velocity_profile(model, rlim=1000):
+    index_mid = np.argmin(np.abs( model.tc_ax - np.pi/2))
+    plt.plot(model.rc_ax/nc.au, model.rhogas[:, index_mid, 0], ls="-", c="dimgray", label=r"$\rho$")
+    plt.xlim(10, rlim)
+    plt.ylim(1e-19, 1e-15)
+    plt.xscale("log")
+    plt.yscale("log")
+    plt.xlabel("Distance from Star [au]")
+    plt.ylabel("Gas Density [g cm$^{-3}$]")
+
+    ax2 = plt.twinx()
+    cav = np.where(model.rhogas != 0, 1, 0)[:,index_mid, 0]
+    plt.plot(np.nan, ls="-.", c="dimgray", label=r"$\rho$")
+    plt.plot(model.rc_ax/nc.au, -model.vr[:, index_mid, 0]*cav/1e5, label=r"$- v_r$", ls="--")
+    plt.plot(model.rc_ax/nc.au,  model.vt[:, index_mid, 0]*cav/1e5, label=r"$v_{\theta}$", ls=":")
+    plt.plot(model.rc_ax/nc.au,  model.vp[:, index_mid, 0]*cav/1e5, label=r"$v_{\phi}$", ls="-.", )
+    plt.ylim(0, 4)
+    plt.ylabel("Velocity [km s$^{-1}$]")
+    plt.legend(handlelength=3)
+    plt.minorticks_on()
+
+    savefig("v_dens_prof.pdf")
 
 def plot_midplane_velocity_map(model, rlim=300):
     rax = model.rc_ax
@@ -148,6 +174,7 @@ def plot_midplane_velocity_map(model, rlim=300):
 def plot_temperature_map(
     m,
     rlim=500,
+    r0=None,
     streams=False, #True,
     trajectries=False, #True,
 ):
@@ -182,6 +209,8 @@ def plot_temperature_map(
     cbar = plt.colorbar(img, extend="both", pad=0.02)
     cbar.set_label(r"Gas Temperature [K]")
     cbar.ax.minorticks_off()
+    plt.gca().set_aspect('equal', adjustable='box')
+    #plt.axis('square')
     # cbar.ax.yaxis.set_major_formatter(mt.ScalarFormatter())
     # cbar.ax.yaxis.set_minor_formatter(mt.ScalarFormatter())
 
@@ -191,7 +220,7 @@ def plot_temperature_map(
     if streams:
         #mu0 = m.mu0 if hasattr(m, mu0) else None
         #add_streams(m, rlim, mu0)
-        add_streams(m, rlim, use_mu0=hasattr(m, "mu0"))
+        add_streams(m, rlim, r0=r0, use_mu0=hasattr(m, "mu0"))
 
     savefig("gtemp.pdf")
 
@@ -407,7 +436,7 @@ def make_listed_cmap(cmap_name, ncolors, extend="both"):
         lcmap.set_over(colors[-1])
     return lcmap
 
-def add_streams(km, rlim, r0=None, use_mu0=False):
+def add_streams(model, rlim, r0=None, use_mu0=False):
     r0 = r0 or rlim
     rau = np.linspace(0, r0, 1000)
     xx, yy = np.meshgrid(rau, rau)
@@ -415,23 +444,23 @@ def add_streams(km, rlim, r0=None, use_mu0=False):
         [np.sqrt(xx ** 2 + yy ** 2), np.arctan2(xx, yy)], axis=-1
     )
     vR = interpolate.interpn(
-        (km.rc_ax / nc.au, km.tc_ax),
-        km.vR[:, :, 0],
+        (model.rc_ax / nc.au, model.tc_ax),
+        model.vR[:, :, 0],
         newgrid,
         bounds_error=False,
         fill_value=None,
     )
     vz = interpolate.interpn(
-        (km.rc_ax / nc.au, km.tc_ax),
-        km.vz[:, :, 0],
+        (model.rc_ax / nc.au, model.tc_ax),
+        model.vz[:, :, 0],
         newgrid,
         bounds_error=False,
         fill_value=None,
     )
     if use_mu0:
-        r0arg = np.argmin( np.abs(r0 * nc.au - km.rc_ax) )
-        mu0_arr = km.mu0[r0arg, :, 0]
-        theta_func = interpolate.interp1d(np.arccos(mu0_arr), km.tc_ax, fill_value="extrapolate", kind='cubic')
+        r0arg = np.argmin( np.abs(r0 * nc.au - model.rc_ax) )
+        mu0_arr = model.mu0[r0arg, :, 0]
+        theta_func = interpolate.interp1d(np.arccos(mu0_arr), model.tc_ax, fill_value="extrapolate", kind='cubic')
         theta0 = theta_func(np.radians(np.linspace(0, 90, 19)[1: -1]))
     else:
         theta0 = np.radians(np.linspace(0, 90, 19))
@@ -443,7 +472,9 @@ def add_streams(km, rlim, r0=None, use_mu0=False):
 
 def add_trajectries(km):
     r0 = km.ppar.cs * km.ppar.t  # / nc.au
-    start_points = [(r0, th0) for th0 in np.radians(np.linspace(0, 90, 10))]
+    #start_points = [(r0, th0) for th0 in np.radians(np.linspace(0, 90, 10))]
+    start_points = [(r0, th0) for th0 in np.radians([89.9, 85, 80, 75, 70, 65, 60, 55, 50, 44.9])]
+    t_eval = np.arange(1e3, 1e6, 100) *  nc.year
     sls = streamline.calc_streamlines(
         km.rc_ax,
         km.tc_ax,
@@ -451,12 +482,13 @@ def add_trajectries(km):
         km.vt[:, :, 0],
         start_points,
         method="RK23",
+        t_eval=t_eval,
     )
     for sl in sls:
         plt.plot(
-            sl.R / nc.au, sl.z / nc.au, c="orange", lw=1.0, marker=".", ms=5
+            sl.R / nc.au, sl.z / nc.au, c="orange", lw=0.7, marker=".", ms=1.5
         )
-    streamline.save_data(sls)
+    #streamline.save_data(sls)
 
 
 def vertical_integral(value_rt, R_rt, z_rt, R_ax, z_ax, log=False):
