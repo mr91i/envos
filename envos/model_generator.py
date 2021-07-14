@@ -29,27 +29,33 @@ class ModelGenerator:
 
     def init_from_config(self, config):
         self.config = config
-        grid = Grid(
-            config.ri_ax, config.ti_ax, config.pi_ax,
-            rau_lim=[config.rau_in, config.rau_out],
-            theta_lim=[config.theta_in, config.theta_out],
-            phi_lim=[config.phi_in, config.phi_out],
-            nr=config.nr,
-            ntheta=config.ntheta,
-            nphi=config.nphi,
-            dr_to_r=config.dr_to_r,
-            aspect_ratio=config.aspect_ratio,
-            logr=config.logr,
-        )
 
-        self.set_grid(grid=grid)
+        try:
+            grid = Grid(
+                config.ri_ax, config.ti_ax, config.pi_ax,
+                rau_lim=[config.rau_in, config.rau_out],
+                theta_lim=[config.theta_in, config.theta_out],
+                phi_lim=[config.phi_in, config.phi_out],
+                nr=config.nr,
+                ntheta=config.ntheta,
+                nphi=config.nphi,
+                dr_to_r=config.dr_to_r,
+                aspect_ratio=config.aspect_ratio,
+                logr=config.logr,
+            )
+            self.set_grid(grid=grid)
+        except Exception as e:
+            logger.info("Failed to generate grid.")
+            logger.info(e.args)
+
         self.set_physical_parameters(
             config.T,
             config.CR_au,
             config.Ms_Msun,
             config.t_yr,
             config.Omega,
-            config.maxj,
+            config.jmid,
+            config.rexp_au,
             config.Mdot_smpy,
             config.meanmolw,
             config.cavangle_deg,
@@ -61,13 +67,20 @@ class ModelGenerator:
     def set_grid(self, ri=None, ti=None, pi=None, grid=None):
         if grid is not None:
             self.grid = grid
-            return
+        elif ri is not None:
+            self.grid = Grid(
+                ri_ax=ri,
+                ti_ax=ti,
+                pi_ax=pi,
+            )
+        else:
+            logger.error("Failed in making grid.")
 
-        self.grid = Grid(
-            ri_ax=ri,
-            ti_ax=ti,
-            pi_ax=pi,
-        )
+        self.model.set_grid(self.grid)
+
+    def get_meshgrid(self):
+        return self.grid.rr, self.grid.tt, self.grid.pp
+
 
     def set_physical_parameters(
         self,
@@ -76,7 +89,8 @@ class ModelGenerator:
         Ms_Msun: float = None,
         t_yr: float = None,
         Omega: float = None,
-        maxj: float = None,
+        jmid: float = None,
+        rexp_au: float = None,
         Mdot_smpy: float = None,
         meanmolw: float = 2.3,
         cavangle_deg: float = 0,
@@ -88,7 +102,8 @@ class ModelGenerator:
             Ms_Msun=Ms_Msun,
             t_yr=t_yr,
             Omega=Omega,
-            maxj=maxj,
+            jmid=jmid,
+            rexp_au=rexp_au,
             Mdot_smpy=Mdot_smpy,
             meanmolw=meanmolw,
             cavangle_deg=cavangle_deg,
@@ -99,32 +114,43 @@ class ModelGenerator:
         self.outenv = outenv
         self.disk = disk
 
-    def calc_kinematic_structure(
-        self, inenv=None, outenv=None, disk=None, grid=None, ppar=None
-    ):
+    def set_gas_density(self, rho):
+        self.model.set_gas_density(rho)
+
+    def set_gas_velocity(self, vr, vt, vp):
+        self.model.set_gas_velocity(vr, vt, vp)
+
+
+
+    def calc_kinematic_structure(self, smoothing_TSC=True):
 
         ### Set grid
-        if grid is not None:
-            self.grid = grid
+        #if grid is not None:
+        #    self.grid = grid
         if self.grid is None:
             raise Exception("grid is not set.")
 
         ### Set physical parameters
-        if ppar is not None:
-            self.ppar = ppar
+        #if ppar is not None:
+        #    self.ppar = ppar
         if self.ppar is None:
             raise Exception("ppar is not set.")
 
         ### Set models
         logger.info("Calculating kinematic structure")
         logger.info("Models:")
-        logger.info(f"    inner-envelope: {inenv or self.inenv}")
-        logger.info(f"    outer-envelope: {outenv or self.outenv}")
-        logger.info(f"    disk: {disk or self.disk}\n")
-        self.set_inenv(inenv or self.inenv)
-        self.set_outenv(outenv or self.outenv)
-        self.set_disk(disk or self.disk)
-
+        #logger.info(f"    inner-envelope: {inenv or self.inenv}")
+        #logger.info(f"    outer-envelope: {outenv or self.outenv}")
+        #logger.info(f"    disk: {disk or self.disk}\n")
+        #self.set_inenv(inenv or self.inenv)
+        #self.set_outenv(outenv or self.outenv)
+        #self.set_disk(disk or self.disk)
+        logger.info(f"    inner-envelope: {self.inenv}")
+        logger.info(f"    outer-envelope: {self.outenv}")
+        logger.info(f"    disk: {self.disk}\n")
+        self.set_inenv(self.inenv)
+        self.set_outenv(self.outenv)
+        self.set_disk(self.disk)
 
         ### Make kmodel
         zeros = np.zeros_like(self.grid.rr)
@@ -136,8 +162,8 @@ class ModelGenerator:
         ismodel = lambda x: all(hasattr(x, k) for k in keys)
 
         if ismodel(self.inenv):
-            print("Setting inner envelop")
-            cond = rho <= self.inenv.rho
+            logger.info("Setting inner envelop")
+            cond = rho < self.inenv.rho
             rho[cond] = self.inenv.rho[cond]
             vr[cond] = self.inenv.vr[cond]
             vt[cond] = self.inenv.vt[cond]
@@ -145,14 +171,8 @@ class ModelGenerator:
             self.model.set_mu0(self.inenv.mu0)
 
         if ismodel(self.outenv):
-            print("Setting outer envelop")
-            if 0:
-                fac = np.exp(-(self.outenv.rin_lim/self.grid.rr)**2)
-                rho *= (self.outenv.rho/rho ) ** fac
-                vr *= (self.outenv.vr / vr) ** fac
-                vt *= (self.outenv.vt/vt) ** fac
-                vp *= (self.outenv.vp/vp) ** fac
-            elif 1:
+            logger.info("Setting outer envelop")
+            if smoothing_TSC:
                 fac = np.exp(-(0.3*self.outenv.rin_lim/self.grid.rr)**2 )
                 rho += (self.outenv.rho - rho )* fac * np.where(rho!=0, 1, 0)
                 vr += (self.outenv.vr - vr) * fac
@@ -169,8 +189,7 @@ class ModelGenerator:
                 vp[cond] = self.outenv.vp[cond]
 
         if ismodel(self.disk):
-            print("Setting disk")
-            print(self.disk.rho)
+            logger.info("Setting disk")
             cond = rho < self.disk.rho
             rho[cond] = self.disk.rho[cond]
             vr[cond] = self.disk.vr[cond]
@@ -178,7 +197,8 @@ class ModelGenerator:
             vp[cond] = self.disk.vp[cond]
 
         logger.info("Calculated kinematic structure")
-        self.model.set_grid(self.grid)
+        #if grid is not None:
+        #self.model.set_grid(self.grid)
         self.model.set_gas_density(rho)
         self.model.set_gas_velocity(vr, vt, vp)
         self.model.set_physical_parameters(self.ppar)
