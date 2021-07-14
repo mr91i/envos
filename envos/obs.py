@@ -834,6 +834,21 @@ class PVmap(BaseObsData):
         else:
             return None
 
+    def reverse_x(self):
+        self.Ipv = self.Ipv[:,::-1]
+        self.xau = -self.xau[::-1]
+
+    def reverse_v(self):
+        self.Ipv = self.Ipv[::-1,:]
+        self.vkms = -self.vkms[::-1]
+
+    def offset_x(self, dx):
+        #self.Ipv = self.Ipv[:,::-1]
+        self.xau += dx
+
+    def offset_v(self, dv):
+        self.vkms += dv
+
 
     def trim(self, range_x=None, range_v=None):
         if range_x is not None:
