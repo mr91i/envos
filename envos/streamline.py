@@ -40,6 +40,7 @@ def calc_streamlines(
     pos0list,
     values=[],
     t_span=(1, 1e30),
+    t_eval=None,
     nt=500,
     rtol=1e-4,
     filename="stream",
@@ -54,6 +55,7 @@ def calc_streamlines(
         vt,
         pos0list,
         t_span=t_span,
+        t_eval=t_eval,
         nt=nt,
         rtol=rtol,
         method=method,
@@ -92,6 +94,7 @@ class StreamlineCalculator:
         vt,
         pos0list,
         t_span=(1, 1e30),
+        t_eval=None,
         nt=500,
         rtol=1e-8,
         method="RK45",
@@ -105,7 +108,7 @@ class StreamlineCalculator:
             (r_ax, t_ax), vt, bounds_error=False, fill_value=None
         )
         self.pos0list = pos0list
-        self.t_eval = np.geomspace(t_span[0], t_span[-1], nt)
+        self.t_eval = t_eval if t_eval is not None else np.geomspace(t_span[0], t_span[-1], nt)
         self.rtol = rtol
         self.method = method
         self.streamlines = []
