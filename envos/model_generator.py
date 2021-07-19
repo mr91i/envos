@@ -163,7 +163,7 @@ class ModelGenerator:
 
         if ismodel(self.inenv):
             logger.info("Setting inner envelop")
-            cond = rho < self.inenv.rho
+            cond = rho <= self.inenv.rho
             rho[cond] = self.inenv.rho[cond]
             vr[cond] = self.inenv.vr[cond]
             vt[cond] = self.inenv.vt[cond]
