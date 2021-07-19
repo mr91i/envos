@@ -107,6 +107,20 @@ def plot_midplane_velocity_profile(model, rlim=400, ylim=(-0.5,3)):
     plt.legend()
     savefig("v_prof.pdf")
 
+def plot_midplane_angular_velocity_profile(model, rlim=400, ylim=(-0.5,3)):
+    index_mid = np.argmin(np.abs( model.tc_ax - np.pi/2))
+    cav = np.where(model.rhogas != 0, 1, 0)[:,index_mid, 0]
+    plt.plot(model.rc_ax/nc.au,  model.vp[:, index_mid, 0]*cav/model.R[:, index_mid, 0] , label=r"$\Omega$", ls="--")
+
+    #vmax = np.max(np.array([-model.vr, model.vt, model.vp]) * cav)
+    #vlev_max = np.round(vmax)
+    plt.xscale("log")
+    plt.yscale("log")
+    plt.xlabel("Distance from Star [au]")
+    plt.ylabel("Angular Velocity [s$^{-1}$]")
+    plt.legend()
+    savefig("Omega_prof.pdf")
+
 def plot_midplane_density_velocity_profile(model, rlim=1000):
     index_mid = np.argmin(np.abs( model.tc_ax - np.pi/2))
     plt.plot(model.rc_ax/nc.au, model.rhogas[:, index_mid, 0], ls="-", c="dimgray", label=r"$\rho$")
@@ -437,7 +451,7 @@ def make_listed_cmap(cmap_name, ncolors, extend="both"):
         lcmap.set_over(colors[-1])
     return lcmap
 
-def add_streams(model, rlim, r0=None, use_mu0=False):
+def add_streams(model, rlim, r0=None, use_mu0=False, equal_theta0=False, equal_mu0=True):
     r0 = r0 or rlim
     rau = np.linspace(0, r0, 1000)
     xx, yy = np.meshgrid(rau, rau)
@@ -461,8 +475,12 @@ def add_streams(model, rlim, r0=None, use_mu0=False):
     if use_mu0:
         r0arg = np.argmin( np.abs(r0 * nc.au - model.rc_ax) )
         mu0_arr = model.mu0[r0arg, :, 0]
-        theta_func = interpolate.interp1d(np.arccos(mu0_arr), model.tc_ax, fill_value="extrapolate", kind='cubic')
-        theta0 = theta_func(np.radians(np.linspace(0, 90, 19)[1: -1]))
+        if equal_theta0:
+            theta_func = interpolate.interp1d(np.arccos(mu0_arr), model.tc_ax, fill_value="extrapolate", kind='cubic')
+            theta0 = theta_func(np.radians(np.linspace(0, 90, 19)[1: -1]))
+        elif equal_mu0:
+            mu0_to_theta_func = interpolate.interp1d(mu0_arr, model.tc_ax, fill_value="extrapolate", kind='linear')
+            theta0 = mu0_to_theta_func( np.linspace(0, 1, 11)[1:-1] )
     else:
         theta0 = np.radians(np.linspace(0, 90, 19))
 
