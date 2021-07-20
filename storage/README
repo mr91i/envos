@@ -2,4 +2,4 @@ Data information
 -------------------
 dustkapp_MRN20.inp is calculated by dsharp_opac (https://github.com/birnstiel/dsharp_opac), which is developed by T. Birnstiel. The ice fraction is assumed to be 20 wt%, and the dust size distribution is assumed to be the same as obtained in Mathis, The Astrophysical Journal, Vol. 217, p. 425-433 (1977). When you use this table, please cite Birnstiel et al. 2018. In addition, please cite Henning & Stognienko (1996), Draine 2003, Warren & Brandt (2008) for the optical constants.
 
-molecule_c18o.inp is taken from LAMDA (Leiden Atomic and Molecular Database; https://home.strw.leidenuniv.nl/~moldata/). When you use this data and the database, follow the citation rule decribed in LAMDA webpage.
+molecule_c18o.inp and molecule_c3h2.inp are taken from LAMDA (Leiden Atomic and Molecular Database; https://home.strw.leidenuniv.nl/~moldata/). When you use this data and the database, follow the citation rule decribed in LAMDA webpage.
