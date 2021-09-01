@@ -7,6 +7,7 @@ import glob
 import numpy as np
 import pandas as pd
 import copy
+import textwrap
 from logging import INFO
 import contextlib
 import multiprocessing
@@ -914,7 +915,7 @@ class PVmap(BaseObsData):
         header = pic.header
 
         logger.info("header:")
-        logger.info(header)
+        logger.info(textwrap.fill(header,80))
 
         if unit1 == "degree":
             fac1 = 3600 * self.dpc
@@ -960,7 +961,7 @@ class PVmap(BaseObsData):
         header = pic.header
 
         logger.info("header:")
-        logger.info(header)
+        logger.info(extwrap.fill(header,80))
 
         self.Nx = header["NAXIS1"]
 
@@ -1038,7 +1039,7 @@ def read_PV_fitsfile(
 
     header = pic.header
     logger.info("header:")
-    logger.info(header)
+    logger.info(textwrap.fill(str(header),80))
 
     if unit1 == "degree":
         fac1 = 3600 * dpc
