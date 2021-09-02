@@ -261,6 +261,7 @@ def plot_mom0_map(
     pangle_deg=None,
     poffset_au=None,
     n_lv=100,
+    out="mom0map.pdf"
 ):
     def position_line(length, pangle_deg, poffset_au=0):
         line = np.linspace(-length/2, length/2, 10)
@@ -313,7 +314,7 @@ def plot_mom0_map(
             obsdata.beam_pa_deg,
         )
 
-    savefig("mom0map.pdf")
+    savefig(out)
 
 
 def plot_lineprofile(obsdata):
