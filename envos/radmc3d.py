@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import os
+import shutil
 import numpy as np
 import pandas as pd
 import radmc3dPy
@@ -247,6 +248,10 @@ class RadmcController:
         src = os.path.join(self.storage_dir, filename)
         dst = os.path.join(self.radmc_dir, filename)
         tools.filecopy(src, dst)
+
+    def remove_radmcdir(self):
+        shutil.rmtree(self.radmc_dir)
+
 
     #    def _set_constant_temperature(self, T_const=None, vlocal_fwhm=None):
     #        if T_const is not None:
