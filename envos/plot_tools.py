@@ -36,29 +36,29 @@ def plot_density_map(
     r0=None,
     streams=False, #True,
     trajectries=False, #True,
+    nlv = 10,
 ):
-
-    lvs = np.linspace(-19, -16, 100)
     rho = model.rhogas
-    #lvs = np.arange(1/5*np.floor(5*np.min(np.log10(rho[rho != 0.0])) ) -1/5, np.log10(np.max(rho)) + 1/5 + 1e-3, 1/5)
+    lvs = make_levels(rho, 0.2, log=True)
     img = plt.pcolormesh(
-        model.R[:, :, 0] / nc.au,
-        model.z[:, :, 0] / nc.au,
-        np.log10(rho[:, :, 0].clip(1e-300)),
-        cmap=make_listed_cmap("viridis", len(lvs)-1, extend="both"),
-        norm=mc.BoundaryNorm(lvs, len(lvs)-1, clip=False),
+        model.R[...,0]/nc.au,
+        model.z[...,0]/nc.au,
+        #np.log10(rho[...,0].clip(1e-300)),
+        rho[...,0] ,
         shading="nearest",
         rasterized=True,
     )
     plt.xlim(0, rlim)
     plt.ylim(0, rlim)
+    img.set_cmap(make_listed_cmap("viridis", len(lvs)-1, extend="both"))
+    img.set_norm(mc.BoundaryNorm(lvs, len(lvs)-1, clip=True))
     plt.xlabel("R [au]")
     plt.ylabel("z [au]")
-    cbar = plt.colorbar(img, format="%.1f", extend="both", pad=0.02)
-    cbar.set_label(r"log Gas Density [g cm$^{-3}$]")
-    cbar.ax.minorticks_off()
+    fmt = "%.1e" #mt.LogFormatterSciNotation(labelOnlyBase=False, minor_thresholds=(10, 0.5))
+    cbar = plt.colorbar(img, format=fmt, extend="both", pad=0.02)
+    cbar.set_label(r"Gas Density [g cm$^{-3}$]")
+    #cbar.ax.minorticks_on()
     plt.gca().set_aspect('equal', adjustable='box')
-    #plt.axis('square')
 
     if trajectries:
         add_trajectries(model)
@@ -92,7 +92,7 @@ def plot_midplane_temperature_profile(model):
     plt.ylabel("Temperature [K]")
     savefig("T_prof.pdf")
 
-def plot_midplane_velocity_profile(model, rlim=400, ylim=(-0.5,3)):
+def plot_midplane_velocity_profile(model, rlim=400, ylim=(-0.5,4)):
     index_mid = np.argmin(np.abs( model.tc_ax - np.pi/2))
     cav = np.where(model.rhogas != 0, 1, 0)[:,index_mid, 0]
     plt.plot(model.rc_ax/nc.au, -model.vr[:, index_mid, 0]*cav/1e5, label=r"$- v_r$", ls="-")
@@ -107,7 +107,7 @@ def plot_midplane_velocity_profile(model, rlim=400, ylim=(-0.5,3)):
     plt.legend()
     savefig("v_prof.pdf")
 
-def plot_midplane_angular_velocity_profile(model, rlim=400, ylim=(-0.5,3)):
+def plot_midplane_angular_velocity_profile(model, rlim=400, ylim=(-0.5,4)):
     index_mid = np.argmin(np.abs( model.tc_ax - np.pi/2))
     cav = np.where(model.rhogas != 0, 1, 0)[:,index_mid, 0]
     plt.plot(model.rc_ax/nc.au,  model.vp[:, index_mid, 0]*cav/model.R[:, index_mid, 0] , label=r"$\Omega$", ls="--")
@@ -121,11 +121,11 @@ def plot_midplane_angular_velocity_profile(model, rlim=400, ylim=(-0.5,3)):
     plt.legend()
     savefig("Omega_prof.pdf")
 
-def plot_midplane_density_velocity_profile(model, rlim=1000):
+def plot_midplane_density_velocity_profile(model, rlim=1000, ylim_rho=(1e-19,1e-15), ylim_vel=(-0.5, 4)):
     index_mid = np.argmin(np.abs( model.tc_ax - np.pi/2))
     plt.plot(model.rc_ax/nc.au, model.rhogas[:, index_mid, 0], ls="-", c="dimgray", label=r"$\rho$")
     plt.xlim(10, rlim)
-    plt.ylim(1e-19, 1e-15)
+    plt.ylim(ylim_rho)
     plt.xscale("log")
     plt.yscale("log")
     plt.xlabel("Distance from Star [au]")
@@ -133,14 +133,15 @@ def plot_midplane_density_velocity_profile(model, rlim=1000):
 
     ax2 = plt.twinx()
     cav = np.where(model.rhogas != 0, 1, 0)[:,index_mid, 0]
-    plt.plot(np.nan, ls="-.", c="dimgray", label=r"$\rho$")
+    plt.plot(np.nan, ls="-", c="dimgray", label=r"$\rho$")
     plt.plot(model.rc_ax/nc.au, -model.vr[:, index_mid, 0]*cav/1e5, label=r"$- v_r$", ls="--")
     plt.plot(model.rc_ax/nc.au,  model.vt[:, index_mid, 0]*cav/1e5, label=r"$v_{\theta}$", ls=":")
     plt.plot(model.rc_ax/nc.au,  model.vp[:, index_mid, 0]*cav/1e5, label=r"$v_{\phi}$", ls="-.", )
-    plt.ylim(0, 4)
+    plt.ylim(ylim_vel)
     plt.ylabel("Velocity [km s$^{-1}$]")
     plt.legend(handlelength=3)
     plt.minorticks_on()
+    plt.axhline(0, ls="-", c="k", lw=2, zorder=-10)
 
     savefig("v_dens_prof.pdf")
 
@@ -276,7 +277,7 @@ def plot_mom0_map(
     lvs = np.linspace(0, np.max(Ipp), 11)
     plt.figure(figsize=(8,6))
     img = plt.pcolormesh(
-        obsdata.xau, obsdata.yau , Ipp.T,
+        obsdata.xau, obsdata.yau, Ipp.T,
         cmap=make_listed_cmap("magma", len(lvs)-1, extend="neither"),
         norm=mc.BoundaryNorm(lvs, len(lvs)-1, clip=False),
         shading="nearest", rasterized=True
@@ -284,9 +285,12 @@ def plot_mom0_map(
     plt.xlim(-700, 700)
     plt.ylim(-700, 700)
     plt.xlabel("x [au]")
-    plt.ylabel("y [au]")
+    #plt.ylabel("y [au]")
+    plt.ylabel("z [au]")
     cbar = plt.colorbar(img, pad=0.02)
-    cbar.set_label(r"Normalized Integrated Intesity")
+    #cbar.set_label(r"Normalized Integrated Intesity")
+    #cbar.set_label(r"Integrated Intesity Normalized by Maximum")
+    cbar.set_label(r"$I/I_{\rm max}$")
 
     ax = plt.gca()
     draw_center_line()
@@ -296,7 +300,12 @@ def plot_mom0_map(
 
         for _pangle_deg in pangle_deg:
             x, y = position_line(1400, _pangle_deg)
-            plt.plot(x, y, ls="--", c="w", lw=1.5)
+            #plt.plot(x, y, ls="--", c="w", lw=1.5)
+            ax.annotate('', xy=[x[-1],y[-1]], xytext=[x[0],y[0]], va='center',
+                arrowprops=dict(arrowstyle = "->", color = "gray", lw=1)
+                #arrowprops=dict(shrink=0, width=0.5, headwidth=16, headlength=18, connectionstyle='arc3', facecolor='gray', edgecolor="gray")
+               )
+
 
         if poffset_au is not None:
             pline = position_line(
@@ -372,9 +381,11 @@ def plot_pvdiagram(
     plt.xlim(*xlim)
     plt.ylim(*ylim)
     plt.xlabel("Position [au]")
-    plt.ylabel(r"Line-of-Sight Velocity [km s$^{-1}$]")
+    plt.ylabel(r"V [km s$^{-1}$]")
     cbar = plt.colorbar(img, pad=0.02)
-    cbar.set_label(r"Intensity [$I_{\rm max}$]")
+    #cbar.set_label(r"Intensity [$I_{\rm max}$]")
+    #cbar.set_label(r"Intensity Normalized Maximum")
+    cbar.set_label(r"$I_{V}/I_{V,\rm max}$")
 
     ax = plt.gca()
     draw_center_line()
@@ -391,7 +402,6 @@ def plot_pvdiagram(
             norm=mc.Normalize(vmin=0, vmax=np.max(refpv.Ipv)), corner_mask=False)
         plt.scatter(x_ipeak, v_ipeak, s=15, alpha=0.5, linewidth=1, c="w", ec=None)
         plt.scatter(x_vmax, v_vmax, s=15, alpha=0.5, linewidth=1, facecolors='none', ec="w")
-
     if mass_estimate:
         add_mass_estimate_plot(
         xau,
@@ -400,6 +410,7 @@ def plot_pvdiagram(
         Ms_Msun=Ms_Msun,
         rCR_au=rCR_au,
         f_crit=f_crit,
+        #f_crit_list=[0.01, 0.1, 0.2, 0.3, 0.4, 0.5 ],
         incl=incl,
         mass_ip=True,
         mass_vp=True)
@@ -429,6 +440,17 @@ def plot_pvdiagram(
 """
 plotting tools
 """
+def make_levels(x, dlv, log=False):
+    _x = np.log10(x[ x>0 ]) if log else x
+    _x = _x[np.isfinite(_x)]
+    if len(_x) == 0:
+        return None
+    maxlv = np.ceil( np.max(_x)/dlv )*dlv
+    minlv = np.floor( np.min(_x)/dlv )*dlv
+    nlv = int( (maxlv - minlv)/dlv )
+    b = np.array([*range(nlv+1)])*0.2 + minlv
+    return 10**b if log else b
+
 def add_colorbar(label=None, fmt=None, extend="both", pad=0.02, minticks=False):
     cbar = plt.colorbar(img, format=fmt, extend="both", pad=pad)
     cbar.set_label(label)
@@ -564,15 +586,17 @@ def draw_beamsize(
             beamx = 0.5 * (beam_maj_au + beam_min_au)
         else:
             cross_angle = (beam_pa_deg - pangle_deg) * np.pi / 180
-            beam_crosslength_au = 1 / np.sqrt(
-                (np.cos(cross_angle) / beam_maj_au) ** 2
-                + (np.sin(cross_angle) / beam_min_au) ** 2
-            )
+            beam_crosslength_au =  (
+                (np.sin(cross_angle)/beam_min_au) ** 2
+                + (np.cos(cross_angle)/beam_maj_au) ** 2
+            )**(-0.5)
             beamx = beam_crosslength_au
         beamy = vreso_kms
+        angle = 0
     elif mode == "mom0":
-        beamx = beam_maj_au
-        beamy = beam_min_au
+        beamx = beam_min_au
+        beamy = beam_maj_au
+        angle = beam_pa_deg
 
     if with_box:
         e1 = matplotlib.patches.Ellipse(
@@ -583,6 +607,7 @@ def draw_beamsize(
             fill=True,
             ec="k",
             fc="0.6",
+            angle=angle,
         )
     else:
         e1 = matplotlib.patches.Ellipse(
@@ -594,6 +619,7 @@ def draw_beamsize(
             ec="k",
             fc="0.7",
             alpha=0.6,
+            angle=angle,
         )
 
     box = AnchoredAuxTransformBox(
@@ -607,49 +633,27 @@ def draw_beamsize(
     box.patch.set_linewidth(1)
     ax.add_artist(box)
 
-def add_mass_estimate_plot(
-    xau, vkms, Ipv,
-    Ms_Msun,
-    rCR_au,
-    incl=90,
-    f_crit=None,
-    mass_ip=False,
-    mass_vp=False,
-):
 
-    overplot = {
-        "KeplerRotation": False,
-        "ire_fit": False,
-        "LocalPeak_Pax": False,
-        "LocalPeak_Vax": False,
-        "LocalPeak_2D": False,
-    }
-
-
-
-
-
-    overplot = {
-        "LocalPeak_Pax": False,
-        "LocalPeak_Vax": False,
-        "LocalPeak_2D": False,
-    }
-
-    if overplot["LocalPeak_Pax"]:
+def add_peaks(
+        LocalPeak_Pax= False,
+        LocalPeak_Vax= False,
+        LocalPeak_2D=False,
+    ):
+    if LocalPeak_Pax:
         for Iv, v_ in zip(Ipv.transpose(0, 1), vkms):
             for xM in get_localpeak_positions(
                 xau, Iv, threshold_abs=np.max(Ipv) * 1e-10
             ):
                 plt.plot(xM, v_, c="red", markersize=1, marker="o")
 
-    if overplot["LocalPeak_Vax"]:
+    if LocalPeak_Vax:
         for Ip, x_ in zip(Ipv.transpose(1, 0), xau):
             for vM in get_localpeak_positions(
                 vkms, Ip, threshold_abs=np.max(Ipv) * 1e-10
             ):
                 plt.plot(x_, vM, c="blue", markersize=1, marker="o")
 
-    if overplot["LocalPeak_2D"]:
+    if LocalPeak_2D:
         for jM, iM in peak_local_max(
             Ipv, num_peaks=4, min_distance=10
         ):  #  min_distance=None):
@@ -658,7 +662,16 @@ def add_mass_estimate_plot(
                 f"Local Max:   {xau[iM]:.1f} au  , {vkms[jM]:.1f}    km/s  ({jM}, {iM})"
             )
 
-        del jM, iM
+def add_mass_estimate_plot(
+    xau, vkms, Ipv,
+    Ms_Msun,
+    rCR_au,
+    incl=90,
+    f_crit=None,
+    f_crit_list=None,
+    mass_ip=False,
+    mass_vp=False,
+):
 
     def calc_M(xau, vkms, fac=1):
         # calc xau*nc.au * (vkms*nc.kms)**2 / (nc.G*nc.Msun)
@@ -679,19 +692,24 @@ def add_mass_estimate_plot(
 
     if mass_vp:
         ## M_vpeak
-        x_vmax, v_vmax = get_coord_vmax(xau, vkms, Ipv, f_crit)
-        M_CB = calc_M(abs(x_vmax), v_vmax/np.sin(np.deg2rad(incl)) , fac=1 / 2)
-        draw_cross_pointer(x_vmax, v_vmax, color_def[0], lw=1.5, s=18, ls=":", fill=False)
-        txt_Mvp = rf"$M_{{\rm vmax,\,{f_crit*100:.0f}\%}}$={M_CB:.3f}"
+        f_crit_list = [f_crit] if f_crit is not None else f_crit_list
 
-        logger.info("Mass estimation with maximum velocity:")
-        logger.info(f" x_vmax = {x_vmax} au")
-        logger.info(f" V_vmax = {v_vmax} km/s")
-        logger.info(f" V_vmax/sin(i) = {v_vmax/np.sin(np.deg2rad(incl))} km/s")
-        logger.info(f" M_vmax = {M_CB} Msun")
+        txt_Mvp_list = []
+        for f_crit in f_crit_list:
+            x_vmax, v_vmax = get_coord_vmax(xau, vkms, Ipv, f_crit)
+            M_CB = calc_M(abs(x_vmax), v_vmax/np.sin(np.deg2rad(incl)) , fac=1 / 2)
+            draw_cross_pointer(x_vmax, v_vmax, color_def[0], lw=1.5, s=18, ls=":", fill=False)
+            txt_Mvp_list.append( rf"$M_{{\rm vmax,\,{f_crit*100:.0f}\%}}$={M_CB:.3f}" )
+            logger.info(f"Mass estimation with maximum velocity, f_crit={f_crit} :")
+            logger.info(f" x_vmax = {x_vmax} au")
+            logger.info(f" V_vmax = {v_vmax} km/s")
+            logger.info(f" V_vmax/sin(i) = {v_vmax/np.sin(np.deg2rad(incl))} km/s")
+            logger.info(f" M_vmax = {M_CB} Msun")
+
+        txt_Mvp = "\n".join(txt_Mvp_list)
 
     if mass_ip or mass_vp:
-        plt.text(
+        txt = plt.text(
             0.95,
             0.05,
             txt_Mip + "\n" + txt_Mvp,
@@ -701,6 +719,8 @@ def add_mass_estimate_plot(
             fontsize=12,
             bbox=dict(fc="white", ec="black", pad=5),
         )
+        return txt
+
 
 def get_coord_ipeak(xau, vkms, Ipv):
     jmax, imax = Ipv.shape
