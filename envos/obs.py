@@ -554,23 +554,43 @@ class BaseObsData:
 #        for k, v in cls.__dict__.items():
 #            setattr(self, k, v)
 
+    def save(self, basename="obsdata", mode="pickle", dpc=None, filepath=None):
+        if filepath is None:
+            output_ext = {"joblib":"jb", "pickle":"pkl", "fits":"fits"}[mode]
+            filename = basename + "." + output_ext
+            filepath = os.path.join(gpath.run_dir, filename)
+            if os.path.exists(filepath):
+                logger.info(f"remove old fits file: {filepath}")
+                os.remove(filepath)
+            os.makedirs(os.path.dirname(filepath), exist_ok=True)
+
+        if mode == "joblib":
+            self._save_joblib(filepath)
+        elif mode == "pickle":
+            self._save_instance(filepath)
+        elif mode == "fits":
+            self._save_fits(filepath, dpc=dpc)
+
+    def _save_joblib(self, filepath):
+        import joblib
+        joblib.dump(self, filepath, compress=3)
+        logger.info(f"Saved joblib file: {filepath}")
+
+    def _save_instance(self, filepath):
+        pd.to_pickle(self, filepath)
+        logger.info(f"Saved pickle file: {filepath}")
+
+    def _save_fits(self, filepath=None, dpc=None):
+        self.data.writeFits(fname=filepath, dpc=dpc)
+        logger.info(f"Saved fits file: {filepath}")
+
     def save_instance(self, filename="obsdata.pkl", filepath=None):
+        logger.warning("This function will be imcompatible in a future version. Instead please use a function:\n    save(basename=\"obsdata\", mode=\"pickle\", dpc=None, filepath=None) ,\n    selecting a mode that you want use among {\"pickle\"(default), \"joblib\", \"fits\"}.")
         if filepath is None:
             filepath = os.path.join(gpath.run_dir, filename)
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
         pd.to_pickle(self, filepath)
 
-    def save_fits(self, filename="obsdata.fits", dpc=None, filepath=None):
-        if filepath is None:
-            filepath = os.path.join(gpath.run_dir, filename)
-        os.makedirs(os.path.dirname(filepath), exist_ok=True)
-
-        if os.path.exists(filepath):
-            logger.info(f"remove old fits file: {filepath}")
-            os.remove(filepath)
-
-        self.data.writeFits(fname=filepath, dpc=dpc)
-        logger.info(f"Saved fits file: {filepath}")
 
 @dataclass
 class ObsData3D(BaseObsData):
@@ -1010,12 +1030,23 @@ class PVmap(BaseObsData):
             raise Exception("reading axis is wrong.")
 
 # Readers
-def read_obsdata(path):
-    if ".pkl" in path:
+def read_obsdata(path, mode=None):
+    if (".pkl" in path) or (mode=="pickle"):
         return tools.read_pickle(path)
+
+    elif (".jb" in path) or (mode=="joblib"):
+        import joblib
+        return joblib.load(path)
+
+    elif (".fits" in path) or (mode=="fits"):
+        raise Exception("Still constructing...Sorry...")
+        return None
+
     else:
         raise Exception("Still constructing...Sorry")
         return ObsData3D(filepath=path)
+
+
 
 def read_fits_PV(
     cls, filepath, unit1_in_au=None, unit2_in_kms=None, unit1="", unit2=""

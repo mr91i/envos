@@ -138,7 +138,7 @@ class Config:
             # txt = txt[:-1]
             txt += "\n"
             txt += space + "-" * (nchar_max * 2 + 3) + "\n"
-            txt += space + "Nelected parameters:\n"
+            txt += space + "Neglected parameters:\n"
             # txtng = ""
             # for k in neglist:
             #    if
