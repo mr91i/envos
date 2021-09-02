@@ -585,7 +585,7 @@ class BaseObsData:
         logger.info(f"Saved fits file: {filepath}")
 
     def save_instance(self, filename="obsdata.pkl", filepath=None):
-        logger.warning("This function will be imcompatible in a future version. Instead please use a function:\n    save(basename=\"obsdata\", mode=\"pickle\", dpc=None, filepath=None) ,\n    selecting a mode that you want use among {\"pickle\"(default), \"joblib\", \"fits\"}.")
+        logger.warning("The function \"save_instance\"  will be imcompatible in a future version. Instead please use a function:\n    save(basename=\"obsdata\", mode=\"pickle\", dpc=None, filepath=None) ,\n    selecting a mode that you want use among {\"pickle\"(default), \"joblib\", \"fits\"}.")
         if filepath is None:
             filepath = os.path.join(gpath.run_dir, filename)
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
@@ -722,7 +722,7 @@ class ObsData3D(BaseObsData):
         return PV
 
     def position_line(self, xau, PA_deg, poffset_au=0):
-        PA_rad = PA_deg * np.pi / 180
+        PA_rad = (PA_deg + 90) * np.pi / 180
         pos_x = xau * np.cos(PA_rad) - poffset_au * np.sin(PA_rad)
         pos_y = xau * np.sin(PA_rad) + poffset_au * np.sin(PA_rad)
         return np.stack([pos_x, pos_y], axis=-1)
