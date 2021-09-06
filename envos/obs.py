@@ -729,6 +729,8 @@ class ObsData3D(BaseObsData):
         return np.stack([pos_x, pos_y], axis=-1)
 
     def read_fits(self, file_path, dpc):
+        logger.info("Reading fits file...")
+        logger.info("NOTE: This function can have some bugs. Sorry.")
         pic = iofits.open(file_path)[0]
         self.Ippv_raw = pic.data
         self.Ippv = copy.copy(self.Ippv_raw)
@@ -737,29 +739,37 @@ class ObsData3D(BaseObsData):
         self.Nx = header["NAXIS1"]
         self.Ny = header["NAXIS2"]
         self.Nz = header["NAXIS3"]
-        self.dx = -header["CDELT1"] * np.pi / 180.0 * self.dpc * nc.pc / nc.au
-        self.dy = +header["CDELT2"] * np.pi / 180.0 * self.dpc * nc.pc / nc.au
-        self.Lx = self.Nx * self.dx
-        self.Ly = self.Ny * self.dy
-        self.xau = -0.5 * self.Lx + (np.arange(self.Nx) + 0.5) * self.dx
-        self.yau = -0.5 * self.Ly + (np.arange(self.Ny) + 0.5) * self.dy
+
+        fac1 = np.pi / 180.0 * self.dpc * nc.pc / nc.au
+        self.xau = header["CRVAL1"] + header["CDELT1"] * (np.arange(self.Nx) + 1 - header["CRPIX1"])
+        self.xau *= fac1
+        self.dx = self.xau[1] - self.xau[0]
+        self.Lx = self.xau[-1] - self.xau[0]
+
+        fac2 = np.pi / 180.0 * self.dpc * nc.pc / nc.au
+        self.yau = header["CRVAL2"] + header["CDELT2"] * (np.arange(self.Ny) + 1 - header["CRPIX2"])
+        self.yau *= fac2
+        self.dy = self.yau[1] - self.yau[0]
+        self.Ly = self.yau[-1] - self.yau[0]
 
         if header["CRVAL3"] > 1e8:  # when dnu is in Hz
-            nu_max = header["CRVAL3"]  # freq: max --> min
-            dnu = header["CDELT3"]
-            nu0 = nu_max + 0.5 * dnu * (self.Nz - 1)
-            self.dv = -nc.c / 1e5 * dnu / nu0
+            nu0 = header["CRVAL3"]  # freq: max --> min
+            fac3 = nc.c / 1e5 / nu0
+            logger.info(f"Here nu0 is supposed to be {nu0} Hz. If it is wrong, please let S.M know, because it should be a bug.")
         else:
-            self.dv = header["CDELT3"] / 1e3
-        self.vkms = self.dv * (-0.5 * (self.Nz - 1) + np.arange(self.Nz))
+            fac3 = 1e-3
+        self.vkms = header["CRVAL3"] + header["CDELT3"] * (np.arange(self.Ny) + 1 - header["CRPIX3"]) 
+        self.vkms *= fac3
+        self.dv = self.vkms[1] - self.vkms[0]
+        self.Lv = self.vkms[-1] - self.vkms[0]
 
-        if (self.dx < 0) or (self.xau[1] < self.xau[0]):
+        if self.xau[1] < self.xau[0]:
             raise Exception("Step in x-axis is negative")
 
-        if (self.dy < 0) or (self.yau[1] < self.yau[0]):
+        if self.yau[1] < self.yau[0]:
             raise Exception("Step in y-axis is negative")
 
-        if (self.dv < 0) or (self.vkms[1] < self.vkms[0]):
+        if self.vkms[1] < self.vkms[0]:
             raise Exception("Step in x-axis is negative")
 
         logger.info(f"fits file path: {file_path}")
@@ -897,11 +907,13 @@ class PVmap(BaseObsData):
         dx = self.xau[1] - self.xau[0]
         dv = self.vkms[1] - self.vkms[0]
         hdu = iofits.PrimaryHDU(self.Ipv)
+        # x = x0(crval) + dx(cdelt) * (i - i0(crpix))
+        # i = 1, 2, 3 ...
         new_header = {
             "NAXIS": 2,
             "CTYPE1": "ANGLE",
             "NAXIS1": Np,
-            "CRVAL1": 0.0,
+            "CRVAL1": 0.0, 
             "CRPIX1": (Np + 1) / 2,
             "CDELT1": np.radians(dx * nc.au / self.dpc),
             "CUNIT1": "deg",
@@ -926,110 +938,6 @@ class PVmap(BaseObsData):
         hdulist = iofits.HDUList([hdu])
         hdulist.writeto(filename, overwrite=True)
 
-    def read_fitsfile2(
-        self, filepath, unit1="au", unit2="kms"
-    ):
-        logger.info(f"Reading fits file: {filepath}")
-        pic = iofits.open(filepath)[0]
-        self.Ipv = pic.data
-        header = pic.header
-
-        logger.info("header:")
-        logger.info(textwrap.fill(header,80))
-
-        if unit1 == "degree":
-            fac1 = 3600 * self.dpc
-        elif unit1 == "au":
-            fac1 = 1.0
-        else:
-            raise Exception("Unknown datatype in 1st axis")
-
-        self.Nx = header["NAXIS1"]
-        dx_au = header["CDELT1"] * fac1
-        self.xau = (np.arange(self.Nx2) - 0.5 * (self.Nx1 - 1)) * dx_au
-
-        if unit2 == "ms":
-            fac1 = 1e-3
-        elif unit2 == "kms":
-            fac2 = 1.0
-        else:
-            raise Exception("Unknown datatype in 2nd axis")
-
-        self.Nv = header["NAXIS2"]
-        dv_kms = header["CDELT2"] * fac2
-        self.vkms = (np.arange(self.Nx2) - 0.5 * (self.Nx2 - 1)) * dv_kms
-
-        if "BMAJ" in header:
-            self.beam_maj_au = header["BMAJ"] * self.dpc
-            self.beam_min_au = header["BMIN"] * self.dpc
-            self.beam_pa_deg = header["BPA"]
-            self.vreso_kms = dv_kms
-
-        self.bunit = header["BUNIT"]
-
-        if ((self.dx < 0) or (self.xau[1] < self.xau[0])) or (
-            (self.dv < 0) or (self.vkms[1] < self.vkms[0])
-        ):
-            raise Exception("reading axis is wrong.")
-
-    def read_fitsfile(
-        self, filepath, unit1_in_au=None, unit2_in_kms=None, unit1="", unit2=""
-    ):
-        logger.info(f"Reading fits file: {filepath}")
-        pic = iofits.open(filepath)[0]
-        self.Ipv = pic.data
-        header = pic.header
-
-        logger.info("header:")
-        logger.info(extwrap.fill(header,80))
-
-        self.Nx = header["NAXIS1"]
-
-        if unit1_in_au:
-            logger.info(
-                "   1st axis is interpreted as POSITION "
-                f"with user-defined unit (unit1 = {unit1_in_au} au)."
-            )
-            dx_au = header["CDELT1"] * unit1_in_au
-
-        elif "ANGLE" in header["CTYPE1"] and unit1 == "deg":  # x in deg
-            logger.info("   1st axis is interpreted as POSITION [deg].")
-            dx_au = header["CDELT1"] * 3600 * self.dpc  # dx in au
-        else:
-            raise Exception("Unknown datatype in 1st axis")
-
-        self.xau = (np.arange(self.Nx) - 0.5 * (self.Nx - 1)) * dx_au
-
-        self.Nv = header["NAXIS2"]
-        if unit2_in_kms:
-            logger.info(
-                "    2nd axis is interpreted as VELOCITY "
-                f"with user-defined unit (unit2 = {unit2_in_kms} km/s)."
-            )
-            dv_kms = header["CDELT2"] * unit2_in_kms
-
-        elif "VRAD" in header["CTYPE2"] and unit2 == "m/s":  # v in m/s
-            logger.info("    2nd axis is interpreted as VELOCITY [m/s].")
-            dv_kms = header["CDELT2"] / 1e3  # in m/s to in km/s
-
-        else:
-            raise Exception("Unknown datatype in 2nd axis")
-
-        self.vkms = (np.arange(self.Nv) - 0.5 * (self.Nv - 1)) * dv_kms
-
-        if "BMAJ" in header:
-            self.beam_maj_au = header["BMAJ"] * self.dpc
-            self.beam_min_au = header["BMIN"] * self.dpc
-            self.beam_pa_deg = header["BPA"]
-            self.vreso_kms = dv_kms
-
-        self.bunit = header["BUNIT"]
-
-        if ((self.dx < 0) or (self.xau[1] < self.xau[0])) or (
-            (self.dv < 0) or (self.vkms[1] < self.vkms[0])
-        ):
-            raise Exception("reading axis is wrong.")
-
 # Readers
 def read_obsdata(path, mode=None):
     if (".pkl" in path) or (mode=="pickle"):
@@ -1048,55 +956,51 @@ def read_obsdata(path, mode=None):
         return ObsData3D(filepath=path)
 
 
-
-def read_fits_PV(
-    cls, filepath, unit1_in_au=None, unit2_in_kms=None, unit1="", unit2=""
-):
-    return PVmap(
-        fitsfile=filepath,
-        unit1_in_au=unit1_in_au,
-        unit2_in_kms=unit2_in_kms,
-        unit1=unit1,
-        unit2=unit2,
-    )
-
-
 def read_PV_fitsfile(
-    filepath, unit1="au", unit2="kms", dpc=1
+    filepath, unit1="au", unit2="kms", dpc=1, unit1_cm=None, unit2_cms=None,
 ):
     logger.info(f"Reading fits file: {filepath}")
     pic = iofits.open(filepath)[0]
     Ipv = pic.data
-
     header = pic.header
     logger.info("header:")
-    logger.info(textwrap.fill(str(header),80))
+    logger.info(textwrap.fill(str(header), 80)+"\n")
 
-    if unit1 == "degree":
+    if unit1_cm:
+        logger.info(
+            "   1st axis is interpreted as POSITION "
+            f"with user-defined unit (unit1 = {unit1_cm} cm)."
+        )
+        fac1 = unit1_cm / nc.au
+    elif unit1 == "degree":
         fac1 = 3600 * dpc
     elif unit1 == "au":
         fac1 = 1.0
     else:
         raise Exception("Unknown datatype in 1st axis")
-    Nx = header["NAXIS1"]
-    dx_au = header["CDELT1"] * fac1
-    xau = (np.arange(Nx) - 0.5 * (Nx - 1)) * dx_au
 
-    if unit2 in ["ms","m/s"]:
+    Nx = header["NAXIS1"]
+    xau = header["CRVAL1"] + header["CDELT1"] * (np.arange(Nx) + 1- header["CRPIX1"])
+    xau *= fac1 
+
+    if unit2_cms:
+        logger.info(
+            "   2nd axis is interpreted as VELOCITY "
+            f"with user-defined unit (unit2 = {unit2_cms} cm/s)."
+        )
+        fac2 = unit2_cms / 1e5
+    
+    elif unit2 in ["ms","m/s"]:
         fac2 = 1e-3
     elif unit2 in ["kms", "km/s"]:
         fac2 = 1.0
     else:
         raise Exception("Unknown datatype in 2nd axis")
-    Nv = header["NAXIS2"]
-    dv_kms = header["CDELT2"] * fac2
-    vkms = (np.arange(Nv) - 0.5 * (Nv - 1)) * dv_kms
 
-    #self.bunit = header["BUNIT"]
-    if ((dx_au < 0) or (xau[1] < xau[0])) or (
-        (dv_kms < 0) or (vkms[1] < vkms[0])
-    ):
-        raise Exception("reading axis is wrong.")
+    Nv = header["NAXIS2"]
+    vkms = header["CRVAL2"] + header["CDELT2"] * (np.arange(Nv) +1 - header["CRPIX2"])
+    vkms *= fac2 
+    dv_kms = vkms[1] - vkms[0]
 
     PV = PVmap(Ipv, xau, vkms, dpc)
 
@@ -1113,3 +1017,4 @@ def read_PV_fitsfile(
         )
 
     return PV
+
