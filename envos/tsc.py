@@ -45,18 +45,14 @@ class TscData:
 
     def make_meshgrid_data(self, theta):
         xx, tt = np.meshgrid(self.x, theta, indexing="ij")
-        vvlist = [
-            np.meshgrid(v, theta, indexing="ij")[0] for v in self.variables()
-        ]
+        vvlist = [np.meshgrid(v, theta, indexing="ij")[0] for v in self.variables()]
         tscdata = TscData(xx, *vvlist, self.Delta_Q)
         tscdata.xx = xx
         tscdata.tt = tt
         return tscdata
 
     def make_interpolated_data(self, x):
-        vlist = [
-            make_function(self.x, v, fill_value=0)(x) for v in self.variables()
-        ]
+        vlist = [make_function(self.x, v, fill_value=0)(x) for v in self.variables()]
         return TscData(x, *vlist, self.Delta_Q)
 
 
@@ -66,9 +62,7 @@ class TscSolver:
         self.plot = plot
         self.eps = eps
         self.xout = 1.0 + np.geomspace(1 / self.tau - 1, eps, n)
-        self.xin = 1 / (
-            1.0 + np.geomspace(eps, self.tau ** (-2) - 1.0, n)
-        )
+        self.xin = 1 / (1.0 + np.geomspace(eps, self.tau ** (-2) - 1.0, n))
         self.x = np.hstack((self.xout, self.xin))
 
     def solve(self, search_K=False):
@@ -84,9 +78,7 @@ class TscSolver:
         def f(x, y):  # y = [ dPhi, Phi]
             dPhi = y[1]
             ddPhi = (
-                -2 * y[1] / x
-                - 2 * np.exp(y[0]) / x ** 2
-                + 2 * (1 + x ** 2) / x ** 2
+                -2 * y[1] / x - 2 * np.exp(y[0]) / x ** 2 + 2 * (1 + x ** 2) / x ** 2
             )
             return dPhi, ddPhi
 
@@ -113,10 +105,7 @@ class TscSolver:
                 (al_0 * (y - V_0) - 2 / y) * (y - V_0) / ((y - V_0) ** 2 - 1)
             )  # if x < 1 else 0
             dal_0 = (
-                al_0
-                * (al_0 - 2 / y * (y - V_0))
-                * (y - V_0)
-                / ((y - V_0) ** 2 - 1)
+                al_0 * (al_0 - 2 / y * (y - V_0)) * (y - V_0) / ((y - V_0) ** 2 - 1)
             )  # if x < 1 else -4/x**3
             return np.array([dV_0, dal_0])
 
@@ -125,9 +114,9 @@ class TscSolver:
             s = y - V0
             f1y1 = -(2 / y) * (s ** 2 - al0 * y * s + 1) / (y ** 2 - 1) ** 2
             f1y2 = s ** 2 / (s ** 2 - 1)
-            f2y1 = 2 * al0 * s ** 2 * (al0 - 2 + 2 * V0 / y) / (
-                s ** 2 - 1
-            ) ** 2 + (4 * al0 - 4 * al0 * V0 / y - al0 ** 2) / (s ** 2 - 1)
+            f2y1 = 2 * al0 * s ** 2 * (al0 - 2 + 2 * V0 / y) / (s ** 2 - 1) ** 2 + (
+                4 * al0 - 4 * al0 * V0 / y - al0 ** 2
+            ) / (s ** 2 - 1)
             f2y2 = s * (2 * al0 - 2 + 2 * V0 / y) / (s ** 2 - 1)
             return np.array([[f1y1, f1y2], [f2y1, f2y2]])
 
@@ -171,10 +160,7 @@ class TscSolver:
         V_0 = self.f_V0(y)
         return np.where(
             (y - V_0) ** 2 != 1,
-            al_0
-            * (al_0 - 2 / y * (y - V_0))
-            * (y - V_0)
-            / ((y - V_0) ** 2 - 1),
+            al_0 * (al_0 - 2 / y * (y - V_0)) * (y - V_0) / ((y - V_0) ** 2 - 1),
             -2 / y ** 2,
         )
 
@@ -213,11 +199,7 @@ class TscSolver:
                 1
                 / x
                 / (x - V_0)
-                * (
-                    (2 * x + V_0) * W
-                    + al / al_0
-                    + (Psi + (m / 2) ** 4 / (3 * x ** 2))
-                )
+                * ((2 * x + V_0) * W + al / al_0 + (Psi + (m / 2) ** 4 / (3 * x ** 2)))
             )
             dQ = 0.2 * x ** 4 * al
             dP = -0.2 * al / x
@@ -239,12 +221,8 @@ class TscSolver:
 
         def fjac_QuadraPolar_out(x, vals):
             fac = 1 / (x ** 2 - 1)
-            df1 = fac * np.array(
-                [2 / x, 4 / x ** 2, -12 / x ** 2, 6 / x ** 6, -4 / x]
-            )
-            df2 = fac * np.array(
-                [x ** 2, 2 * x, -6 / x, 3 / x ** 3, -2 / x ** 2]
-            )
+            df1 = fac * np.array([2 / x, 4 / x ** 2, -12 / x ** 2, 6 / x ** 6, -4 / x])
+            df2 = fac * np.array([x ** 2, 2 * x, -6 / x, 3 / x ** 3, -2 / x ** 2])
             df3 = np.array([0.5, 0, 2 / x, -1 / x ** 5, -1])
             df4 = np.array([0.2 * x ** 4, 0, 0, 0, 0])
             df5 = np.array([-0.2 / x, 0, 0, 0, 0])
@@ -428,9 +406,7 @@ def make_function(x, y, extrapolate=False, fill_value=None):
     fill_value = "extrapolate" if extrapolate else fill_value
     if (not extrapolate) or (fill_value is not None):
         bounds_error = False
-    f = interpolate.interp1d(
-        x, y, fill_value=fill_value, bounds_error=bounds_error
-    )
+    f = interpolate.interp1d(x, y, fill_value=fill_value, bounds_error=bounds_error)
     return f
 
 
@@ -460,7 +436,9 @@ def get_tsc(r, theta, t, cs, Omega, mode="read", filename=FILENAME):
     if mode == "read":
         _sol = read_table(filename=filename)
         if _sol is None:
-            logger.info("Failed to load the table of TSC solution (probably just due to missing the file), and so solve TSC equations. After solving, the solution will be saved in the storage directory. From the next time, the table will be loaded to save computational costs.")
+            logger.info(
+                "Failed to load the table of TSC solution (probably just due to missing the file), and so solve TSC equations. After solving, the solution will be saved in the storage directory. From the next time, the table will be loaded to save computational costs."
+            )
             mode = "solve"
 
     if mode == "solve":

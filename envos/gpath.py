@@ -76,9 +76,12 @@ def make_dirs(radmc=None, run=None, storage=None, fig=None):
         fig_dir = fig
         os.makedirs(fig_dir, exist_ok=True)
 
+
 def remove_radmcdir():
     import shutil
+
     shutil.rmtree(radmc_dir)
+
 
 ##############################################################################
 

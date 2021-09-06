@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 import envos
 
+
 def main():
     config = envos.Config(
         run_dir="./run",
@@ -34,11 +35,9 @@ def main():
         dpc=100,
     )
 
-
     # Printing a Config class shows all arguments set in the instance,
     # including implicitly set arguments.
     print(config)
-
 
     # ModelGenerator generates a physical model with calculating
     # density, velocity, and temperature structure. The simplest way
@@ -64,7 +63,6 @@ def main():
     # Learn what variables are available, and check if the calculation is done collectly.
     print(model)
 
-
     # ObsSimulator executes the calculation of synthetic observation.
     # ObsSimulator can also get recieve a `Config` object.
     osim = envos.ObsSimulator(config)
@@ -85,7 +83,6 @@ def main():
     # you can read the data as:
     #   odat = envos.read_obsdata("run/lineobs.pkl")
 
-
     PV = odat.get_PV_map(pangle_deg=0)
     print(PV)
 
@@ -93,5 +90,6 @@ def main():
     # which provide functions to plot results.
     envos.plot_tools.plot_pvdiagram(PV)
 
-if __name__=="__main__":
+
+if __name__ == "__main__":
     main()

@@ -172,14 +172,14 @@ class RadmcController:
             "iranfreqmode": 1,
             "mc_scat_maxtauabs": self.mc_scat_maxtauabs,
             "tgas_eq_tdust": int(self.tgas_eq_tdust),
-            #"camera_maxdphi": 0.0,
-            #"camera_refine_criterion": 0.7,
-            #"camera_min_drr":0.001,
-            #"camera_min_dangle":0.0001,
-            #"camera_max_dangle": 0.001,
-            #"optimized_motion":1,
-            #"camera_spher_cavity_relres":0.01,
-            #"camera_diagnostics_subpix": 1,
+            # "camera_maxdphi": 0.0,
+            # "camera_refine_criterion": 0.7,
+            # "camera_min_drr":0.001,
+            # "camera_min_dangle":0.0001,
+            # "camera_max_dangle": 0.001,
+            # "optimized_motion":1,
+            # "camera_spher_cavity_relres":0.01,
+            # "camera_diagnostics_subpix": 1,
         }
         self._save_input_file(
             "radmc3d.inp", *[f"{k} = {v}" for k, v in param_dict.items()]
@@ -252,7 +252,6 @@ class RadmcController:
     def remove_radmcdir(self):
         shutil.rmtree(self.radmc_dir)
 
-
     #    def _set_constant_temperature(self, T_const=None, vlocal_fwhm=None):
     #        if T_const is not None:
     #            v_fwhm = np.sqrt(T_const * (16 * np.log(2) * nc.kB) / self.mol_mass)
@@ -310,9 +309,7 @@ class RadmcController:
             vt.ravel(order="F"),
             vp.ravel(order="F"),
         )
-        self._save_input_file(
-            "gas_velocity.inp", "1", f"{vr.size:d}", *_zipped_vel
-        )
+        self._save_input_file("gas_velocity.inp", "1", f"{vr.size:d}", *_zipped_vel)
 
     def clean_radmc_dir(self):
         import glob

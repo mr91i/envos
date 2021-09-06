@@ -2,9 +2,12 @@
 # -*- coding: utf-8 -*-
 import os
 import sys
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 import envos
-#from . import envos
+
+# from . import envos
+
 
 def main():
     config = envos.Config(
@@ -39,29 +42,27 @@ def main():
     # including implicitly set arguments.
     print(config)
 
-
-
-
     # ModelGenerator generates a physical model with calculating
     # density, velocity, and temperature structure. The simplest way
     # to pass the argumets to ModelGenerator is just to pass a config class.
     mg = envos.ModelGenerator(config)
 
-
-
     # Put uesr-defined grid axes into the model generator
     import numpy as np
+
     ri = np.geomspace(10, 1000, 30) * envos.nc.au
     ti = np.linspace(0, np.pi, 31)
-    pi = np.linspace(0, 2*np.pi, 60)
+    pi = np.linspace(0, 2 * np.pi, 60)
     mg.set_grid(ri=ri, ti=ti, pi=pi)
 
     # Put user-defined physical values into the model generator
     rr, tt, pp = mg.get_meshgrid()
-    rho = 1e-17 * ( 1 +  0.5*np.sin(rr/envos.nc.au/10)*np.sin(pp) )* np.sin(tt)**2  #np.sin(tt)**2 * np.sin(pp)**2 * (rr/envos.nc.au)**(-0.5)
+    rho = (
+        1e-17 * (1 + 0.5 * np.sin(rr / envos.nc.au / 10) * np.sin(pp)) * np.sin(tt) ** 2
+    )  # np.sin(tt)**2 * np.sin(pp)**2 * (rr/envos.nc.au)**(-0.5)
     vr = 0 * np.ones(rr.shape)
     vt = 0 * np.ones(rr.shape)
-    vp = np.sqrt(envos.nc.G * config.Ms_Msun * envos.nc.Msun/rr)
+    vp = np.sqrt(envos.nc.G * config.Ms_Msun * envos.nc.Msun / rr)
     mg.set_gas_density(rho=rho)
     mg.set_gas_velocity(vr=vr, vt=vt, vp=vp)
 
@@ -101,5 +102,6 @@ def main():
         poffset_au=None,
     )
 
-if __name__=="__main__":
+
+if __name__ == "__main__":
     main()

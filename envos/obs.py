@@ -67,14 +67,12 @@ class ObsSimulator:
     Basically, 1 object per 1 observation
     """
 
-    def __init__(
-        self, config=None, radmcdir=None, dpc=None, n_thread=1
-    ):
+    def __init__(self, config=None, radmcdir=None, dpc=None, n_thread=1):
 
         self.radmc_dir = radmcdir or gpath.radmc_dir
         self.dpc = dpc
         self.n_thread = n_thread
-        #self.view = False
+        # self.view = False
         self.conv = False
         self.incl = None
         self.phi = None
@@ -94,14 +92,13 @@ class ObsSimulator:
         self.molname = config.molname
         self.lineobs_option = config.lineobs_option
 
-
         self.set_resolution(
             sizex_au=config.sizex_au or config.size_au,
             sizey_au=config.sizey_au or config.size_au,
             pixsize_au=config.pixsize_au,
-        #    npix=config.npix,
-        #    npixx=config.npixx,
-        #    npixy=config.npixy,
+            #    npix=config.npix,
+            #    npixx=config.npixx,
+            #    npixy=config.npixy,
             vfw_kms=config.vfw_kms,
             dv_kms=config.dv_kms,
         )
@@ -118,7 +115,7 @@ class ObsSimulator:
         logger.info("Setting model for observation")
         if conf is None:
             conf = self.config
-        radmc = RadmcController(config = conf)
+        radmc = RadmcController(config=conf)
         radmc.clean_radmc_dir()
         radmc.set_model(model)
         radmc.set_temperature(model.Tgas)
@@ -136,9 +133,9 @@ class ObsSimulator:
         sizex_au,
         sizey_au=None,
         pixsize_au=None,
-        #npix=None,
-        #npixx=None,
-        #npixy=None,
+        # npix=None,
+        # npixx=None,
+        # npixy=None,
         vfw_kms=None,
         dv_kms=None,
     ):
@@ -200,7 +197,12 @@ class ObsSimulator:
         logger.info("Setting convolution function of ObsSimulator")
 
         self.conv = True
-        self.convolve_config = {"beam_maj_au": beam_maj_au, "beam_min_au": beam_min_au, "beam_pa_deg": beam_pa_deg, "vreso_kms": vreso_kms}
+        self.convolve_config = {
+            "beam_maj_au": beam_maj_au,
+            "beam_min_au": beam_min_au,
+            "beam_pa_deg": beam_pa_deg,
+            "vreso_kms": vreso_kms,
+        }
         self.convolver = Convolver(
             (self.dx_au, self.dy_au, self.dv_kms),
             **self.convolve_config,
@@ -227,9 +229,7 @@ class ObsSimulator:
             option="noscat nostar",
         )
 
-        tools.shell(
-            cmd, cwd=self.radmc_dir, error_keyword="ERROR", log_prefix="    "
-        )
+        tools.shell(cmd, cwd=self.radmc_dir, error_keyword="ERROR", log_prefix="    ")
 
         self.data_cont = rmci.readImage(fname=f"{self.radmc_dir}/image.out")
         self.data_cont.freq0 = nc.c / (lam * 1e4)
@@ -239,10 +239,11 @@ class ObsSimulator:
             odat.Ipp = self.convolver(odat.Ipp)
             odat.add_convolution_info(**self.convolve_config)
 
-
         return odat
 
-    def observe_line_profile(self, zoomau=None, iline=None, molname=None, incl=None, phi=None, posang=None):
+    def observe_line_profile(
+        self, zoomau=None, iline=None, molname=None, incl=None, phi=None, posang=None
+    ):
         iline = iline or self.iline
         molname = molname or self.molname
         incl = incl or self.incl
@@ -262,7 +263,7 @@ class ObsSimulator:
             option="noscat nostar",
         )
 
-#    return
+    #    return
 
     def observe_line(self, iline=None, molname=None, incl=None, phi=None, posang=None):
         iline = iline or self.iline
@@ -272,7 +273,7 @@ class ObsSimulator:
         posang = posang or self.posang
 
         logger.info(f"Observing line with {molname}")
-        self.nlam = int(round(self.vfw_kms / self.dv_kms)) # + 1
+        self.nlam = int(round(self.vfw_kms / self.dv_kms))  # + 1
         mol_path = f"{self.radmc_dir}/molecule_{molname}.inp"
         self.mol = rmca.readMol(fname=mol_path)
         logger.info(
@@ -290,23 +291,21 @@ class ObsSimulator:
             "npixy": self.npixy,
             "zoomau": [*self.zoomau_x, *self.zoomau_y],
             "iline": self.iline,
-            "option": "noscat nostar nodust " + self.lineobs_option + " ", #+ (" doppcatch " if ,
+            "option": "noscat nostar nodust "
+            + self.lineobs_option
+            + " ",  # + (" doppcatch " if ,
         }
 
-        v_calc_points = np.linspace(
-            -self.vfw_kms/2, self.vfw_kms/2, self.nlam
-        )
+        v_calc_points = np.linspace(-self.vfw_kms / 2, self.vfw_kms / 2, self.nlam)
 
         if self.n_thread >= 2:
-            logger.info(
-                f"Use OpenMP dividing processes into velocity directions."
-            )
+            logger.info(f"Use OpenMP dividing processes into velocity directions.")
             logger.info(f"Number of threads is {self.n_thread}.")
             # Load-balance for multiple processing
             n_points = self._divide_nlam_by_threads(self.nlam, self.n_thread)
             vrange_list = self._calc_vrange_list(v_calc_points, n_points)
             v_center = [0.5 * (vmax + vmin) for vmin, vmax in vrange_list]
-            v_hwidth = [0.5*(vmax - vmin) for vmin, vmax in vrange_list]
+            v_hwidth = [0.5 * (vmax - vmin) for vmin, vmax in vrange_list]
 
             logger.info(f"All calc points: {format_array(v_calc_points)}")
             logger.info("Calc points in each thread:")
@@ -337,9 +336,7 @@ class ObsSimulator:
 
         else:
             logger.info(f"Not use OpenMP.")
-            cmd = gen_radmc_cmd(
-                vhw_kms=self.vfw_kms/2, nlam=self.nlam, **common_cmd
-            )
+            cmd = gen_radmc_cmd(vhw_kms=self.vfw_kms / 2, nlam=self.nlam, **common_cmd)
 
             tools.shell(cmd, cwd=self.radmc_dir)
             self.data = rmci.readImage(fname=f"{self.radmc_dir}/image.out")
@@ -349,18 +346,13 @@ class ObsSimulator:
             logger.warning("Zero image !")
             raise Exception
 
-
         #        self.data.dpc = self.dpc
         self.data.dpc = self.dpc
         self.data.freq0 = self.mol.freq[iline - 1]
         odat = ObsData3D(datatype="line")
         odat.read(radmcdata=self.data)
         odat.add_obs_info(
-            iline=iline,
-            molname=molname,
-            incl=incl,
-            phi=phi,
-            posang=posang
+            iline=iline, molname=molname, incl=incl, phi=phi, posang=posang
         )
 
         if self.conv:
@@ -400,10 +392,10 @@ class ObsSimulator:
         # logger.info("execute: " + cmd)
         dpath_sub = f"{self.radmc_dir}/{dn}"
         os.makedirs(dpath_sub, exist_ok=True)
-        #os.system(f"cp {self.radmc_dir}/{{*.inp,*.dat}} {dpath_sub}/")
+        # os.system(f"cp {self.radmc_dir}/{{*.inp,*.dat}} {dpath_sub}/")
         for f in glob.glob(f"{self.radmc_dir}/*"):
-            if re.search(r'.*\.(inp|dat)$', f):
-                shutil.copy2(f, f"{dpath_sub}/" )
+            if re.search(r".*\.(inp|dat)$", f):
+                shutil.copy2(f, f"{dpath_sub}/")
 
         log = logger.isEnabledFor(INFO) and p == 0
         print(cmd)
@@ -433,9 +425,7 @@ class ObsSimulator:
         data = return_list[0]
         for ret in return_list[1:]:
             data.image = np.append(data.image, ret.image, axis=-1)
-            data.imageJyppix = np.append(
-                data.imageJyppix, ret.imageJyppix, axis=-1
-            )
+            data.imageJyppix = np.append(data.imageJyppix, ret.imageJyppix, axis=-1)
             data.freq = np.append(data.freq, ret.freq, axis=-1)
             data.wav = np.append(data.wav, ret.wav, axis=-1)
             data.nfreq += ret.nfreq
@@ -461,9 +451,19 @@ def format_array(array):
     return msg
 
 
-def convolve(image, beam_maj_au=None, beam_min_au=None, vreso_kms=None, beam_pa_deg=0, mode="fft" ):
-    convolver = Convolver((image.dx_au, image.dy_au, image.dv_kms), beam_maj_au, beam_min_au, vreso_kms, beam_pa_deg, mode)
+def convolve(
+    image, beam_maj_au=None, beam_min_au=None, vreso_kms=None, beam_pa_deg=0, mode="fft"
+):
+    convolver = Convolver(
+        (image.dx_au, image.dy_au, image.dv_kms),
+        beam_maj_au,
+        beam_min_au,
+        vreso_kms,
+        beam_pa_deg,
+        mode,
+    )
     return convolver(image.Ipv)
+
 
 class Convolver:
     """
@@ -472,14 +472,22 @@ class Convolver:
 
     """
 
-    def __init__(self, grid_size, beam_maj_au=None, beam_min_au=None, vreso_kms=None, beam_pa_deg=0, mode="fft"):
+    def __init__(
+        self,
+        grid_size,
+        beam_maj_au=None,
+        beam_min_au=None,
+        vreso_kms=None,
+        beam_pa_deg=0,
+        mode="fft",
+    ):
         # relation : standard deviation = 1/(2 sqrt(ln(2))) * FWHM of Gaussian
         # theta_deg : cclw is positive
         self.mode = mode
         sigma_over_FWHM = 2 * np.sqrt(2 * np.log(2))
-        conv_size = [beam_maj_au+1e-100, beam_min_au+1e-100]
+        conv_size = [beam_maj_au + 1e-100, beam_min_au + 1e-100]
         if vreso_kms is not None:
-            conv_size += [vreso_kms+1e-100]
+            conv_size += [vreso_kms + 1e-100]
         stddev = np.array(conv_size) / np.array(grid_size) / sigma_over_FWHM
         beampa = np.radians(beam_pa_deg)
         self.Kernel_xy2d = aconv.Gaussian2DKernel(
@@ -488,7 +496,7 @@ class Convolver:
         if len(conv_size) == 3 and (conv_size[2] is not None):
             Kernel_v1d = aconv.Gaussian1DKernel(stddev[2])._array
             self.Kernel_3d = np.multiply(
-                #self.Kernel_xy2d[np.newaxis, :, :],
+                # self.Kernel_xy2d[np.newaxis, :, :],
                 self.Kernel_xy2d[:, :, np.newaxis],
                 Kernel_v1d[np.newaxis, np.newaxis, :],
             )
@@ -510,10 +518,10 @@ class Convolver:
             return aconv.convolve(image, Kernel)
         elif self.mode == "fft":
             return aconv.convolve_fft(image, Kernel, allow_huge=True)
-            #from scipy.fftpack import fft, ifft
-            #return aconv.convolve_fft(image, Kernel, allow_huge=True, nan_treatment='interpolate', normalize_kernel=True, fftn=fft, ifftn=ifft)
+            # from scipy.fftpack import fft, ifft
+            # return aconv.convolve_fft(image, Kernel, allow_huge=True, nan_treatment='interpolate', normalize_kernel=True, fftn=fft, ifftn=ifft)
         elif self.mode == "scipy":
-            return signal.convolve(image, Kernel, mode="same", method='auto')
+            return signal.convolve(image, Kernel, mode="same", method="auto")
 
         elif self.mode == "null":
             return image
@@ -535,7 +543,9 @@ class BaseObsData:
     def set_dpc(self, dpc):
         self.dpc = dpc
 
-    def add_convolution_info(self, beam_maj_au=None, beam_min_au=None, vreso_kms=None, beam_pa_deg=None):
+    def add_convolution_info(
+        self, beam_maj_au=None, beam_min_au=None, vreso_kms=None, beam_pa_deg=None
+    ):
         self.convolve = True
         self.beam_maj_au = beam_maj_au
         self.beam_min_au = beam_min_au
@@ -550,14 +560,14 @@ class BaseObsData:
         self.phi = phi
         self.posang = posang
 
-#    def read_instance(self, filepath):
-#        cls = pd.read_pickle(filepath)
-#        for k, v in cls.__dict__.items():
-#            setattr(self, k, v)
+    #    def read_instance(self, filepath):
+    #        cls = pd.read_pickle(filepath)
+    #        for k, v in cls.__dict__.items():
+    #            setattr(self, k, v)
 
     def save(self, basename="obsdata", mode="pickle", dpc=None, filepath=None):
         if filepath is None:
-            output_ext = {"joblib":"jb", "pickle":"pkl", "fits":"fits"}[mode]
+            output_ext = {"joblib": "jb", "pickle": "pkl", "fits": "fits"}[mode]
             filename = basename + "." + output_ext
             filepath = os.path.join(gpath.run_dir, filename)
             if os.path.exists(filepath):
@@ -574,6 +584,7 @@ class BaseObsData:
 
     def _save_joblib(self, filepath):
         import joblib
+
         joblib.dump(self, filepath, compress=3)
         logger.info(f"Saved joblib file: {filepath}")
 
@@ -586,7 +597,9 @@ class BaseObsData:
         logger.info(f"Saved fits file: {filepath}")
 
     def save_instance(self, filename="obsdata.pkl", filepath=None):
-        logger.warning("The function \"save_instance\"  will be imcompatible in a future version. Instead please use a function:\n    save(basename=\"obsdata\", mode=\"pickle\", dpc=None, filepath=None) ,\n    selecting a mode that you want use among {\"pickle\"(default), \"joblib\", \"fits\"}.")
+        logger.warning(
+            'The function "save_instance"  will be imcompatible in a future version. Instead please use a function:\n    save(basename="obsdata", mode="pickle", dpc=None, filepath=None) ,\n    selecting a mode that you want use among {"pickle"(default), "joblib", "fits"}.'
+        )
         if filepath is None:
             filepath = os.path.join(gpath.run_dir, filename)
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
@@ -599,47 +612,48 @@ class ObsData3D(BaseObsData):
     Usually, obsdata is made by doing obsevation.
     But one can generate obsdata by reading fitsfile or radmcdata
     """
-#    __slots__ = ["Ippv",
-#    "Nx",
-#    "Ny",
-#    "Nv",
-#    "xau",
-#    "yau",
-#    "vkms",
-#    "dx",
-#    "dy",
-#    "dv",
-#    "Lx",
-#    "Ly",
-#    "Lv",
-#    "dpc",
-#    "convolve",
-#    "beam_maj_au",
-#    "beam_min_au",
-#    "vreso_kms",
-#    "beam_pa_deg",
-#    "datatype",
-#    ]
-#    Ippv: np.ndarray
-#    Nx: int
-#    Ny: int
-#    Nv: int
-#    xau: np.ndarray
-#    yau: np.ndarray
-#    vkms: np.ndarray
-#    dx: float
-#    dy: float
-#    dv: float
-#    Lx: float
-#    Ly: float
-#    Lv: float
-#    dpc: float
-#    convolve: bool
-#    beam_maj_au: float
-#    beam_min_au: float
-#    vreso_kms: float
-#    beam_pa_deg: float
-#    datatype: str
+
+    #    __slots__ = ["Ippv",
+    #    "Nx",
+    #    "Ny",
+    #    "Nv",
+    #    "xau",
+    #    "yau",
+    #    "vkms",
+    #    "dx",
+    #    "dy",
+    #    "dv",
+    #    "Lx",
+    #    "Ly",
+    #    "Lv",
+    #    "dpc",
+    #    "convolve",
+    #    "beam_maj_au",
+    #    "beam_min_au",
+    #    "vreso_kms",
+    #    "beam_pa_deg",
+    #    "datatype",
+    #    ]
+    #    Ippv: np.ndarray
+    #    Nx: int
+    #    Ny: int
+    #    Nv: int
+    #    xau: np.ndarray
+    #    yau: np.ndarray
+    #    vkms: np.ndarray
+    #    dx: float
+    #    dy: float
+    #    dv: float
+    #    Lx: float
+    #    Ly: float
+    #    Lv: float
+    #    dpc: float
+    #    convolve: bool
+    #    beam_maj_au: float
+    #    beam_min_au: float
+    #    vreso_kms: float
+    #    beam_pa_deg: float
+    #    datatype: str
     Ippv: np.ndarray = None
     Nx: int = None
     Ny: int = None
@@ -662,7 +676,8 @@ class ObsData3D(BaseObsData):
     datatype: str = None
     obsinfo_flag: bool = False
 
-    def read(self,
+    def read(
+        self,
         fitsfile=None,
         radmcdata=None,
         pklfile=None,
@@ -673,7 +688,7 @@ class ObsData3D(BaseObsData):
         elif radmcdata is not None:
             self.read_radmcdata(radmcdata)
 
-        #elif pklfile is not None:
+        # elif pklfile is not None:
         #    self.read_instance(pklfile)
 
         else:
@@ -714,7 +729,7 @@ class ObsData3D(BaseObsData):
                 molname=self.molname,
                 incl=self.incl,
                 phi=self.phi,
-                posang=self.posang
+                posang=self.posang,
             )
         PV.normalize(Inorm)
         if save:
@@ -741,13 +756,17 @@ class ObsData3D(BaseObsData):
         self.Nz = header["NAXIS3"]
 
         fac1 = np.pi / 180.0 * self.dpc * nc.pc / nc.au
-        self.xau = header["CRVAL1"] + header["CDELT1"] * (np.arange(self.Nx) + 1 - header["CRPIX1"])
+        self.xau = header["CRVAL1"] + header["CDELT1"] * (
+            np.arange(self.Nx) + 1 - header["CRPIX1"]
+        )
         self.xau *= fac1
         self.dx = self.xau[1] - self.xau[0]
         self.Lx = self.xau[-1] - self.xau[0]
 
         fac2 = np.pi / 180.0 * self.dpc * nc.pc / nc.au
-        self.yau = header["CRVAL2"] + header["CDELT2"] * (np.arange(self.Ny) + 1 - header["CRPIX2"])
+        self.yau = header["CRVAL2"] + header["CDELT2"] * (
+            np.arange(self.Ny) + 1 - header["CRPIX2"]
+        )
         self.yau *= fac2
         self.dy = self.yau[1] - self.yau[0]
         self.Ly = self.yau[-1] - self.yau[0]
@@ -755,10 +774,14 @@ class ObsData3D(BaseObsData):
         if header["CRVAL3"] > 1e8:  # when dnu is in Hz
             nu0 = header["CRVAL3"]  # freq: max --> min
             fac3 = nc.c / 1e5 / nu0
-            logger.info(f"Here nu0 is supposed to be {nu0} Hz. If it is wrong, please let S.M know, because it should be a bug.")
+            logger.info(
+                f"Here nu0 is supposed to be {nu0} Hz. If it is wrong, please let S.M know, because it should be a bug."
+            )
         else:
             fac3 = 1e-3
-        self.vkms = header["CRVAL3"] + header["CDELT3"] * (np.arange(self.Ny) + 1 - header["CRPIX3"]) 
+        self.vkms = header["CRVAL3"] + header["CDELT3"] * (
+            np.arange(self.Ny) + 1 - header["CRPIX3"]
+        )
         self.vkms *= fac3
         self.dv = self.vkms[1] - self.vkms[0]
         self.Lv = self.vkms[-1] - self.vkms[0]
@@ -777,13 +800,13 @@ class ObsData3D(BaseObsData):
         logger.info(f"L[au]: {self.Lx} {self.Ly}")
 
     def read_radmcdata(self, data):
-        #if len(data.image.shape) == 2:
+        # if len(data.image.shape) == 2:
         #    self.Ipp = data.image
-        #elif len(data.image.shape) == 3 and data.image.shape[2] == 1:
+        # elif len(data.image.shape) == 3 and data.image.shape[2] == 1:
         #    self.Ipp = data.image[:, :, 0]
-        #elif len(data.image.shape) == 3:
+        # elif len(data.image.shape) == 3:
         self.Ippv = data.image  # .transpose(2, 1, 0)
-        self.dpc = data.dpc #or 100
+        self.dpc = data.dpc  # or 100
         self.Nx = data.nx
         self.Ny = data.ny
         self.Nv = data.nfreq
@@ -795,10 +818,10 @@ class ObsData3D(BaseObsData):
         self.vkms = tools.freq_to_vkms_array(self.freq, self.freq0)
         self.dx = data.sizepix_x / nc.au
         self.dy = data.sizepix_y / nc.au
-        self.dv = self.vkms[1] - self.vkms[0] # if len(self.vkms) > 1 else 0
+        self.dv = self.vkms[1] - self.vkms[0]  # if len(self.vkms) > 1 else 0
         self.Lx = self.xau[-1] - self.xau[0]
         self.Ly = self.yau[-1] - self.yau[0]
-        self.Lv = self.vkms[-1] - self.vkms[0] # if len(self.vkms) > 1 else 0
+        self.Lv = self.vkms[-1] - self.vkms[0]  # if len(self.vkms) > 1 else 0
 
 
 class Image(BaseObsData):
@@ -826,8 +849,10 @@ class Image(BaseObsData):
         self.dv = self.vkms[1] - self.vkms[0] if len(self.vkms) > 1 else 0
         self.Lv = self.vkms[-1] - self.vkms[0] if len(self.vkms) > 1 else 0
 
+
 class LineProfile(BaseObsData):
     pass
+
 
 @dataclass
 class PVmap(BaseObsData):
@@ -848,38 +873,36 @@ class PVmap(BaseObsData):
         self,
     ):
         pass
-        #if self.fitsfile is not None:
+        # if self.fitsfile is not None:
         #    self.read_fitsfile(self.fitsfile)
-
 
     def normalize(self, Ipv_norm=None):
         if Ipv_norm is None:
             self.Ipv /= 1
-            self.unit_I = r"[Jy pixel$^{{-1}}$]" # rf"[{Ipv_norm} Jy pixel$^{{-1}}$]]"
+            self.unit_I = r"[Jy pixel$^{{-1}}$]"  # rf"[{Ipv_norm} Jy pixel$^{{-1}}$]]"
         elif Ipv_norm == "max":
             self.Ipv /= np.max(self.Ipv)
             self.unit_I = r"[$I_{\rm max}$]"
         elif isinstance(Ipv_norm, float):
             self.Ipv /= Ipv_norm
-            self.unit_I = f"[{Ipv_norm}"+ r"Jy pixel$^{-1}$]"
+            self.unit_I = f"[{Ipv_norm}" + r"Jy pixel$^{-1}$]"
         else:
             return None
 
     def reverse_x(self):
-        self.Ipv = self.Ipv[:,::-1]
+        self.Ipv = self.Ipv[:, ::-1]
         self.xau = -self.xau[::-1]
 
     def reverse_v(self):
-        self.Ipv = self.Ipv[::-1,:]
+        self.Ipv = self.Ipv[::-1, :]
         self.vkms = -self.vkms[::-1]
 
     def offset_x(self, dx):
-        #self.Ipv = self.Ipv[:,::-1]
+        # self.Ipv = self.Ipv[:,::-1]
         self.xau += dx
 
     def offset_v(self, dv):
         self.vkms += dv
-
 
     def trim(self, range_x=None, range_v=None):
         if range_x is not None:
@@ -913,7 +936,7 @@ class PVmap(BaseObsData):
             "NAXIS": 2,
             "CTYPE1": "ANGLE",
             "NAXIS1": Np,
-            "CRVAL1": 0.0, 
+            "CRVAL1": 0.0,
             "CRPIX1": (Np + 1) / 2,
             "CDELT1": np.radians(dx * nc.au / self.dpc),
             "CUNIT1": "deg",
@@ -938,16 +961,18 @@ class PVmap(BaseObsData):
         hdulist = iofits.HDUList([hdu])
         hdulist.writeto(filename, overwrite=True)
 
+
 # Readers
 def read_obsdata(path, mode=None):
-    if (".pkl" in path) or (mode=="pickle"):
+    if (".pkl" in path) or (mode == "pickle"):
         return tools.read_pickle(path)
 
-    elif (".jb" in path) or (mode=="joblib"):
+    elif (".jb" in path) or (mode == "joblib"):
         import joblib
+
         return joblib.load(path)
 
-    elif (".fits" in path) or (mode=="fits"):
+    elif (".fits" in path) or (mode == "fits"):
         raise Exception("Still constructing...Sorry...")
         return None
 
@@ -957,14 +982,14 @@ def read_obsdata(path, mode=None):
 
 
 def read_PV_fitsfile(
-    filepath, unit1="au", unit2="kms", dpc=1, unit1_cm=None, unit2_cms=None,
+    filepath, unit1="au", unit2="kms", dpc=1, unit1_cm=None, unit2_cms=None, v0_kms=0
 ):
     logger.info(f"Reading fits file: {filepath}")
     pic = iofits.open(filepath)[0]
     Ipv = pic.data
     header = pic.header
     logger.info("header:")
-    logger.info(textwrap.fill(str(header), 80)+"\n")
+    logger.info(textwrap.fill(str(header), 80) + "\n")
 
     if unit1_cm:
         logger.info(
@@ -980,8 +1005,8 @@ def read_PV_fitsfile(
         raise Exception("Unknown datatype in 1st axis")
 
     Nx = header["NAXIS1"]
-    xau = header["CRVAL1"] + header["CDELT1"] * (np.arange(Nx) + 1- header["CRPIX1"])
-    xau *= fac1 
+    xau = header["CRVAL1"] + header["CDELT1"] * (np.arange(Nx) + 1 - header["CRPIX1"])
+    xau *= fac1
 
     if unit2_cms:
         logger.info(
@@ -989,8 +1014,8 @@ def read_PV_fitsfile(
             f"with user-defined unit (unit2 = {unit2_cms} cm/s)."
         )
         fac2 = unit2_cms / 1e5
-    
-    elif unit2 in ["ms","m/s"]:
+
+    elif unit2 in ["ms", "m/s"]:
         fac2 = 1e-3
     elif unit2 in ["kms", "km/s"]:
         fac2 = 1.0
@@ -998,10 +1023,12 @@ def read_PV_fitsfile(
         raise Exception("Unknown datatype in 2nd axis")
 
     Nv = header["NAXIS2"]
-    vkms = header["CRVAL2"] + header["CDELT2"] * (np.arange(Nv) +1 - header["CRPIX2"])
-    vkms *= fac2 
+    vkms = header["CRVAL2"] + header["CDELT2"] * (np.arange(Nv) + 1 - header["CRPIX2"])
+    vkms *= fac2
+    vkms -= v0_kms
     dv_kms = vkms[1] - vkms[0]
 
+    print(vkms, header["CRVAL2"], header["CDELT2"], header["CRPIX2"])
     PV = PVmap(Ipv, xau, vkms, dpc)
 
     if "BMAJ" in header:
@@ -1017,4 +1044,3 @@ def read_PV_fitsfile(
         )
 
     return PV
-

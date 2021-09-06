@@ -2,9 +2,12 @@
 # -*- coding: utf-8 -*-
 import os
 import sys
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 import envos
-#from . import envos
+
+# from . import envos
+
 
 def main():
     config = envos.Config(
@@ -27,7 +30,6 @@ def main():
     # Printing a Config class shows all arguments set in the instance,
     # including implicitly set arguments.
     print(config)
-
 
     # ModelGenerator generates a physical model with calculating
     # density, velocity, and temperature structure. The simplest way
@@ -61,5 +63,6 @@ def main():
     envos.plot_tools.plot_density_map(model, streams=True)
     envos.plot_tools.plot_temperature_map(model, streams=True)
 
-if __name__=="__main__":
+
+if __name__ == "__main__":
     main()

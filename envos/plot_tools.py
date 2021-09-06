@@ -220,62 +220,78 @@ def plot_midplane_velocity_map(model, rlim=300):
     cav = np.where(model.rhogas != 0, 1, 0)
     vls *= cav
 
-    index_mid = np.argmin(np.abs( model.tc_ax - np.pi/2))
-    xau_mid = x[:,index_mid,:].ravel()/nc.au
-    yau_mid = y[:,index_mid,:].ravel()/nc.au
-    Vkms_mid = vls[:,index_mid,:].ravel()/1e5
+    index_mid = np.argmin(np.abs(model.tc_ax - np.pi / 2))
+    xau_mid = x[:, index_mid, :].ravel() / nc.au
+    yau_mid = y[:, index_mid, :].ravel() / nc.au
+    Vkms_mid = vls[:, index_mid, :].ravel() / 1e5
 
     Vmax = np.max(Vkms_mid)
-    lvs_half = np.arange(0.1, Vmax+0.2, 0.2)
+    lvs_half = np.arange(0.1, Vmax + 0.2, 0.2)
     lvs = np.concatenate([-lvs_half[::-1], lvs_half[0:]])
 
-    img  = plt.tricontourf(xau_mid, yau_mid, Vkms_mid,
-                           lvs, cmap=plt.get_cmap('RdBu_r'), extend="both", )
-    emis =  model.rhogas[:,index_mid,:] * model.Tgas[:,index_mid,:] \
-              if len(model.pc_ax) != 1 \
-              else np.hstack([ model.rhogas[:,index_mid,:] * model.Tgas[:,index_mid,:] ]*91)
+    img = plt.tricontourf(
+        xau_mid,
+        yau_mid,
+        Vkms_mid,
+        lvs,
+        cmap=plt.get_cmap("RdBu_r"),
+        extend="both",
+    )
+    emis = (
+        model.rhogas[:, index_mid, :] * model.Tgas[:, index_mid, :]
+        if len(model.pc_ax) != 1
+        else np.hstack(
+            [model.rhogas[:, index_mid, :] * model.Tgas[:, index_mid, :]] * 91
+        )
+    )
 
-    emis_av = np.array([np.average(emis, axis=1)] * x.shape[2] ).T
+    emis_av = np.array([np.average(emis, axis=1)] * x.shape[2]).T
 
-    xau_ax = x[:,index_mid,0]/nc.au
+    xau_ax = x[:, index_mid, 0] / nc.au
+
     def func(z0, a):
-        z = emis_av/np.max(emis_av)
+        z = emis_av / np.max(emis_av)
         z_lim = np.where(z >= z0, z, 0)
-        vol = integrate.simpson(2 * np.pi * xau_ax * np.average(z_lim, axis=1), xau_ax )
-        vol_tot = integrate.simpson(2 * np.pi * xau_ax * np.average(z, axis=1), xau_ax )
-        #print(vol/vol_tot)
-        return vol/vol_tot - a
+        vol = integrate.simpson(2 * np.pi * xau_ax * np.average(z_lim, axis=1), xau_ax)
+        vol_tot = integrate.simpson(2 * np.pi * xau_ax * np.average(z, axis=1), xau_ax)
+        # print(vol/vol_tot)
+        return vol / vol_tot - a
 
     def level_func(lev):
-        sol = optimize.root_scalar(func , bracket=(0,1), args=(lev,), method='brentq' ).root
-        print("level:",lev, "sol:", sol)
+        sol = optimize.root_scalar(
+            func, bracket=(0, 1), args=(lev,), method="brentq"
+        ).root
+        print("level:", lev, "sol:", sol)
         return sol
 
-    cont = plt.tricontour(xau_mid,
-                          yau_mid,
-                          (100*emis_av/np.max(emis_av)).ravel(),
-                          #[level_func(0.75)*100, level_func(0.5)*100, level_func(0.25)*100, 101],
-                          [10, 40, 70, 101],
-                          cmap=plt.get_cmap('Greys'),
-                          extend="both", linewidths=1)
+    cont = plt.tricontour(
+        xau_mid,
+        yau_mid,
+        (100 * emis_av / np.max(emis_av)).ravel(),
+        # [level_func(0.75)*100, level_func(0.5)*100, level_func(0.25)*100, 101],
+        [10, 40, 70, 101],
+        cmap=plt.get_cmap("Greys"),
+        extend="both",
+        linewidths=1,
+    )
 
-    cond = np.where(emis_av == np.max(emis_av) ,True, False).ravel()
-    plt.plot(xau_mid[cond], yau_mid[cond], ls="--", c="black", lw=1.5 )
+    cond = np.where(emis_av == np.max(emis_av), True, False).ravel()
+    plt.plot(xau_mid[cond], yau_mid[cond], ls="--", c="black", lw=1.5)
 
-    cont.clabel(fmt=f'%1.0f%%', fontsize=8)
+    cont.clabel(fmt=f"%1.0f%%", fontsize=8)
     plt.xlim(-rlim, rlim)
     plt.ylim(-rlim, rlim)
     plt.xlabel("x [au]")
-    #plt.ylabel("Distance along Line-of-Sight [au]")
+    # plt.ylabel("Distance along Line-of-Sight [au]")
     plt.ylabel("y [au]")
 
     ticks_half = np.arange(0, Vmax + 0.6, 0.6)
     ticks = np.concatenate([-ticks_half[::-1], ticks_half[1:]])
 
-    plt.gca().set_aspect('equal', adjustable='box')
+    plt.gca().set_aspect("equal", adjustable="box")
     cbar = plt.colorbar(img, ticks=ticks, pad=0.02)
-    #cbar.set_label(r'$V_{\rm LOS}$ [km s$^{-1}$]')
-    cbar.set_label(r'Line-of-sight Velocity $V$ [km s$^{-1}$]')
+    # cbar.set_label(r'$V_{\rm LOS}$ [km s$^{-1}$]')
+    cbar.set_label(r"Line-of-sight Velocity $V$ [km s$^{-1}$]")
     cbar.ax.minorticks_off()
     savefig("v_los.pdf")
 

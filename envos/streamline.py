@@ -8,18 +8,14 @@ import envos.nconst as nc
 
 logger = log.set_logger(__name__)
 
-def calc_physical_values_along_streamlines(
-    model, start_points, **kwargs
-):
+
+def calc_physical_values_along_streamlines(model, start_points, **kwargs):
     calc_streamlines_from_model(
         model, ["rhogas", "Tgas"], ["g cm^-3", "K"], start_points, **kwargs
     )
 
 
-
-def calc_streamlines_from_model(
-    model, name_list, unit_list, start_points, **kwargs
-):
+def calc_streamlines_from_model(model, name_list, unit_list, start_points, **kwargs):
     values = [(n, getattr(model, n), u) for n, u in zip(name_list, unit_list)]
     calc_streamlines(
         model.rc_ax,
@@ -108,7 +104,9 @@ class StreamlineCalculator:
             (r_ax, t_ax), vt, bounds_error=False, fill_value=None
         )
         self.pos0list = pos0list
-        self.t_eval = t_eval if t_eval is not None else np.geomspace(t_span[0], t_span[-1], nt)
+        self.t_eval = (
+            t_eval if t_eval is not None else np.geomspace(t_span[0], t_span[-1], nt)
+        )
         self.rtol = rtol
         self.method = method
         self.streamlines = []
@@ -146,7 +144,7 @@ class StreamlineCalculator:
         vt = self.vt_field(pos)[0]
         if np.isnan(pos[0]):
             raise Exception
-        if  np.pi / 2 < pos[1]:
+        if np.pi / 2 < pos[1]:
             vt *= -1
         return np.array([vr, vt / pos[0]])
 
@@ -189,12 +187,10 @@ def save_data(streamlines, filename="stream", dpath=None):
         values = []
         for name, value, unitname in sl.get_values():
             header += f"{name} [{unitname}]"
-            values.append(value[...,0])
+            values.append(value[..., 0])
 
-        print( sl.vR, sl.vz, *values )
-        stream_data = np.stack(
-            (sl.t, sl.R, sl.z, sl.vR, sl.vz, *values), axis=-1
-        )
+        print(sl.vR, sl.vz, *values)
+        stream_data = np.stack((sl.t, sl.R, sl.z, sl.vR, sl.vz, *values), axis=-1)
 
         np.savetxt(
             f"{dpath}/{filename}_{label}.txt",
@@ -205,9 +201,12 @@ def save_data(streamlines, filename="stream", dpath=None):
 
 
 def make_streamline_data(model, r0, theta0, t_eval, rtol=1e-4, method="RK23"):
-    slc = StreamlineCalculator2(model, t_eval=t_eval, rtol=rtol, method=method, save=True)
+    slc = StreamlineCalculator2(
+        model, t_eval=t_eval, rtol=rtol, method=method, save=True
+    )
     slc.calc_streamline(r0, theta0)
     slc.save_data()
+
 
 class StreamlineCalculator2:
     """
@@ -219,21 +218,28 @@ class StreamlineCalculator2:
     slc.save_data()
 
     """
+
     def __init__(
         self,
         model,
         t_eval=np.geomspace(1, 1e30, 500),
         rtol=1e-8,
         method="RK45",
-        save=False
+        save=False,
     ):
         self.r_ax = model.rc_ax
         self.t_ax = model.tc_ax
         self.vr_field = interpolate.RegularGridInterpolator(
-            (self.r_ax, self.t_ax), model.vr[...,0], bounds_error=False, fill_value=None
+            (self.r_ax, self.t_ax),
+            model.vr[..., 0],
+            bounds_error=False,
+            fill_value=None,
         )
         self.vt_field = interpolate.RegularGridInterpolator(
-            (self.r_ax, self.t_ax), model.vt[...,0], bounds_error=False, fill_value=None
+            (self.r_ax, self.t_ax),
+            model.vt[..., 0],
+            bounds_error=False,
+            fill_value=None,
         )
         self.t_eval = t_eval
         self.rtol = rtol
@@ -324,11 +330,9 @@ class StreamlineCalculator2:
             values = []
             for name, value, unitname in sl.get_values():
                 header_list.append(f"{name} [{unitname}]")
-                values.append(value[...,0])
+                values.append(value[..., 0])
             header = " ".join([hd.rjust(19) for hd in header_list])
-            stream_data = np.stack(
-                (sl.t, sl.R, sl.z, sl.vR, sl.vz, *values), axis=-1
-            )
+            stream_data = np.stack((sl.t, sl.R, sl.z, sl.vR, sl.vz, *values), axis=-1)
 
             np.savetxt(
                 f"{dpath}/{filename}_{label}.txt",

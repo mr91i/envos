@@ -17,7 +17,6 @@ logger = set_logger(__name__)
 #    os.mkdirs(dpath, exist_ok=True)
 
 
-
 def read_pickle(filepath):
     logger.debug("Reading pickle data")
     cls = pandas.read_pickle(filepath)
@@ -26,6 +25,7 @@ def read_pickle(filepath):
 
 
 #######
+
 
 def freq_to_vkms_array(freq, freq0):
     return nc.c / 1e5 * (freq0 - freq) / freq0
@@ -49,6 +49,7 @@ def make_array_interface(xc):
         axis=0,
     )
 
+
 def x_cross_zero(x1, x2, y1, y2):
     return x1 + y1 * (x2 - x1) / (y1 - y2)
 
@@ -64,10 +65,13 @@ def find_roots(x, y1, y2):
         ]
     )
 
+
 def show_used_memory():
     import psutil
+
     mem = psutil.virtual_memory()
-    logger.info("Used memory = %.3f GiB", mem.used/(1024**3))
+    logger.info("Used memory = %.3f GiB", mem.used / (1024 ** 3))
+
 
 def compute_object_size(o, handlers={}):
     import sys
@@ -75,19 +79,20 @@ def compute_object_size(o, handlers={}):
     from collections import deque
 
     dict_handler = lambda d: chain.from_iterable(d.items())
-    all_handlers = {tuple: iter,
-                    list: iter,
-                    deque: iter,
-                    dict: dict_handler,
-                    set: iter,
-                    frozenset: iter,
-                   }
-    all_handlers.update(handlers)     # user handlers take precedence
-    seen = set()                      # track which object id's have already been seen
-    default_size = sys.getsizeof(0)       # estimate sizeof object without __sizeof__
+    all_handlers = {
+        tuple: iter,
+        list: iter,
+        deque: iter,
+        dict: dict_handler,
+        set: iter,
+        frozenset: iter,
+    }
+    all_handlers.update(handlers)  # user handlers take precedence
+    seen = set()  # track which object id's have already been seen
+    default_size = sys.getsizeof(0)  # estimate sizeof object without __sizeof__
 
     def sizeof(o):
-        if id(o) in seen:       # do not double count the same object
+        if id(o) in seen:  # do not double count the same object
             return 0
         seen.add(id(o))
         s = sys.getsizeof(o, default_size)
@@ -100,6 +105,7 @@ def compute_object_size(o, handlers={}):
 
     return sizeof(o)
 
+
 def dataclass_str(self):
     space = "  "
     txt = self.__class__.__name__
@@ -108,17 +114,17 @@ def dataclass_str(self):
         txt += "\n"
         var = str(k) + " = "
         if isinstance(v, list):
-            #txt += "\n"
-            #txt += space*2 + str(v).replace('\n', '\n'+space*2)
-            space_var = " "*len(var)
-            txt += space + var + str(v).replace('\n', '\n'+space+space_var)
+            # txt += "\n"
+            # txt += space*2 + str(v).replace('\n', '\n'+space*2)
+            space_var = " " * len(var)
+            txt += space + var + str(v).replace("\n", "\n" + space + space_var)
 
         if isinstance(v, np.ndarray):
             info = f"array(shape={np.shape(v)}, min={np.min(v)}, max={np.max(v)})"
-            txt += space +  var + info
+            txt += space + var + info
 
         elif isinstance(v, str):
-            txt += space + var + f"\"{str(v)}\""
+            txt += space + var + f'"{str(v)}"'
         else:
             txt += space + var + str(v)
         txt += ","
@@ -126,7 +132,6 @@ def dataclass_str(self):
         txt = txt[:-1]
         txt += "\n" + ")"
     return txt
-
 
 
 def shell(
@@ -150,8 +155,8 @@ def shell(
 
     if cwd is not None:
         pass
-        #msg += f"Change the working directory from {os.getcwd()} to {cwd}"
-        #msg += " while executing the command"
+        # msg += f"Change the working directory from {os.getcwd()} to {cwd}"
+        # msg += " while executing the command"
     else:
         cwd = os.getcwd()
 
@@ -232,6 +237,7 @@ def filecopy(src, dst, error_already_exist=False):
     else:
         logger.debug("Sucsess copying")
 
+
 # def _instance_pickle(filepath, base=None):
 #     if ".pkl" in filepath:
 #         dtype = "pickle"
@@ -244,9 +250,8 @@ def filecopy(src, dst, error_already_exist=False):
 #             for k, v in cls.__dict__.items():
 #                 setattr(base, k, v)
 
+
 def setattr_from_pickle(cls, filepath):
     readcls = pandas.read_pickle(filepath)
     for k, v in readcls.__dict__.items():
         setattr(cls, k, v)
-
-

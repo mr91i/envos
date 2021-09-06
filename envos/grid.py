@@ -1,6 +1,7 @@
 import numpy as np
 import envos.nconst as nc
 from envos.log import set_logger
+
 logger = set_logger(__name__)
 
 
@@ -26,7 +27,9 @@ class Grid:
             self.ri_ax = ri_ax
             self.ti_ax = ti_ax
             self.pi_ax = pi_ax
-        elif (rau_lim is not None) and (theta_lim is not None) and (phi_lim is not None):
+        elif (
+            (rau_lim is not None) and (theta_lim is not None) and (phi_lim is not None)
+        ):
             self.calc_interface_coord(
                 rau_lim=rau_lim,
                 theta_lim=theta_lim,
@@ -74,9 +77,7 @@ class Grid:
 
         if dr_to_r is not None:
             nr = int(np.log(rau_lim[1] / rau_lim[0]) / dr_to_r)
-            ntheta_float = (
-                (theta_lim[1] - theta_lim[0]) / dr_to_r / aspect_ratio
-            )
+            ntheta_float = (theta_lim[1] - theta_lim[0]) / dr_to_r / aspect_ratio
             ntheta = int(round(ntheta_float))
 
         if logr:
@@ -115,9 +116,7 @@ def get_interface_coord(
 
     if dr_to_r is not None:
         nr = int(np.log(rau_lim[1] / rau_lim[0]) / dr_to_r)
-        ntheta_float = (
-            (theta_lim[1] - theta_lim[0]) / dr_to_r / aspect_ratio
-        )
+        ntheta_float = (theta_lim[1] - theta_lim[0]) / dr_to_r / aspect_ratio
         ntheta = int(round(ntheta_float))
 
     if logr:
@@ -129,4 +128,3 @@ def get_interface_coord(
     pi_ax = np.linspace(*phi_lim, nphi + 1)
 
     return ri_ax, ti_ax, pi_ax
-
