@@ -4,6 +4,8 @@
 **Env**elope **O**bservation **S**imulator, developed by Shoji Mori.
 This code executes synthetic observation with calculating physical model of young circumstellar systems (i.e. envelope and disk).
 
+I really welcome improvements and requests from users. 
+
 ## 2. Features
 - Density and velocity structures
 - Temperature structure is calculated consistently with the density structure given by user.

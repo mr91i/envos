@@ -59,9 +59,9 @@ class Config:
     logr: bool = True
 
     # Model input
-    T: float = None #10
-    CR_au: float = None # 100
-    Ms_Msun: float = None # 1.0
+    T: float = None  # 10
+    CR_au: float = None  # 100
+    Ms_Msun: float = None  # 1.0
     t_yr: float = None
     Omega: float = None
     jmid: float = None
@@ -69,7 +69,7 @@ class Config:
     Mdot_smpy: float = None
     meanmolw: float = 2.3
     cavangle_deg: float = 0
-    inenv: str = "UCM" # {"UCM", "Simple"}
+    inenv: str = "UCM"  # {"UCM", "Simple"}
     outenv: str = None
     disk: str = None
     rot_ccw: bool = False
@@ -126,11 +126,7 @@ class Config:
                 # txt += "\n"
                 # txt += space*2 + str(v).replace('\n', '\n'+space*2)
                 space_var = " " * len(var)
-                txt += (
-                    space
-                    + var
-                    + str(v).replace("\n", "\n" + space + space_var)
-                )
+                txt += space + var + str(v).replace("\n", "\n" + space + space_var)
             else:
                 txt += space + var + str(v)
             # txt += ","
@@ -176,6 +172,3 @@ class Config:
 
     def log(self):
         logger.info(self.__str__())
-
-
-

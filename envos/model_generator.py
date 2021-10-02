@@ -11,6 +11,7 @@ from envos.log import set_logger
 from envos.grid import Grid
 from envos.physical_params import PhysicalParameters
 from envos import tools
+
 logger = set_logger(__name__)
 
 
@@ -32,7 +33,9 @@ class ModelGenerator:
 
         try:
             grid = Grid(
-                config.ri_ax, config.ti_ax, config.pi_ax,
+                config.ri_ax,
+                config.ti_ax,
+                config.pi_ax,
                 rau_lim=[config.rau_in, config.rau_out],
                 theta_lim=[config.theta_in, config.theta_out],
                 phi_lim=[config.phi_in, config.phi_out],
@@ -60,9 +63,7 @@ class ModelGenerator:
             config.meanmolw,
             config.cavangle_deg,
         )
-        self.set_model(
-            inenv=config.inenv, outenv=config.outenv, disk=config.disk
-        )
+        self.set_model(inenv=config.inenv, outenv=config.outenv, disk=config.disk)
 
     def set_grid(self, ri=None, ti=None, pi=None, grid=None):
         if grid is not None:
@@ -80,7 +81,6 @@ class ModelGenerator:
 
     def get_meshgrid(self):
         return self.grid.rr, self.grid.tt, self.grid.pp
-
 
     def set_physical_parameters(
         self,
@@ -120,18 +120,16 @@ class ModelGenerator:
     def set_gas_velocity(self, vr, vt, vp):
         self.model.set_gas_velocity(vr, vt, vp)
 
-
-
     def calc_kinematic_structure(self, smoothing_TSC=True):
 
         ### Set grid
-        #if grid is not None:
+        # if grid is not None:
         #    self.grid = grid
         if self.grid is None:
             raise Exception("grid is not set.")
 
         ### Set physical parameters
-        #if ppar is not None:
+        # if ppar is not None:
         #    self.ppar = ppar
         if self.ppar is None:
             raise Exception("ppar is not set.")
@@ -139,12 +137,12 @@ class ModelGenerator:
         ### Set models
         logger.info("Calculating kinematic structure")
         logger.info("Models:")
-        #logger.info(f"    inner-envelope: {inenv or self.inenv}")
-        #logger.info(f"    outer-envelope: {outenv or self.outenv}")
-        #logger.info(f"    disk: {disk or self.disk}\n")
-        #self.set_inenv(inenv or self.inenv)
-        #self.set_outenv(outenv or self.outenv)
-        #self.set_disk(disk or self.disk)
+        # logger.info(f"    inner-envelope: {inenv or self.inenv}")
+        # logger.info(f"    outer-envelope: {outenv or self.outenv}")
+        # logger.info(f"    disk: {disk or self.disk}\n")
+        # self.set_inenv(inenv or self.inenv)
+        # self.set_outenv(outenv or self.outenv)
+        # self.set_disk(disk or self.disk)
         logger.info(f"    inner-envelope: {self.inenv}")
         logger.info(f"    outer-envelope: {self.outenv}")
         logger.info(f"    disk: {self.disk}\n")
@@ -173,15 +171,15 @@ class ModelGenerator:
         if ismodel(self.outenv):
             logger.info("Setting outer envelop")
             if smoothing_TSC:
-                fac = np.exp(-(0.3*self.outenv.rin_lim/self.grid.rr)**2 )
-                rho += (self.outenv.rho - rho )* fac * np.where(rho!=0, 1, 0)
+                fac = np.exp(-((0.3 * self.outenv.rin_lim / self.grid.rr) ** 2))
+                rho += (self.outenv.rho - rho) * fac * np.where(rho != 0, 1, 0)
                 vr += (self.outenv.vr - vr) * fac
                 vt += (self.outenv.vt - vt) * fac
                 vp += (self.outenv.vp - vp) * fac
 
             else:
                 cond1 = rho < self.outenv.rho
-                cond2 = self.grid.rr > 1/5* self.outenv.rin_lim
+                cond2 = self.grid.rr > 1 / 5 * self.outenv.rin_lim
                 cond = cond1 & cond2
                 rho[cond] = self.outenv.rho[cond]
                 vr[cond] = self.outenv.vr[cond]
@@ -197,8 +195,8 @@ class ModelGenerator:
             vp[cond] = self.disk.vp[cond]
 
         logger.info("Calculated kinematic structure")
-        #if grid is not None:
-        #self.model.set_grid(self.grid)
+        # if grid is not None:
+        # self.model.set_grid(self.grid)
         self.model.set_gas_density(rho)
         self.model.set_gas_velocity(vr, vt, vp)
         self.model.set_physical_parameters(self.ppar)

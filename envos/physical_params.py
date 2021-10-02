@@ -4,16 +4,17 @@ from envos.log import set_logger
 
 logger = set_logger(__name__)
 
+
 def calc_dependent_params(
-        T: float = None,
-        CR_au: float = None,
-        Ms_Msun: float = None,
-        t_yr: float = None,
-        Omega: float = None,
-        jmid: float = None,
-        Mdot_smpy: float = None,
-        meanmolw: float = None,
-    ):
+    T: float = None,
+    CR_au: float = None,
+    Ms_Msun: float = None,
+    t_yr: float = None,
+    Omega: float = None,
+    jmid: float = None,
+    Mdot_smpy: float = None,
+    meanmolw: float = None,
+):
 
     m0 = 0.975
     if T is not None:
@@ -42,8 +43,16 @@ def calc_dependent_params(
         jmid = (0.5 * cs * m0 * t) ** 2 * Omega
         CR = jmid ** 2 / (nc.G * Ms)
 
-    return {"T":T, "cs":cs, "Mdot":Mdot, "Ms":Ms, "t":t, "CR": CR, "jmid": jmid, "Omega": Omega}
-
+    return {
+        "T": T,
+        "cs": cs,
+        "Mdot": Mdot,
+        "Ms": Ms,
+        "t": t,
+        "CR": CR,
+        "jmid": jmid,
+        "Omega": Omega,
+    }
 
 
 class PhysicalParameters:
@@ -54,7 +63,7 @@ class PhysicalParameters:
         T: float = None,
         Mdot_smpy: float = None,
         CR_au: float = None,
-        t_yr: float = None, # to be deleted
+        t_yr: float = None,  # to be deleted
         Omega: float = None,
         jmid: float = None,
         rexp_au: float = None,
@@ -95,16 +104,14 @@ class PhysicalParameters:
         self.Ms = Ms
         self.t = t
 
-    def calc_jmid(
-        self, cs, Ms, t, CR_au=None, jmid=None, Omega=None, rexp_au=None
-    ):
+    def calc_jmid(self, cs, Ms, t, CR_au=None, jmid=None, Omega=None, rexp_au=None):
         m0 = 0.975
         if jmid is not None:
             CR = jmid ** 2 / (nc.G * Ms)
             Omega = jmid / (0.5 * cs * m0 * t) ** 2
         elif (rexp_au is not None) and (Omega is not None):
             rexp = rexp_au * nc.au
-            jmid = (rexp * m0 / 2)**2 * Omega
+            jmid = (rexp * m0 / 2) ** 2 * Omega
             CR = jmid ** 2 / (nc.G * Ms)
             self.rexp = rexp
             self.t = rexp / self.cs
@@ -136,9 +143,7 @@ class PhysicalParameters:
         self._logp("rexp", "au", self.rexp, nc.au)
         self._logp("cs*t", "au", self.cs * self.t, nc.au)
         self._logp("Omega*t", "", self.Omega * self.t)
-        self._logp(
-            "rinlim_tsc", "au", self.cs * self.Omega ** 2 * self.t ** 3, nc.au
-        )
+        self._logp("rinlim_tsc", "au", self.cs * self.Omega ** 2 * self.t ** 3, nc.au)
         self._logp("rinlim_tsc", "cs*t", self.Omega ** 2 * self.t ** 2)
         logger.info("")
 

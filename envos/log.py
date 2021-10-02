@@ -83,6 +83,7 @@ def enable_saving_output(level_name=None):
         file_level = get_level(level_name)
 
     from . import gpath
+
     if os.path.isfile(gpath.logfile):
         os.remove(gpath.logfile)
 
@@ -109,6 +110,7 @@ def update_file_handler_for_all_loggers():
                 logger.removeHandler(hdlr)
         if enable_saving:
             _add_file_handler(logger)
+
 
 #    for logger in loggers.values():
 #        for hdlr in logger.handlers:
@@ -167,9 +169,10 @@ def _add_file_handler(logger):
     global file_level
 
     import envos.gpath as gp
+
     gp.make_dirs(run=gp.run_dir)
-    #print(logger.name, gp.logfile)
-    os.makedirs( os.path.dirname(gp.logfile), exist_ok=True)
+    # print(logger.name, gp.logfile)
+    os.makedirs(os.path.dirname(gp.logfile), exist_ok=True)
     file_handler = logging.FileHandler(gp.logfile, "a", "utf-8")
     fmt = MyFormatter("file")
     file_handler.setFormatter(fmt)
