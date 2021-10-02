@@ -372,7 +372,7 @@ def plot_opacity():
 
 
 def plot_mom0_map(
-    obsdata, pangle_deg=None, poffset_au=None, n_lv=100, out="mom0map.pdf"
+    obsdata, pangle_deg=None, poffset_au=None, n_lv=100, out="mom0map.pdf", normalize=False
 ):
     def position_line(length, pangle_deg, poffset_au=0):
         line = np.linspace(-length / 2, length / 2, 10)
@@ -382,11 +382,33 @@ def plot_mom0_map(
         return pos_x, pos_y
         # return np.stack([pos_x, pos_y], axis=-1)
 
-    # Ipp = integrate.simps(obsdata.Ippv, obsdata.vkms, axis=2)
-    Ipp = np.sum(obsdata.Ippv, axis=2) * (obsdata.vkms[1] - obsdata.vkms[0])
-    Ipp /= np.max(Ipp)
+    if hasattr(obsdata, "Ippv"):
+        if len(obsdata.vkms) >= 2:
+            dv = obsdata.vkms[1] - obsdata.vkms[0]
+        else:
+            dv = 1
+        #Ipp = np.sum(obsdata.Ippv, axis=-1) * dv
+        #Ipp = obsdata.get_mom0_map(vrange=[-0.6, 0.6])
+        #Ipp = obsdata.get_mom0_map(vrange=[-2.5, 2.5])
+        Ipp = obsdata.get_mom0_map()
+
+        exit()
+    elif hasattr(obsdata, "Ipp"):
+        Ipp = obsdata.Ipp
+    else:
+        raise Exception("Data type error")
+    
+    print(np.max(Ipp),)
+
+    if normalize:
+        Ipp /= np.max(Ipp)
+
+    print(np.max(Ipp),)
     lvs = np.linspace(0, np.max(Ipp), 11)
     plt.figure(figsize=(8, 6))
+
+    #print(obsdata.xau.shape, obsdata.yau.shape, Ipp.T.shape, obsdata.Ippv.shape)
+
     img = plt.pcolormesh(
         obsdata.xau,
         obsdata.yau,
@@ -454,7 +476,7 @@ def plot_lineprofile(obsdata):
 
 
 def plot_pvdiagram(
-    PV,
+    pv,
     n_lv=5,
     Ms_Msun=None,
     rCR_au=None,
@@ -474,18 +496,21 @@ def plot_pvdiagram(
     refpv=None,
     out="pvdiagrams.pdf",
 ):
-    Ipv = PV.Ipv
-    xau = PV.xau
-    # xas = xau / PV.dpc
-    vkms = PV.vkms
+    Ipv = pv.Ipv
+    xau = pv.xau
+    # xas = xau / pv.dpc
+    vkms = pv.vkms
 
     plt.figure(figsize=figsize)
     # lvs = np.linspace(np.min(Ipv), np.max(Ipv), 11)
     lvs = np.linspace(0, np.max(Ipv), 11)
+
+    xx, yy = np.meshgrid(xau, vkms, indexing="ij")
     if discrete:
+        print(xx.shape, yy.shape, Ipv.shape)
         img = plt.pcolormesh(
-            xau,
-            vkms,
+            xx,
+            yy,
             Ipv,
             cmap=make_listed_cmap("cividis", len(lvs) - 1, extend="neither"),
             norm=mc.BoundaryNorm(lvs, len(lvs) - 1, clip=False),
@@ -521,12 +546,12 @@ def plot_pvdiagram(
     if refpv:
         # x_ipeak, v_ipeak = get_coord_ipeak(refpv.xau, refpv.vkms, refpv.Ipv)
         # x_vmax, v_vmax = get_coord_vmax(refpv.xau, refpv.vkms, refpv.Ipv, f_crit)
-
         plt.contour(
             refpv.xau,
             refpv.vkms,
-            refpv.Ipv.clip(1e-10),
-            [0.1, 0.4, 0.8],
+            refpv.Ipv.T.clip(1e-10),
+            #[0.1, 0.4, 0.8],
+            # [0.2, 0.4, 0.6, 0.8 ],
             colors="w",
             linewidths=1.5,
             linestyles="-",
@@ -550,15 +575,15 @@ def plot_pvdiagram(
             mass_vp=True,
         )
 
-    if PV.convolve and show_beam:
+    if pv.convolve and show_beam:
         draw_beamsize(
             plt.gca(),
-            "PV",
-            PV.beam_maj_au,
-            PV.beam_min_au,
-            PV.beam_pa_deg,
-            PV.pangle_deg,
-            PV.vreso_kms,
+            "pv",
+            pv.beam_maj_au,
+            pv.beam_min_au,
+            pv.beam_pa_deg,
+            pv.pangle_deg,
+            pv.vreso_kms,
         )
 
     if subax:
@@ -567,7 +592,7 @@ def plot_pvdiagram(
         ax2.tick_params("both", direction="inout")
         ax2.set_xlabel("Angular Offset [arcsec]")
         # ax2.set_xlim([xas[0], xas[-1]])
-        ax2.set_xlim(np.array(ax.get_xlim()) / PV.dpc)
+        ax2.set_xlim(np.array(ax.get_xlim()) / pv.dpc)
 
     savefig(out)
 
@@ -735,7 +760,7 @@ def draw_beamsize(
     with_box=False,
 ):
 
-    if mode == "PV":
+    if mode == "pv":
         if pangle_deg is None:
             beamx = 0.5 * (beam_maj_au + beam_min_au)
         else:
@@ -836,7 +861,8 @@ def add_mass_estimate_plot(
         return 0.001127 * xau * vkms ** 2 * fac
 
     if mass_ip:
-        ## M_ipeak
+        # M_ipeak
+        print(xau.shape, vkms.shape, Ipv.shape)
         xau_peak, vkms_peak = get_coord_ipeak(xau, vkms, Ipv)
         draw_cross_pointer(xau_peak, vkms_peak, color_def[1], lw=1.5, s=18, ls=":")
         M_CR = calc_M(abs(xau_peak), vkms_peak / np.sin(np.deg2rad(incl)), fac=1)
@@ -849,7 +875,7 @@ def add_mass_estimate_plot(
         logger.info(f" M_ipeak = {M_CR} Msun")
 
     if mass_vp:
-        ## M_vpeak
+        # M_vpeak
         f_crit_list = [f_crit] if f_crit is not None else f_crit_list
 
         txt_Mvp_list = []
@@ -885,31 +911,27 @@ def add_mass_estimate_plot(
 def get_coord_ipeak(xau, vkms, Ipv):
     jmax, imax = Ipv.shape
     peaks = peak_local_max(Ipv, threshold_rel=0.7, indices=True)
-    peak_index = np.argmax([abs(xau[i]) * vkms[j] ** 2 for j, i in peaks])
-    jpeak, ipeak = peaks[peak_index]
-
+    peak_index = np.argmax([abs(xau[i]) * vkms[j] ** 2 for i, j in peaks])
+    ipeak, jpeak = peaks[peak_index]
     xau_peak = xau[ipeak]
     vkms_peak = vkms[jpeak]
-
-    fun = interpolate.RectBivariateSpline(vkms, xau, Ipv)
-    fun_wrap = lambda x: 1 / fun(x[0], x[1])[0, 0]
+    fun = interpolate.RectBivariateSpline(xau, vkms, Ipv)
     dx = xau[1] - xau[0]
     dv = vkms[1] - vkms[0]
     res = optimize.minimize(
-        fun_wrap,
-        [vkms_peak, xau_peak],
+        lambda x: 1 / fun(x[0], x[1])[0, 0],
+        [xau_peak, vkms_peak],
         bounds=[
-            (vkms_peak - 4 * dv, vkms_peak + 4 * dv),
             (xau_peak - 4 * dx, xau_peak + 4 * dx),
+            (vkms_peak - 4 * dv, vkms_peak + 4 * dv),
         ],
     )
-    return res.x[1], res.x[0]
+    return res.x[0], res.x[1]
 
 
 def get_coord_vmax(xau, vkms, Ipv, f_crit):
-    x_vmax, I_vmax = np.array(
-        [[get_maximum_position(xau, Iv), np.max(Iv)] for Iv in Ipv.transpose(0, 1)]
-    ).T
+    x_vmax = np.apply_along_axis(lambda Ip: get_maximum_position(xau, Ip), 0, Ipv)
+    I_vmax = np.apply_along_axis(np.max, 0, Ipv)
     v_crit = tools.find_roots(vkms, I_vmax, f_crit * np.max(Ipv))
     if len(v_crit) == 0:
         v_crit = vkms[0]
@@ -926,8 +948,10 @@ def get_maximum_position(x, y):
 
 def find_local_peak_position(x, y, i):
     if 2 <= i <= len(x) - 3:
+        i_s = i - 2
+        i_e = i + 3
         grad_y = interpolate.InterpolatedUnivariateSpline(
-            x[i - 2 : i + 3], y[i - 2 : i + 3]
+            x[i_s: i_e], y[i_s: i_e]
         ).derivative(1)
         return optimize.root(grad_y, x[i]).x[0]
     else:
