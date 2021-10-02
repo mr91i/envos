@@ -599,47 +599,6 @@ class ObsData3D(BaseObsData):
     Usually, obsdata is made by doing obsevation.
     But one can generate obsdata by reading fitsfile or radmcdata
     """
-#    __slots__ = ["Ippv",
-#    "Nx",
-#    "Ny",
-#    "Nv",
-#    "xau",
-#    "yau",
-#    "vkms",
-#    "dx",
-#    "dy",
-#    "dv",
-#    "Lx",
-#    "Ly",
-#    "Lv",
-#    "dpc",
-#    "convolve",
-#    "beam_maj_au",
-#    "beam_min_au",
-#    "vreso_kms",
-#    "beam_pa_deg",
-#    "datatype",
-#    ]
-#    Ippv: np.ndarray
-#    Nx: int
-#    Ny: int
-#    Nv: int
-#    xau: np.ndarray
-#    yau: np.ndarray
-#    vkms: np.ndarray
-#    dx: float
-#    dy: float
-#    dv: float
-#    Lx: float
-#    Ly: float
-#    Lv: float
-#    dpc: float
-#    convolve: bool
-#    beam_maj_au: float
-#    beam_min_au: float
-#    vreso_kms: float
-#    beam_pa_deg: float
-#    datatype: str
     Ippv: np.ndarray = None
     Nx: int = None
     Ny: int = None
