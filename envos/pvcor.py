@@ -3,9 +3,9 @@ import numpy as np
 from scipy import ndimage, interpolate
 
 
-def calc_PV_correlation(
-    PV1,
-    PV2,
+def calc_pv_correlation(
+    pv1,
+    pv2,
     method="ZNCC",
     threshold=0,
     with_noise=False,
@@ -14,19 +14,23 @@ def calc_PV_correlation(
     xau=None,
     vkms=None,
 ):
-    xau = PV1.xau if xau is None else xau
-    vkms = PV1.vkms if vkms is None else vkms
+    xau = pv1.xau if xau is None else xau
+    vkms = pv1.vkms if vkms is None else vkms
     # trim
     if range_xau:
         xau = xau[(range_xau[0] < xau) & (xau < range_xau[1])]
     if range_vkms:
         vkms = vkms[(range_vkms[0] < vkms) & (vkms < range_vkms[1])]
 
-    ifunc_Ipv1 = interpolate.RectBivariateSpline(PV1.vkms, PV1.xau, PV1.Ipv)
-    ifunc_Ipv2 = interpolate.RectBivariateSpline(PV2.vkms, PV2.xau, PV2.Ipv)
+    #ifunc_Ipv1 = interpolate.RectBivariateSpline(pv1.vkms, pv1.xau, pv1.Ipv)
+    #ifunc_Ipv2 = interpolate.RectBivariateSpline(pv2.vkms, pv2.xau, pv2.Ipv)
+    ifunc_Ipv1 = interpolate.RectBivariateSpline(pv1.xau, pv1.vkms, pv1.Ipv)
+    ifunc_Ipv2 = interpolate.RectBivariateSpline(pv2.xau, pv2.vkms, pv2.Ipv)
 
-    interped_Ipv1 = ifunc_Ipv1(vkms, xau)
-    interped_Ipv2 = ifunc_Ipv2(vkms, xau)
+    #interped_Ipv1 = ifunc_Ipv1(vkms, xau)
+    #interped_Ipv2 = ifunc_Ipv2(vkms, xau)
+    interped_Ipv1 = ifunc_Ipv1(xau, vkms)
+    interped_Ipv2 = ifunc_Ipv2(xau, vkms)
 
     res = calc_correlation(
         interped_Ipv1,
@@ -40,9 +44,9 @@ def calc_PV_correlation(
 
 
 def calc_correlation(im1, im2_original, method="ZNCC", threshold=0, with_noise=False):
-    jmax1, imax1 = im1.shape
-    jmax2, imax2 = im2_original.shape
-    im2 = ndimage.zoom(im2_original, (jmax1 / jmax2, imax1 / imax2), order=1)
+    imax1, jmax1 = im1.shape
+    imax2, jmax2 = im2_original.shape
+    im2 = ndimage.zoom(im2_original, (imax1 / imax2, jmax1 / jmax2), order=1)
     im1 = np.where(im1 > 0, im1, 0)
     im2 = np.where(im2 > 0, im2, 0)
     if with_noise:
