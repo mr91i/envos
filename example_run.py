@@ -12,7 +12,7 @@ def main():
         dr_to_r=0.1,
         aspect_ratio=1,
         CR_au=100,
-        Ms_Msun=0.1,
+        Ms_Msun=0.3,
         T=10,
         cavangle_deg=45,
         f_dg=0.01,
