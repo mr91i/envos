@@ -372,7 +372,7 @@ def plot_opacity():
 
 
 def plot_mom0_map(
-    obsdata, pangle_deg=None, poffset_au=None, n_lv=100, out="mom0map.pdf", normalize=False
+    obsdata, pangle_deg=None, poffset_au=None, n_lv=100, out="mom0map.pdf", normalize=False, xrange=[-700, 700], yrange=[-700, 700]
 ):
     def position_line(length, pangle_deg, poffset_au=0):
         line = np.linspace(-length / 2, length / 2, 10)
@@ -418,8 +418,8 @@ def plot_mom0_map(
         shading="nearest",
         rasterized=True,
     )
-    plt.xlim(-700, 700)
-    plt.ylim(-700, 700)
+    plt.xlim(xrange[0], xrange[1])
+    plt.ylim(yrange[0], yrange[1])
     plt.xlabel("x [au]")
     # plt.ylabel("y [au]")
     plt.ylabel("z [au]")
@@ -927,6 +927,7 @@ def get_coord_ipeak(xau, vkms, Ipv):
         ],
     )
     return res.x[0], res.x[1]
+
 
 
 def get_coord_vmax(xau, vkms, Ipv, f_crit):
