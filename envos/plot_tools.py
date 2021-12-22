@@ -392,12 +392,12 @@ def plot_mom0_map(
         #Ipp = obsdata.get_mom0_map(vrange=[-2.5, 2.5])
         Ipp = obsdata.get_mom0_map()
 
-        exit()
+        #exit()
     elif hasattr(obsdata, "Ipp"):
         Ipp = obsdata.Ipp
     else:
         raise Exception("Data type error")
-    
+
     print(np.max(Ipp),)
 
     if normalize:
@@ -477,7 +477,7 @@ def plot_lineprofile(obsdata):
 
 def plot_pvdiagram(
     pv,
-    n_lv=5,
+    n_lv=10,
     Ms_Msun=None,
     rCR_au=None,
     incl=90,
@@ -494,6 +494,7 @@ def plot_pvdiagram(
     show_beam=True,
     discrete=True,
     refpv=None,
+    loglog=False,
     out="pvdiagrams.pdf",
 ):
     Ipv = pv.Ipv
@@ -503,7 +504,7 @@ def plot_pvdiagram(
 
     plt.figure(figsize=figsize)
     # lvs = np.linspace(np.min(Ipv), np.max(Ipv), 11)
-    lvs = np.linspace(0, np.max(Ipv), 11)
+    lvs = np.linspace(0, np.max(Ipv), n_lv+1)
 
     xx, yy = np.meshgrid(xau, vkms, indexing="ij")
     if discrete:
@@ -536,6 +537,12 @@ def plot_pvdiagram(
     # cbar.set_label(r"Intensity [$I_{\rm max}$]")
     # cbar.set_label(r"Intensity Normalized Maximum")
     cbar.set_label(r"$I_{V}/I_{V,\rm max}$")
+    if loglog:
+        plt.xlim(10,1000)
+        plt.ylim(0.01, 3)
+        plt.xscale("log")
+        plt.yscale("log")
+        show_beam = False
 
     ax = plt.gca()
     draw_center_line()
@@ -862,7 +869,6 @@ def add_mass_estimate_plot(
 
     if mass_ip:
         # M_ipeak
-        print(xau.shape, vkms.shape, Ipv.shape)
         xau_peak, vkms_peak = get_coord_ipeak(xau, vkms, Ipv)
         draw_cross_pointer(xau_peak, vkms_peak, color_def[1], lw=1.5, s=18, ls=":")
         M_CR = calc_M(abs(xau_peak), vkms_peak / np.sin(np.deg2rad(incl)), fac=1)
@@ -877,7 +883,6 @@ def add_mass_estimate_plot(
     if mass_vp:
         # M_vpeak
         f_crit_list = [f_crit] if f_crit is not None else f_crit_list
-
         txt_Mvp_list = []
         for f_crit in f_crit_list:
             x_vmax, v_vmax = get_coord_vmax(xau, vkms, Ipv, f_crit)
