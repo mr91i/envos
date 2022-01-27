@@ -936,6 +936,7 @@ def get_coord_ipeak(xau, vkms, Ipv):
     return res.x[0], res.x[1]
 
 
+
 def get_coord_vmax(xau, vkms, Ipv, f_crit):
     x_vmax = np.apply_along_axis(lambda Ip: get_maximum_position(xau, Ip), 0, Ipv)
     I_vmax = np.apply_along_axis(np.max, 0, Ipv)

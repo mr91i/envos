@@ -676,6 +676,26 @@ class ObsData3D(BaseObsData):
         else:
             logger.info("No input.")
 
+    def trim(self, range_x=None, range_y=None, range_v=None):
+        if range_x is not None:
+            
+            #for i, r in enumerate(np.array([self.xau, np.abs(self.xau - range_x[1]) ]).T) :
+            #    print(i, r)
+            imin, imax = [np.abs(self.xau - xl).argmin() for xl in range_x]
+            #print(imin, imax)
+            self.Ippv = self.Ippv[imin:imax+1, :, :]
+            self.xau = self.xau[imin:imax+1]
+
+        if range_y is not None:
+            jmin, jmax = [np.abs(self.yau - yl).argmin() for yl in range_y]
+            self.Ippv = self.Ippv[:, jmin:jmax+1, :]
+            self.yau = self.yau[jmin:jmax+1]
+
+        if range_v is not None:
+            kmin, kmax = [np.abs(self.vkms - vl).argmin() for vl in range_v]
+            self.Ippv = self.Ippv[:, :, kmin:kmax+1]
+            self.vkms = self.vkms[kmin:kmax+1]
+
     def get_mom0_map(self, normalize="peak", method="sum", vrange=None):
         if self.Ippv.shape[2] == 1:
             Ipp = self.Ippv[...,0]
@@ -728,7 +748,8 @@ class ObsData3D(BaseObsData):
                 self.xau, PA_deg=pangle_deg, poffset_au=poffset_au
             )
             points = [[(pl[0], pl[1], v) for v in self.vkms] for pl in posline]
-            #print(points )
+            #import pprint
+            #pprint.pprint(points )
             #exit()
 
             if 0:
@@ -879,11 +900,26 @@ class Image(BaseObsData):
             logger.info("Data type error")
             raise Exception
 
-    def get_peak_position(self):
+    def get_peak_position(self, interp=True):
         import skimage
+        from scipy import optimize, interpolate
         ip, jp = skimage.feature.peak_local_max(self.Ipp, num_peaks=1)[0]
-        #ans = skimage.feature.peak_local_max(self.Ipp, num_peaks=1)
-        #print(ans)
+        xau_peak, yau_peak = self.xau[ip], self.yau[jp]
+
+        if interp:
+            fun = interpolate.RectBivariateSpline(self.xau, self.yau, self.Ipp)
+            dx = self.xau[1] - self.xau[0]
+            dy = self.yau[1] - self.yau[0]
+            res = optimize.minimize(
+                lambda _x: 1 / fun(_x[0], _x[1])[0, 0],
+                [xau_peak, yau_peak],
+                bounds=[
+                    (xau_peak - 4 * dx, xau_peak + 4 * dx),
+                    (yau_peak - 4 * dy, yau_peak + 4 * dy),
+                ],
+            )
+            return res.x[0], res.x[1]
+
         return self.xau[ip], self.yau[jp]
 
 @dataclass
@@ -939,13 +975,13 @@ class PVmap(BaseObsData):
     def trim(self, range_x=None, range_v=None):
         if range_x is not None:
             imax, imin = [np.abs(self.xau - xl).argmin() for xl in range_x]
-            self.Ipv = self.Ipv[:, imin:imax]
-            self.xau = self.xau[imin:imax]
+            self.Ipv = self.Ipv[:, imin:imax+1]
+            self.xau = self.xau[imin:imax+1]
 
         if range_v is not None:
             jmin, jmax = [np.abs(self.vkms - vl).argmin() for vl in range_v]
-            self.Ipv = self.Ipv[jmin:jmax, :]
-            self.vkms = self.vkms[jmin:jmax]
+            self.Ipv = self.Ipv[jmin:jmax+1, :]
+            self.vkms = self.vkms[jmin:jmax+1]
 
     def save_fitsfile(self, filename="pvimage.fits", filepath=None):
         """
@@ -1161,6 +1197,7 @@ class FitsReader:
         yau *= self.get_length_scale(unit_name=unit2, unit_cm=unit2_cm)
 
         self.image = self.data_shape_convert(self.image, 2)
+        self.image, xau, yau = self.set_axes_positive(self.image, (xau, yau))
         self.image = Image(self.image, xau, yau, dpc)
         self.image.check_data_shape()
         self.add_beam_info(self.image, dpc)
@@ -1176,6 +1213,8 @@ class FitsReader:
         vkms *= self.get_velocity_scale(unit_name=unit2, unit_cms=unit2_cms)
         vkms -= v0_kms
         self.image = self.data_shape_convert(self.image, 2) # transpose=True)
+        self.image, xau, vkms = self.set_axes_positive(self.image, (xau, vkms))
+
         self.pv = PVmap(self.image, xau, vkms, dpc)
         self.pv.check_data_shape()
         self.add_beam_info(self.pv, dpc, vkms)
@@ -1194,7 +1233,7 @@ class FitsReader:
         vkms -= v0_kms
         self.cube = ObsData3D()
         self.image = self.data_shape_convert(self.image, 3)
-
+        self.image, xau, yau, vkms = self.set_axes_positive(self.image, (xau, yau, vkms))
         #exit()
         self.cube.set(self.image, xau, yau, vkms, dpc)
         self.cube.check_data_shape()
@@ -1247,6 +1286,15 @@ class FitsReader:
         #print(axis_number, ax, naxis, crval, crpix, cdelt)
         #exit(1)
         return ax # crval + cdelt * (np.arange(naxis) + 1 - crpix)
+
+    def set_axes_positive(self, img, axes):
+        new_axes = []
+        for i, _ax in enumerate(axes):
+            if (len(_ax) >= 2) and (_ax[1] < _ax[0]):
+                _ax = _ax[::-1]
+                img = np.flip(img, i)
+            new_axes.append(_ax)
+        return img, *new_axes 
 
     def convert_ra_to_deg(self, hour, minu, sec):
         return 15*(hour + minu/60 + sec/(3600))
@@ -1305,4 +1353,22 @@ class FitsReader:
         return position_ax - 0.5*(position_ax[-1] + position_ax[0])
 
 
+
+def deg_to_ra(deg):
+    hour = int(deg/15)
+    minu = int((deg/15 - hour)*60)
+    seco = (deg/15 - hour - minu/60 )*3600
+    return hour, minu, seco
+
+def deg_to_decl(deg):
+    _deg = int(deg)
+    arcmin = int(60*(deg - _deg))
+    arcsec = 3600*(deg - _deg - arcmin/60)
+    return _deg, arcmin, arcsec
+
+def ra_to_deg(hour, minu, sec):
+    return 15*(hour + minu/60 + sec/(3600))
+
+def decl_to_deg(deg, arcmin, arcsec):
+    return deg + arcmin/60 + arcsec/(3600)
 
