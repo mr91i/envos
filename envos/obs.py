@@ -262,7 +262,7 @@ class ObsSimulator:
 
     #    return
 
-    def observe_line(self, iline=None, molname=None, incl=None, phi=None, posang=None):
+    def observe_line(self, iline=None, molname=None, incl=None, phi=None, posang=None, obsdust=False):
         iline = iline or self.iline
         molname = molname or self.molname
         incl = incl or self.incl
@@ -288,10 +288,12 @@ class ObsSimulator:
             "npixy": self.npixy,
             "zoomau": [*self.zoomau_x, *self.zoomau_y],
             "iline": self.iline,
-            "option": "noscat nostar nodust "
+            "option": "noscat nostar "
             + self.lineobs_option
             + " ",  # + (" doppcatch " if ,
         }
+        if not obsdust:
+            common_cmd["option"] += "nodust "
 
         v_calc_points = np.linspace(-self.vfw_kms / 2, self.vfw_kms / 2, self.nlam)
 
@@ -611,7 +613,7 @@ class BaseObsData:
             self.convert_decl_to_deg(*center_pos) * fac
         elif unit == "deg":
             d = center_pos * fac
-        elif unit == "au": 
+        elif unit == "au":
             d = center_pos
 
         if ax == "x":
@@ -677,24 +679,24 @@ class ObsData3D(BaseObsData):
     def get_mom0_map(self, normalize="peak", method="sum", vrange=None):
         if self.Ippv.shape[2] == 1:
             Ipp = self.Ippv[...,0]
-        else:    
+        else:
             Ippv = self.Ippv
             vkms = self.vkms
             if (vrange is not None) and (len(vrange) == 2):
                 if vrange[0] < vrange[1]:
-                    cond = np.where((vrange[0] < vkms) & (vkms < vrange[1]), True, False)  
+                    cond = np.where((vrange[0] < vkms) & (vkms < vrange[1]), True, False)
                     Ippv = Ippv[..., cond]
                     vkms = vkms[cond]
                 else:
                     raise Exception
-    
+
             if method == "sum":
                 dv = vkms[1] - vkms[0] # if len(vkms) >= 2 else 1
                 Ipp = np.sum(Ippv, axis=-1) * dv
-    
+
             elif method == "integrate":
                 Ipp = integrate.simps(Ippv, vkms, axis=-1)
-        
+
 
         if normalize == "peak":
             Ipp /= np.max(Ipp)
@@ -719,6 +721,7 @@ class ObsData3D(BaseObsData):
 
 
     def get_pv_map(self, pangle_deg=0, poffset_au=0, Inorm="max", save=False):
+    # Inorm: None, "max", float
 
         if self.Ippv.shape[1] > 1:
             posline = self.position_line(
@@ -731,7 +734,7 @@ class ObsData3D(BaseObsData):
             if 0:
                 Ipv = interpolate.RegularGridInterpolator((self.xau, self.yau, self.vkms),
                       self.Ippv, method='linear', bounds_error=False, fill_value=0)(points)
-    
+
             else:
                 Ipv = interpolate.interpn(
                     (self.xau, self.yau, self.vkms),
@@ -809,7 +812,7 @@ class ObsData3D(BaseObsData):
 
         self.dx = self.xau[1] - self.xau[0]
         self.dy = self.yau[1] - self.yau[0]
-        self.dv = self.vkms[1] - self.vkms[0] if len(self.vkms) >= 2 else None 
+        self.dv = self.vkms[1] - self.vkms[0] if len(self.vkms) >= 2 else None
         self.Lx = self.xau[-1] - self.xau[0]
         self.Ly = self.yau[-1] - self.yau[0]
         self.Lv = self.vkms[-1] - self.vkms[0]  # if len(self.vkms) > 1 else 0
@@ -818,7 +821,7 @@ class ObsData3D(BaseObsData):
     def check_data_shape(self):
         if self.Ippv.shape != (len(self.xau), len(self.yau), len(self.vkms)):
             logger.info("Data type error")
-            raise Exception  
+            raise Exception
 
     #def move_center(self, center_pos, ra=False, decl=False, deg=False, au=False):
 
@@ -832,7 +835,7 @@ class ObsData3D(BaseObsData):
             ax = ax[::-1]
             dax = ax[1] - ax[0]
             np.flip(self.Ippv, num)
-        return ax, dax        
+        return ax, dax
 
 
 @dataclass
@@ -874,7 +877,7 @@ class Image(BaseObsData):
     def check_data_shape(self):
         if self.Ipp.shape != (len(self.xau), len(self.yau)):
             logger.info("Data type error")
-            raise Exception 
+            raise Exception
 
     def get_peak_position(self):
         import skimage
@@ -1102,14 +1105,14 @@ class FitsReader:
         #pixcrd = np.array([list(a) ]*4).T
         #print(np.shape(pixcrd))
         #world = wcs.wcs_pix2world(pixcrd, 0)
-#        world =  wcs.pixel_to_world(   )   
+#        world =  wcs.pixel_to_world(   )
 #        print(world)
 #        exit()
 #        import astropy.coordinates
 #        from astropy.coordinates import SkyCoord
 #
 #        maxind = np.unravel_index(np.nanargmax(pic.data), pic.data.shape)
-#        maxworld = wcs.wcs_pix2world([maxind[::-1]], 0) 
+#        maxworld = wcs.wcs_pix2world([maxind[::-1]], 0)
 #        print(maxworld)
 #        galx, galy = maxworld[0][:2]
 #        coord = astropy.coordinates.SkyCoord(galx, galy, frame='galactic', unit='deg')
@@ -1117,7 +1120,7 @@ class FitsReader:
 #
 #        from astropy.coordinates import SkyCoord
 #        coord = SkyCoord('00h00m00s +00d00m00s', frame='galactic')
-#        pixels = wcs.world_to_pixel(coord)  
+#        pixels = wcs.world_to_pixel(coord)
 #        print(pixels)
 #
 #        exit()
@@ -1127,7 +1130,7 @@ class FitsReader:
             nshape = [i for i in np.shape(data) if i!=1]
             if len(nshape) == ndim:
                 ndata = np.reshape(data, nshape)
-            else:            
+            else:
                 logger.error(f"Wait, something wrong in the data! nshape = {nshape}")
                 raise Exception
                 exit(1)
@@ -1169,7 +1172,7 @@ class FitsReader:
         self.dpc = dpc
         xau = self.get_ax(1)
         xau *= self.get_length_scale(unit_name=unit1, unit_cm=unit1_cm)
-        vkms = self.get_ax(2) 
+        vkms = self.get_ax(2)
         vkms *= self.get_velocity_scale(unit_name=unit2, unit_cms=unit2_cms)
         vkms -= v0_kms
         self.image = self.data_shape_convert(self.image, 2) # transpose=True)
@@ -1213,12 +1216,12 @@ class FitsReader:
                 beam_pa_deg,
             )
 
-    def get_ax(self, axnum): 
+    def get_ax(self, axnum):
         import astropy.io.fits
         wcs = astropy.wcs.WCS(self.header, naxis=self.naxis)
         n = self.header[f"NAXIS{axnum:d}"]
         x = np.arange(n)
-        zeros = np.zeros((self.naxis-1, n)) 
+        zeros = np.zeros((self.naxis-1, n))
         ind = np.insert(zeros, axnum-1, x, axis=0)
         ret = wcs.wcs_pix2world(ind.T, 0)
         return ret[:, axnum-1]
@@ -1229,7 +1232,7 @@ class FitsReader:
         crpix = self.header[f"CRPIX{axis_number:d}"]
         cdelt = self.header[f"CDELT{axis_number:d}"]
         #if ra:
-        #    cdelt /=  
+        #    cdelt /=
         ax = crval + cdelt * (np.arange(naxis) + 1 - crpix)
         #  if axis_number == 1:
         #      deg = 4*360/24 + 39*360/24*1/60 + 53.89*360/24*1/60*1/60
@@ -1239,7 +1242,7 @@ class FitsReader:
         #      deg = 26 + 3*1/60 + 9.8/60/60
         #      print(ax-deg)
         #      ax -= deg
-        
+
         #ax = cdelt * (np.arange(naxis) + 1 - crpix)
         #print(axis_number, ax, naxis, crval, crpix, cdelt)
         #exit(1)

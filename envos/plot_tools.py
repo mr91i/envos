@@ -40,11 +40,23 @@ color_def = [
     "#2c3e50",
 ]
 eps = 1e-3
-"""
-Plotting functions
-"""
 
 
+
+"""
+    Plotting function decorator
+"""
+#def use_default_args(func):
+#    def wrapper(, *args, **kwargs):
+#        print('--start--')
+#        func(*args, **kwargs)
+#        print('--end--')
+#    return wrapper
+
+
+"""
+    Plotting functions
+"""
 def plot_density_map(
     model,
     rlim=500,
@@ -58,7 +70,6 @@ def plot_density_map(
     img = plt.pcolormesh(
         model.R[..., 0] / nc.au,
         model.z[..., 0] / nc.au,
-        # np.log10(rho[...,0].clip(1e-300)),
         rho[..., 0],
         shading="nearest",
         rasterized=True,
@@ -72,24 +83,17 @@ def plot_density_map(
     fmt = "%.1e"  # mt.LogFormatterSciNotation(labelOnlyBase=False, minor_thresholds=(10, 0.5))
     cbar = plt.colorbar(img, format=fmt, extend="both", pad=0.02)
     cbar.set_label(r"Gas Density [g cm$^{-3}$]")
-    # cbar.ax.minorticks_on()
     plt.gca().set_aspect("equal", adjustable="box")
-
     if trajectries:
         add_trajectries(model)
-
     if streams:
         add_streams(model, rlim, r0=r0, use_mu0=hasattr(model, "mu0"))
-
     savefig("density.pdf")
 
 
 def plot_midplane_density_profile(model):
     index_mid = np.argmin(np.abs(model.tc_ax - np.pi / 2))
     plt.plot(model.rc_ax / nc.au, model.rhogas[:, index_mid, 0])
-    # plt.xlim(np.min(model.rc_ax/nc.au), np.max(model.rc_ax/nc.au))
-    # plt.ylim(np.min(model.rhogas[:, index_mid, 0])*0.9, np.max(model.rhogas[:, index_mid, 0])*1.1)
-    # plt.ylim(1e-19, 1e-15)
     plt.xscale("log")
     plt.yscale("log")
     plt.xlabel("Distance from Star [au]")
@@ -100,8 +104,6 @@ def plot_midplane_density_profile(model):
 def plot_midplane_temperature_profile(model):
     index_mid = np.argmin(np.abs(model.tc_ax - np.pi / 2))
     plt.plot(model.rc_ax / nc.au, model.Tgas[:, index_mid, 0])
-    # plt.xlim(10, 1000)
-    # plt.ylim(1, 1000)
     plt.xscale("log")
     plt.yscale("log")
     plt.xlabel("Distance from Star [au]")
@@ -161,7 +163,7 @@ def plot_midplane_angular_velocity_profile(model, rlim=400, ylim=(-0.5, 4)):
 
 
 def plot_midplane_density_velocity_profile(
-    model, rlim=1000, ylim_rho=(1e-19, 1e-15), ylim_vel=(-0.5, 4)
+    model, xlim=(30, 1000), ylim_rho=(1e-19, 1e-15), ylim_vel=(-0.0, 3)
 ):
     index_mid = np.argmin(np.abs(model.tc_ax - np.pi / 2))
     plt.plot(
@@ -171,7 +173,7 @@ def plot_midplane_density_velocity_profile(
         c="dimgray",
         label=r"$\rho$",
     )
-    plt.xlim(10, rlim)
+    plt.xlim(*xlim)
     plt.ylim(ylim_rho)
     plt.xscale("log")
     plt.yscale("log")
@@ -203,10 +205,10 @@ def plot_midplane_density_velocity_profile(
     plt.ylabel("Velocity [km s$^{-1}$]")
     plt.legend(handlelength=3)
     plt.minorticks_on()
-    plt.axhline(0, ls="-", c="k", lw=2, zorder=-10)
+    # plt.axhline(0, ls="-", c="k", lw=2, zorder=-10)
 
     savefig("v_dens_prof.pdf")
-
+    #exit()
 
 def plot_midplane_velocity_map(model, rlim=300):
     rax = model.rc_ax
@@ -372,7 +374,7 @@ def plot_opacity():
 
 
 def plot_mom0_map(
-    obsdata, pangle_deg=None, poffset_au=None, n_lv=100, out="mom0map.pdf", normalize=False
+    obsdata, pangle_deg=None, poffset_au=None, n_lv=100, out="mom0map.pdf", normalize=False, xlim=(-700, 700), ylim=(-700, 700)
 ):
     def position_line(length, pangle_deg, poffset_au=0):
         line = np.linspace(-length / 2, length / 2, 10)
@@ -418,8 +420,8 @@ def plot_mom0_map(
         shading="nearest",
         rasterized=True,
     )
-    plt.xlim(-700, 700)
-    plt.ylim(-700, 700)
+    plt.xlim(xlim[0], xlim[1])
+    plt.ylim(ylim[0], ylim[1])
     plt.xlabel("x [au]")
     # plt.ylabel("y [au]")
     plt.ylabel("z [au]")
@@ -464,9 +466,13 @@ def plot_mom0_map(
 
 
 def plot_lineprofile(obsdata):
-    lp = integrate.simps(
-        integrate.simps(obsdata.Ippv, obsdata.xau, axis=2), obsdata.yau, axis=1
-    )
+    print(obsdata.Ippv.shape, obsdata.xau.shape)
+    if obsdata.Ippv.shape[0] == 1 and obsdata.Ippv.shape[1] == 1:
+        lp = obsdata.Ippv[0,0,:]
+    else:
+        lp = integrate.simps(
+            integrate.simps(obsdata.Ippv, obsdata.xau, axis=2), obsdata.yau, axis=1
+        )
     plt.plot(obsdata.vkms, lp)
 
     filepath = os.path.join(gpath.fig_dir, "line.pdf")
@@ -482,6 +488,7 @@ def plot_pvdiagram(
     rCR_au=None,
     incl=90,
     f_crit=0.1,
+    analysis=None, # "mass_estimates" , "positions"
     mass_estimate=False,
     mass_ip=False,
     mass_vp=False,
@@ -499,43 +506,32 @@ def plot_pvdiagram(
 ):
     Ipv = pv.Ipv
     xau = pv.xau
-    # xas = xau / pv.dpc
     vkms = pv.vkms
 
     plt.figure(figsize=figsize)
-    # lvs = np.linspace(np.min(Ipv), np.max(Ipv), 11)
     lvs = np.linspace(0, np.max(Ipv), n_lv+1)
 
     xx, yy = np.meshgrid(xau, vkms, indexing="ij")
     if discrete:
-        print(xx.shape, yy.shape, Ipv.shape)
-        img = plt.pcolormesh(
-            xx,
-            yy,
-            Ipv,
-            cmap=make_listed_cmap("cividis", len(lvs) - 1, extend="neither"),
-            norm=mc.BoundaryNorm(lvs, len(lvs) - 1, clip=False),
-            shading="nearest",
-            rasterized=True,
-        )
+        cmap=make_listed_cmap("cividis", len(lvs) - 1, extend="neither"),
+        norm=mc.BoundaryNorm(lvs, len(lvs) - 1, clip=False),
     else:
-        img = plt.pcolormesh(
-            xau,
-            vkms,
-            Ipv,
-            cmap=plt.get_cmap("cividis"),
-            norm=mc.Normalize(vmin=0, vmax=np.max(Ipv)),
-            shading="nearest",
-            rasterized=True,
-        )
+        cmap=plt.get_cmap("cividis"),
+        norm=mc.Normalize(vmin=0, vmax=np.max(Ipv)),
+
+    img = plt.pcolormesh(
+        xx, yy, Ipv,
+        cmap=make_listed_cmap("cividis", len(lvs) - 1, extend="neither"),
+        norm=mc.BoundaryNorm(lvs, len(lvs) - 1, clip=False),
+        shading="nearest",
+        rasterized=True,
+    )
 
     plt.xlim(*xlim)
     plt.ylim(*ylim)
     plt.xlabel("Position [au]")
     plt.ylabel(r"V [km s$^{-1}$]")
     cbar = plt.colorbar(img, pad=0.02)
-    # cbar.set_label(r"Intensity [$I_{\rm max}$]")
-    # cbar.set_label(r"Intensity Normalized Maximum")
     cbar.set_label(r"$I_{V}/I_{V,\rm max}$")
     if loglog:
         plt.xlim(10,1000)
@@ -610,12 +606,12 @@ plotting tools
 
 
 def make_levels(x, dlv, log=False):
-    _x = np.log10(x[x > 0]) if log else x
+    _x = np.log10(x[x > np.max(x)*1e-4 ]) if log else x
     _x = _x[np.isfinite(_x)]
     if len(_x) == 0:
         return None
     maxlv = np.ceil(np.max(_x) / dlv) * dlv
-    minlv = np.floor(np.min(_x) / dlv) * dlv
+    minlv = np.floor( np.min(_x) / dlv) * dlv
     nlv = int((maxlv - minlv) / dlv)
     b = np.array([*range(nlv + 1)]) * 0.2 + minlv
     return 10 ** b if log else b
@@ -871,7 +867,8 @@ def add_mass_estimate_plot(
         # M_ipeak
         xau_peak, vkms_peak = get_coord_ipeak(xau, vkms, Ipv)
         draw_cross_pointer(xau_peak, vkms_peak, color_def[1], lw=1.5, s=18, ls=":")
-        M_CR = calc_M(abs(xau_peak), vkms_peak / np.sin(np.deg2rad(incl)), fac=1)
+        #M_CR = calc_M(abs(xau_peak), vkms_peak / np.sin(np.deg2rad(incl)), fac=1)
+        M_CR = calc_M(abs(xau_peak), vkms_peak, fac=1)
         txt_Mip = rf"$M_{{\rm ipeak}}$={M_CR:.3f}"
 
         logger.info("Mass estimation with intensity peak:")
@@ -914,8 +911,13 @@ def add_mass_estimate_plot(
 
 
 def get_coord_ipeak(xau, vkms, Ipv):
-    jmax, imax = Ipv.shape
-    peaks = peak_local_max(Ipv, threshold_rel=0.7, indices=True)
+    #jmax, imax = Ipv.shape
+    peaks = peak_local_max(Ipv, threshold_rel=0.7)
+    #print(Ipv, np.max(Ipv), peaks)
+    if len(peaks) == 0:
+        imaxpeak, jmaxpeak = np.unravel_index(np.argmax(Ipv), Ipv.shape)
+        #print(xau[imaxpeak], vkms[jmaxpeak])
+        return xau[imaxpeak], vkms[jmaxpeak]
     peak_index = np.argmax([abs(xau[i]) * vkms[j] ** 2 for i, j in peaks])
     ipeak, jpeak = peaks[peak_index]
     xau_peak = xau[ipeak]

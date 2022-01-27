@@ -54,6 +54,7 @@ class CircumstellarModel(ModelBase):
     vr: np.ndarray = None
     vt: np.ndarray = None
     vp: np.ndarray = None
+    vturb: np.ndarray = None
     Tgas: np.ndarray = None
     Tdust: np.ndarray = None
     f_dg: float = None
@@ -90,11 +91,14 @@ class CircumstellarModel(ModelBase):
         self.vp = vp
         self.set_cylindrical_velocity()
 
+    def set_turb_velocity(self, vturb):
+        self.vturb = vturb
+
     def set_gas_temperature(self, temperature):
         self.Tgas = temperature
         self.Tdust = temperature
 
-    def set_fdg(self, f_dg):
+    def set_dust_density(self, f_dg=None):
         self.f_dg = f_dg
 
         if hasattr(self, "rhogas"):

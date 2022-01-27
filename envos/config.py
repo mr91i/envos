@@ -71,7 +71,7 @@ class Config:
     cavangle_deg: float = 0
     inenv: str = "UCM"  # {"UCM", "Simple"}
     outenv: str = None
-    disk: str = None
+    disk: str = None # {"exptail"}
     rot_ccw: bool = False
     # usr_density_func: Callable = None
 

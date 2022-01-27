@@ -64,6 +64,7 @@ class ModelGenerator:
             config.cavangle_deg,
         )
         self.set_model(inenv=config.inenv, outenv=config.outenv, disk=config.disk)
+        self.f_dg = config.f_dg
 
     def set_grid(self, ri=None, ti=None, pi=None, grid=None):
         if grid is not None:
@@ -189,7 +190,8 @@ class ModelGenerator:
         if ismodel(self.disk):
             logger.info("Setting disk")
             cond = rho < self.disk.rho
-            rho[cond] = self.disk.rho[cond]
+            #rho[cond] = self.disk.rho[cond]
+            rho += self.disk.rho
             vr[cond] = self.disk.vr[cond]
             vt[cond] = self.disk.vt[cond]
             vp[cond] = self.disk.vp[cond]
@@ -199,6 +201,7 @@ class ModelGenerator:
         # self.model.set_grid(self.grid)
         self.model.set_gas_density(rho)
         self.model.set_gas_velocity(vr, vt, vp)
+        self.model.set_dust_density(f_dg=self.f_dg)
         self.model.set_physical_parameters(self.ppar)
 
     def set_inenv(self, inenv):
@@ -274,11 +277,12 @@ class ModelGenerator:
         radmc.run_mctherm()
 
         rho = radmc.get_gas_density()
-        if not np.allclose(rho, self.model.rhogas, rtol=1e-07, atol=1e-20):
+        #if not np.allclose(rho, self.model.rhogas, rtol=1e-07, atol=1e-20):
+        if not np.allclose(self.model.rhogas, rho, rtol=1e-07, atol=1e-20):
             logger.error(
-                "Input value mismatches with that read by radmc3d: gas density"
+                "Input value mismatches with that read by radmc3d: gas density\n"
             )
-            raise Exception
+            #raise Exception
 
         Tgas = radmc.get_gas_temperature()
         self.model.set_gas_temperature(Tgas)
