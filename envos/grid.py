@@ -23,12 +23,19 @@ class Grid:
         logr=True,
     ):
 
-        if (ri_ax is not None) and (ti_ax is not None) and (pi_ax is not None):
+        if (
+            (ri_ax is not None) and
+            (ti_ax is not None) and
+            (pi_ax is not None)
+        ):
             self.ri_ax = ri_ax
             self.ti_ax = ti_ax
             self.pi_ax = pi_ax
+
         elif (
-            (rau_lim is not None) and (theta_lim is not None) and (phi_lim is not None)
+            (rau_lim is not None) and
+            (theta_lim is not None) and
+            (phi_lim is not None)
         ):
             self.calc_interface_coord(
                 rau_lim=rau_lim,
@@ -41,6 +48,7 @@ class Grid:
                 aspect_ratio=aspect_ratio,
                 logr=logr,
             )
+
         else:
             return None
 
@@ -64,9 +72,9 @@ class Grid:
 
     def calc_interface_coord(
         self,
-        rau_lim=None,
-        theta_lim=(0, np.pi / 2),
-        phi_lim=(0, 2 * np.pi),
+        rau_lim,
+        theta_lim,
+        phi_lim,
         nr=None,
         ntheta=None,
         nphi=1,
@@ -74,18 +82,33 @@ class Grid:
         aspect_ratio=1.0,
         logr=True,
     ):
+        thax_ver = 1
+        ismirror = True if abs(theta_lim[1] - np.pi/2) < 1e-8 else False
 
         if dr_to_r is not None:
             nr = int(np.log(rau_lim[1] / rau_lim[0]) / dr_to_r)
-            ntheta_float = (theta_lim[1] - theta_lim[0]) / dr_to_r / aspect_ratio
-            ntheta = int(round(ntheta_float))
+            ntheta_float = (theta_lim[1] - theta_lim[0]) / ( dr_to_r * aspect_ratio)
+            if ismirror:
+                ntheta = int(round(ntheta_float))
+            else:
+                ntheta = int(round(ntheta_float/2)) * 2
+            #ntheta = ntheta_upper if ismirror else ntheta_upper
 
         if logr:
-            self.ri_ax = np.geomspace(*rau_lim, nr + 1) * nc.au
+            self.ri_ax = np.geomspace(*rau_lim, nr+1) * nc.au
         else:
-            self.ri_ax = np.linspace(*rau_lim, nr + 1) * nc.au
+            self.ri_ax = np.linspace(*rau_lim, nr+1) * nc.au
 
-        self.ti_ax = np.linspace(*theta_lim, ntheta + 1)
+        if thax_ver == 1:
+            self.ti_ax = np.linspace(*theta_lim, ntheta + 1)
+
+        elif thax_ver == 2:
+            dtheta = (theta_lim[1] - theta_lim[0])/ntheta
+            eps = 0.001
+            ti_ax = np.linspace(theta_lim[0], theta_lim[1] - dtheta*eps, ntheta + 1)
+            self.ti_ax = np.concatenate([ti_ax, [ theta_lim[1] ]])
+            ntheta += 1
+
         self.pi_ax = np.linspace(*phi_lim, nphi + 1)
 
     def show_grid_info(self):
@@ -117,14 +140,20 @@ def get_interface_coord(
     if dr_to_r is not None:
         nr = int(np.log(rau_lim[1] / rau_lim[0]) / dr_to_r)
         ntheta_float = (theta_lim[1] - theta_lim[0]) / dr_to_r / aspect_ratio
-        ntheta = int(round(ntheta_float))
+        ntheta_upper = int(round(ntheta_float))
+        ntheta = ntheta_upper * 2 if theta_lim > np.pi/2 + 1e-8 else ntheta_upper
 
     if logr:
         ri_ax = np.geomspace(*rau_lim, nr + 1) * nc.au
     else:
         ri_ax = np.linspace(*rau_lim, nr + 1) * nc.au
 
-    ti_ax = np.linspace(*theta_lim, ntheta + 1)
+    dtheta = (theta_lim[1] - theta_lim[0])/ntheta
+    eps = 1e-5
+    ti_ax = np.linspace(theta_lim[0], theta_lim[1] - dtheta*eps, ntheta + 1)
+    ti_ax = np.concatenate([ti_ax, [ theta_lim[1] ]])
+    ntheta += 1
+
     pi_ax = np.linspace(*phi_lim, nphi + 1)
 
     return ri_ax, ti_ax, pi_ax

@@ -678,7 +678,7 @@ class ObsData3D(BaseObsData):
 
     def trim(self, range_x=None, range_y=None, range_v=None):
         if range_x is not None:
-            
+
             #for i, r in enumerate(np.array([self.xau, np.abs(self.xau - range_x[1]) ]).T) :
             #    print(i, r)
             imin, imax = [np.abs(self.xau - xl).argmin() for xl in range_x]
@@ -965,6 +965,18 @@ class PVmap(BaseObsData):
         self.Ipv = self.Ipv[::-1, :]
         self.vkms = -self.vkms[::-1]
 
+    def reversed_x(self):
+        pv = self
+        pv.Ipv = self.Ipv[:, ::-1]
+        pv.xau = -self.xau[::-1]
+        return pv
+
+    def reversed_v(self):
+        pv = self
+        pv.Ipv = self.Ipv[::-1, :]
+        pv.vkms = -self.vkms[::-1]
+        return pv
+
     def offset_x(self, dx):
         # self.Ipv = self.Ipv[:,::-1]
         self.xau += dx
@@ -1038,6 +1050,7 @@ class PVmap(BaseObsData):
 
 # Readers
 def read_obsdata(path, mode=None):
+    path = str(path)
     if (".pkl" in path) or (mode == "pickle"):
         return tools.read_pickle(path)
 
@@ -1294,7 +1307,7 @@ class FitsReader:
                 _ax = _ax[::-1]
                 img = np.flip(img, i)
             new_axes.append(_ax)
-        return img, *new_axes 
+        return img, *new_axes
 
     def convert_ra_to_deg(self, hour, minu, sec):
         return 15*(hour + minu/60 + sec/(3600))

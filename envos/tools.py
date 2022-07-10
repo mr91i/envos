@@ -7,14 +7,10 @@ import envos.nconst as nc
 import pandas
 from dataclasses import dataclass, asdict
 
-from envos.log import set_logger
+from .log import set_logger
+from . import gpath
 
 logger = set_logger(__name__)
-
-## in input files
-
-# def mkdir(dpath):
-#    os.mkdirs(dpath, exist_ok=True)
 
 
 def read_pickle(filepath):
@@ -22,6 +18,36 @@ def read_pickle(filepath):
     cls = pandas.read_pickle(filepath)
     logger.debug(cls)
     return cls
+
+
+#def savefile(basename="file", mode="pickle", dpc=None, filepath=None):
+def savefile(target, basename="file", mode="pickle", filepath=None):
+    if filepath is None:
+        #output_ext = {"joblib": "jb", "pickle": "pkl", "fits": "fits"}[mode]
+        output_ext = {"joblib": "jb", "pickle": "pkl"}[mode]
+        filename = basename + "." + output_ext
+        filepath = gpath.run_dir/filename
+        if filepath.exists():
+            logger.info(f"remove old fits file: {filepath}")
+            os.remove(filepath)
+        filepath.parent.mkdir(exist_ok=True)
+
+    if mode == "joblib":
+        import joblib
+        joblib.dump(target, filepath, compress=3)
+        logger.info(f"Saved joblib file: {filepath}")
+
+    elif mode == "pickle":
+        pandas.to_pickle(target, filepath)
+        logger.info(f"Saved pickle file: {filepath}")
+
+#    elif mode == "fits":
+#        self.data.writeFits(fname=filepath, dpc=dpc)
+#        logger.info(f"Saved fits file: {filepath}")
+
+    else:
+        logger.error("Unknown mode")
+        exit()
 
 
 #######

@@ -10,6 +10,7 @@ from .nconst import G, kB, amu, au
 from .gpath import run_dir
 from .log import set_logger
 from . import tools
+from scipy import interpolate, integrate
 
 logger = set_logger(__name__)
 
@@ -22,6 +23,9 @@ class ModelBase:
     def set_cylindrical_velocity(self):
         self.vR = self.vr * np.sin(self.tt) + self.vt * np.cos(self.tt)
         self.vz = self.vr * np.cos(self.tt) - self.vt * np.sin(self.tt)
+
+    def save(self, basename="file", mode="pickle", filepath=None):
+        tools.savefile(self, basename=basename, mode=mode, filepath=filepath)
 
     def save_pickle(self, filename, filepath=None):
         if filepath is None:
@@ -36,6 +40,13 @@ class ModelBase:
             filepath = os.path.join(run_dir, filename)
         tools.setattr_from_pickle(self, filepath)
 
+    def take_midplane_average(self, vname, dtheta=0.03, ntheta=1000, vabs=False):
+        dth = np.pi/2-self.tc_ax
+        val = np.abs( getattr(self, vname) ) if vabs else getattr(self, vname)
+        func = interpolate.interp1d(dth, val, axis=1)
+        dth_new = np.linspace(-dtheta, dtheta, ntheta)
+        midvalue = integrate.simpson(func(dth_new), dth_new, axis=1)/(2*dtheta)
+        return np.average(midvalue, axis=1)
 
 @dataclass
 class CircumstellarModel(ModelBase):
@@ -113,6 +124,11 @@ class CircumstellarModel(ModelBase):
     def set_mu0(self, mu0):
         self.mu0 = mu0
 
+    def calc_midplane_average(self):
+        vnames = ["rhogas", "rhodust", "vr", "vt", "vp", "Tgas", "Tdust"]
+        for _vn in vnames:
+            _val = self.take_midplane_average(vname)
+            setattr(self, vname+"_mid", _val)
 
 class CassenMoosmanInnerEnvelope(ModelBase):
     def __init__(self, grid, Mdot, CR, Ms, cavangle=0):
@@ -122,6 +138,7 @@ class CassenMoosmanInnerEnvelope(ModelBase):
         self.vp = None
         self.mu0 = None
         self.read_grid(grid)
+        #self._cond_func = np.frompyfunc(self._cond, 2, 1)
         self.calc_kinematic_structure(Mdot, CR, Ms, cavangle)
         # self.set_cylindrical_velocity()
 
@@ -138,14 +155,35 @@ class CassenMoosmanInnerEnvelope(ModelBase):
         self.vp = v0 * sin0 ** 2 / np.sin(self.tt) * np.sqrt(zeta)
         P2 = 1 - 3 / 2 * sin0 ** 2
         rho = -Mdot / (4 * np.pi * self.rr ** 2 * self.vr * (1 + 2 * zeta * P2))
-        cavmask = np.array(self.mu0 <= np.cos(cavangle), dtype=float)
+        cavmask = np.array(np.abs(self.mu0) <= np.cos(cavangle)  , dtype=float)
         self.rho = rho * cavmask
 
-    @staticmethod
-    def _sol_with_cubic(m, zeta):
+    def _sol_with_cubic(self, m, zeta):
         allsols = np.round(cubicsolver.solve(zeta, 0, 1 - zeta, -m).real, 8)
-        sols = [sol for sol in allsols if 0 <= sol <= 1]
+#        sols = [sol for sol in allsols if 0 <= sol <= 1]
+#        return sols[0] if len(sols) != 0 else np.nan
+#        sols = [ _s for _s in self._cond_func(m, allsols) if _s is not None]
+#        return sols[0] if len(sols) != 0 else np.nan
+#        exit()
+#        print(sols)
+#        return sols if not np.any(sols==None) else np.nan
+
+
+        sols = [ sol for sol in allsols if self._cond(m, sol) ]
         return sols[0] if len(sols) != 0 else np.nan
+
+
+
+        #return sols if not np.any(sols==None) else np.nan
+
+    @staticmethod
+    def _cond(mu, sol):
+        if (mu >= 0) and (mu <= sol <= 1):
+            return True #sol
+        elif (mu < 0) and (-1 <= sol <= mu):
+            return True # sol
+        else:
+            return False # None
 
 
 class SimpleBallisticInnerEnvelope(ModelBase):
@@ -191,7 +229,7 @@ class TerebeyOuterEnvelope(ModelBase):
         self.vt = res["vt"][:, :, np.newaxis]
         self.vp = res["vp"][:, :, np.newaxis]
         self.Delta = res["Delta"]
-        P2 = 1 - 3 / 2 * np.sin(self.tt) ** 2
+        P2 = 1 - 1.5 * np.sin(self.tt)**2
         # updated 2021/7/14
         # self.rin_lim = cs * Omega ** 2 * t ** 3 * 0.4 / (1 + self.Delta * P2)
         self.rin_lim = cs * Omega ** 2 * t ** 3 * 0.4 / (1 + self.Delta * P2)

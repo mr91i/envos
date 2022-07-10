@@ -1,23 +1,23 @@
 import numpy as np
-from envos.models import (
+from .models import (
     CircumstellarModel,
     CassenMoosmanInnerEnvelope,
     SimpleBallisticInnerEnvelope,
     TerebeyOuterEnvelope,
     ExptailDisk,
 )
-from envos.radmc3d import RadmcController
-from envos.log import set_logger
-from envos.grid import Grid
-from envos.physical_params import PhysicalParameters
-from envos import tools
+from .radmc3d import RadmcController
+from .log import set_logger
+from .grid import Grid
+from .physical_params import PhysicalParameters
+from . import tools
 
 logger = set_logger(__name__)
 
 
 class ModelGenerator:
     # def __init__(self, filepath=None, grid=None, ppar=None):
-    def __init__(self, config=None):
+    def __init__(self, config=None, readfile=None):
         self.grid = None
         self.ppar = None
         self.inenv = None
@@ -28,28 +28,33 @@ class ModelGenerator:
         if config is not None:
             self.init_from_config(config)
 
+        if readfile is not None:
+            return self.init_from_file(readfile)
+
     def init_from_config(self, config):
         self.config = config
 
-        try:
-            grid = Grid(
-                config.ri_ax,
-                config.ti_ax,
-                config.pi_ax,
-                rau_lim=[config.rau_in, config.rau_out],
-                theta_lim=[config.theta_in, config.theta_out],
-                phi_lim=[config.phi_in, config.phi_out],
-                nr=config.nr,
-                ntheta=config.ntheta,
-                nphi=config.nphi,
-                dr_to_r=config.dr_to_r,
-                aspect_ratio=config.aspect_ratio,
-                logr=config.logr,
-            )
-            self.set_grid(grid=grid)
-        except Exception as e:
-            logger.info("Failed to generate grid.")
-            logger.info(e.args)
+#        try:
+        grid = Grid(
+            config.ri_ax,
+            config.ti_ax,
+            config.pi_ax,
+            rau_lim=[config.rau_in, config.rau_out],
+            theta_lim=[config.theta_in, config.theta_out],
+            phi_lim=[config.phi_in, config.phi_out],
+            nr=config.nr,
+            ntheta=config.ntheta,
+            nphi=config.nphi,
+            dr_to_r=config.dr_to_r,
+            aspect_ratio=config.aspect_ratio,
+            logr=config.logr,
+        )
+        self.set_grid(grid=grid)
+
+#　        except Exception as e:
+#            logger.info("Failed to generate grid.")
+#            logger.info(e.args)
+
 
         self.set_physical_parameters(
             config.T,
@@ -65,6 +70,13 @@ class ModelGenerator:
         )
         self.set_model(inenv=config.inenv, outenv=config.outenv, disk=config.disk)
         self.f_dg = config.f_dg
+
+    def init_from_file(self, readfile):
+        mg = tools.read_pickle(readfile)
+        for k, v in mg.__dict__.items():
+            setattr(self, k, v)
+
+
 
     def set_grid(self, ri=None, ti=None, pi=None, grid=None):
         if grid is not None:
@@ -289,6 +301,12 @@ class ModelGenerator:
 
     def get_model(self):
         return self.model
+
+
+    def save(self):
+        tools.savefile(self, basename="mg")
+
+
 
 
 def read_model(path):

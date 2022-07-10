@@ -1,6 +1,6 @@
 from . import header
 from .config import Config
-from .model_generator import ModelGenerator, read_model  # Grid, KinematicModel
+from .model_generator import ModelGenerator, read_model # Grid, KinematicModel
 from .obs import ObsSimulator, read_obsdata
 from . import nconst as nc
 from . import tools
@@ -12,6 +12,7 @@ __all__ = [
     "Config",
     "ModelGenerator",
     "read_model",
+    "read_mg",
     "ObsSimulator",
     "read_obsdata",
     "nc",

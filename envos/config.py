@@ -3,6 +3,7 @@ from dataclasses import dataclass, asdict, replace
 from envos.log import set_logger, enable_saving_output
 from envos import gpath
 import textwrap
+from pathlib import Path
 
 logger = set_logger(__name__)
 
@@ -87,10 +88,11 @@ class Config:
     molabun: float = ""
     iline: int = 3
     scattering_mode_max: int = 0
-    mc_scat_maxtauabs: float = 5.0
+    mc_scat_maxtauabs: float = 10.0
     tgas_eq_tdust: bool = True
     # mol_rlim: float = 1000.0
     lineobs_option: str = ""
+    modified_random_walk: int = 0
 
     # Observarion input
     dpc: float = 100
@@ -151,20 +153,20 @@ class Config:
     def __post_init__(self):
 
         if self.storage_dir is not None:
-            gpath.storage_dir = self.storage_dir
+            gpath.storage_dir = Path(self.storage_dir)
 
         if self.run_dir is not None:
-            gpath.set_rundir(self.run_dir, update=True)
+            gpath.set_rundir(Path(self.run_dir), update=True)
 
         if self.fig_dir is not None:
-            gpath.fig_dir = self.fig_dir
+            gpath.fig_dir = Path(self.fig_dir)
 
         if self.radmc_dir is not None:
-            gpath.radmc_dir = self.radmc_dir
+            gpath.radmc_dir = Path(self.radmc_dir)
 
         if self.logfile is not None:
             print("set logfile")
-            gpath.logfile = self.logfile
+            gpath.logfile = Path(self.logfile)
             enable_saving_output()
 
     def replaced(self, **changes):

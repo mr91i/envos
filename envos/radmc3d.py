@@ -39,6 +39,7 @@ class RadmcController:
             self.scattering_mode_max = config.scattering_mode_max
             self.mc_scat_maxtauabs = config.mc_scat_maxtauabs
             self.tgas_eq_tdust = config.tgas_eq_tdust
+            self.modified_random_walk = config.modified_random_walk
             self.f_dg = config.f_dg
             self.opac = config.opac
             self.Lstar_Lsun = config.Lstar_Lsun
@@ -177,6 +178,7 @@ class RadmcController:
             "iranfreqmode": 1,
             "mc_scat_maxtauabs": self.mc_scat_maxtauabs,
             "tgas_eq_tdust": int(self.tgas_eq_tdust),
+            "modified_random_walk": int(self.modified_random_walk),
             # "camera_maxdphi": 0.0,
             # "camera_refine_criterion": 0.7,
             # "camera_min_drr":0.001,
@@ -246,7 +248,7 @@ class RadmcController:
         if isinstance(line, int):
             return str(line)
         elif isinstance(line, float):
-            return f"{line:13.8e}"
+            return f"{line:20.15e}"
         elif isinstance(line, (tuple, list, np.ndarray)):
             if np.ndim(line) == 1:
                 return " ".join([self._strfunc(var) for var in line])
