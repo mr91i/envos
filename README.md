@@ -1,8 +1,8 @@
-# **envos**
+# ***envos***
 
 ## 1. Introduction
 **Env**elope **O**bservation **S**imulator, developed by Shoji Mori.
-This code executes synthetic observation with calculating physical model of young circumstellar systems (i.e. envelope and disk).
+This code executes synthetic observation by calculating physical model of young circumstellar systems (i.e. envelope and disk).
 
 I really welcome improvements and requests from users. 
 
@@ -80,37 +80,39 @@ Users create the instance of the `envos.Config` class setting below parameters a
 
 
 ### 6.1 General input
-- `run_dir`
+- `run_dir` : *str*
 The location of the executing directory. This directory is made automatically if not exists.  
-- `fig_dir`
+- `fig_dir` : *str*
 The location of the directory in which the produced figures are saved. If not set, fig_dir is located in run_dir.
-- `n_thread`
+- `n_thread` : *int*
 Number of threads used in RADMC-3D calculation. If this is > 2 and OpenMP is available, OpenMp is used for the radiative transfer calculations for thermal structure and line observation. Default is 1. 
 
 ### 6.2 Grid parameters
-To generate a computational grid, one needs to set r, θ, φ coordinates as a list, or to set some parameters on grid.  
-1. Directly set axes
-- `ri_ax`, `ti_ax`, `pi_ax`
-それぞれメッシュのr, θ, φ座標のlist-like object。cell centerの座標ではなく、cell interfaceの座標。これらが与えられた時以下のパラメーターは無視される。
-2. Generate axes inputting parameters
-- `rau_in`, `rau_out`
-r 方向の内側/外側境界の座標。単位はau。
-- `theta_in`, `theta_out`
-θ方向の内側/外側境界の座標。単位はradian。デフォルトは0からπ/2。
-- `phi_in`, `phi_out`
-φ方向の内側/外側境界の座標。単位はradian。デフォルトは0から2π。
-- `nr`
-r方向のセル数
-- `ntheta`
-θ方向のセル数
-- `nphi`
-φ方向のセル数
-- `dr_to_r`
-logrがTrueの時、あるrにおけるr方向のセルの長さとrの比がdr_to_rになる。例えば、dr_to_r = 0.1なら、100auにおけるr方向の解像度は1au。
-- `aspect_ratio`
-r方向のセルの長さ(= dr)に対する、θ方向のセルの長さ(=r dθ)の比を与える。
-- `logr`
-Bool. r方向のメッシュをlog scaleにする。デフォルトでTrue。
+To generate a computational grid, one needs to set r, θ, φ coordinates as a list (1), or to set some parameters on grid (2).  
+(1). Directly set axes
+- `ri_ax`, `ti_ax`, `pi_ax` : *ndarary* or *list*  
+Coordinates of the cell interface in r, θ, φ directions. When these parameters are set, below parameters are neglected.
+
+(2). Generate axes inputting parameters
+- `rau_in`, `rau_out` : *float*  
+Coordinate of the cell interface of the inner and outer boundary in r direction, in au.  
+- `theta_in`, `theta_out` : *float*  
+Coordinate of the cell interface of the inner and outer boundary in θ direction, in radian. In default, this is from 0 to pi/2.  
+- `phi_in`, `phi_out` : *float* 
+Coordinate of the cell interface of the inner and outer boundary in φ direction, in radian. In default, this is from 0 to 2pi.  
+- `nr`  
+Number of cell in r direction.
+- `ntheta`  
+Number of cell in θ direction.
+- `nphi`  
+Number of cell in φ direction. 　
+- `logr`: *bool* = True  
+Set the r coordinate to be a logarithmic scale.
+- `dr_to_r`: *float*  = None 
+When logr is True and this parameter is set, the fraction of the cell length in the r direction to r is set to be `dr_to_r`. For example, when `dr_to_r` is 0.1, the cell size in the r-direction at 100 au is 1 au.
+- `aspect_ratio`:  *float* = None
+Ratio of the cell size in the θ or φ direction to dr.
+
 
 ### 6.3 Model parameters
 - `T`, `CR_au`, `Ms_Msun`, `t_yr`, `Omega`, `jmid`, `Mdot_smpy`
