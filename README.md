@@ -78,13 +78,14 @@ Easiest way to controll envos is to use a class `envos.Config`.
 In `envos.Config`, basic parameters user uses in envos are set.
 Users create the instance of the `envos.Config` class setting below parameters and pass it to envos's classes.
 
+Exapmple -- < *parameter name* >: < *type of parameter* > = < *default value* > 
 
 ### 6.1 General input
-- `run_dir` : *str*
+- `run_dir` : *str* = "./"  
 The location of the executing directory. This directory is made automatically if not exists.  
-- `fig_dir` : *str*
+- `fig_dir` : *str* = "./run/fig"  
 The location of the directory in which the produced figures are saved. If not set, fig_dir is located in run_dir.
-- `n_thread` : *int*
+- `n_thread` : *int* = 1  
 Number of threads used in RADMC-3D calculation. If this is > 2 and OpenMP is available, OpenMp is used for the radiative transfer calculations for thermal structure and line observation. Default is 1. 
 
 ### 6.2 Grid parameters
@@ -100,11 +101,11 @@ Coordinate of the cell interface of the inner and outer boundary in r direction,
 Coordinate of the cell interface of the inner and outer boundary in θ direction, in radian. In default, this is from 0 to pi/2.  
 - `phi_in`, `phi_out` : *float* 
 Coordinate of the cell interface of the inner and outer boundary in φ direction, in radian. In default, this is from 0 to 2pi.  
-- `nr`  
+- `nr`: *int*  
 Number of cell in r direction.
-- `ntheta`  
+- `ntheta`: *int*  
 Number of cell in θ direction.
-- `nphi`  
+- `nphi`: *int*    
 Number of cell in φ direction. 　
 - `logr`: *bool* = True  
 Set the r coordinate to be a logarithmic scale.
