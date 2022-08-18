@@ -81,15 +81,14 @@ Users create the instance of the `envos.Config` class setting below parameters a
 
 ### 6.1 General input
 - `run_dir`
-実行ディレクトリの位置を指定する
+The location of the executing directory. This directory is made automatically if not exists.  
 - `fig_dir`
-画像を保存するディレクトリを指定する
+The location of the directory in which the produced figures are saved. If not set, fig_dir is located in run_dir.
 - `n_thread`
-使用するスレッドの数。デフォルトは1。2以上に設定した場合、温度計算と模擬観測計算でOpenMPを使用する。ただしRADMC-3Dのインストールの際に、OpenMPの利用を可能にしておく必要がある。
+Number of threads used in RADMC-3D calculation. If this is > 2 and OpenMP is available, OpenMp is used for the radiative transfer calculations for thermal structure and line observation. Default is 1. 
 
 ### 6.2 Grid parameters
-グリッドの生成方法は２通りある。一つはメッシュのr, θ, φ座標をリストで渡す方法。
-もう一つはパラメーターからグリッドを生成する。
+To generate a computational grid, one needs to set r, θ, φ coordinates as a list, or to set some parameters on grid.  
 1. Directly set axes
 - `ri_ax`, `ti_ax`, `pi_ax`
 それぞれメッシュのr, θ, φ座標のlist-like object。cell centerの座標ではなく、cell interfaceの座標。これらが与えられた時以下のパラメーターは無視される。
