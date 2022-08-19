@@ -4,7 +4,7 @@ from .models import (
     CassenMoosmanInnerEnvelope,
     SimpleBallisticInnerEnvelope,
     TerebeyOuterEnvelope,
-    ExptailDisk,
+    PowerlawDisk,
 )
 from .radmc3d import RadmcController
 from .log import set_logger
@@ -202,6 +202,7 @@ class ModelGenerator:
         if ismodel(self.disk):
             logger.info("Setting disk")
             cond = rho < self.disk.rho
+            self.disk_region = cond
             #rho[cond] = self.disk.rho[cond]
             rho += self.disk.rho
             vr[cond] = self.disk.vr[cond]
@@ -265,15 +266,15 @@ class ModelGenerator:
 
         if hasattr(disk, "rho"):
             self.disk = disk
-        elif disk == "exptail":
-            self.disk = ExptailDisk(
+        elif disk == "powerlaw":
+            config = {"fracMd":0.1, "ind_S":-1.0, "Td10":40, "ind_T":-0.5, "meanmolw":self.ppar.meanmolw}
+            if self.config.disk_config is not None:
+                config.update(self.config.disk_config)
+            self.disk = PowerlawDisk(
                 self.grid,
                 self.ppar.Ms,
                 self.ppar.CR,
-                Td=30,
-                fracMd=0.1,
-                meanmolw=self.ppar.meanmolw,
-                index=-1.0,
+                **config
             )
         else:
             raise Exception("Unknown disk type")

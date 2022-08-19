@@ -6,7 +6,7 @@ import pandas as pd
 from dataclasses import dataclass
 from typing import Callable, Any
 from envos import tools, cubicsolver, tsc
-from .nconst import G, kB, amu, au
+from .nconst import G, kB, amu, au, Msun
 from .gpath import run_dir
 from .log import set_logger
 from . import tools
@@ -40,13 +40,21 @@ class ModelBase:
             filepath = os.path.join(run_dir, filename)
         tools.setattr_from_pickle(self, filepath)
 
-    def take_midplane_average(self, vname, dtheta=0.03, ntheta=1000, vabs=False):
-        dth = np.pi/2-self.tc_ax
-        val = np.abs( getattr(self, vname) ) if vabs else getattr(self, vname)
-        func = interpolate.interp1d(dth, val, axis=1)
-        dth_new = np.linspace(-dtheta, dtheta, ntheta)
-        midvalue = integrate.simpson(func(dth_new), dth_new, axis=1)/(2*dtheta)
-        return np.average(midvalue, axis=1)
+    def get_midplane_profile(self, vname, dtheta=0.03, ntheta=1000, vabs=False):
+        val = tools.take_midplane_average(self, getattr(self, vname), dtheta=dtheta, ntheta=ntheta, vabs=vabs)
+        val = tools.take_horizontal_average(val)
+        return val
+
+
+#        dth = np.pi/2-self.tc_ax
+#        val = np.abs( getattr(self, vname) ) if vabs else getattr(self, vname)
+#        func = interpolate.interp1d(dth, val, axis=1)
+#        dth_new = np.linspace(-dtheta, dtheta, ntheta)
+#        midvalue = integrate.simpson(func(dth_new), dth_new, axis=1)/(2*dtheta)
+#        return np.average(midvalue, axis=1)
+
+
+
 
 @dataclass
 class CircumstellarModel(ModelBase):
@@ -202,7 +210,7 @@ class SimpleBallisticInnerEnvelope(ModelBase):
         CB = CR / 2
         rho_prof = Mdot / (4 * np.pi * self.rr ** 2 * vff)
         mu_cav = np.cos(cavangle)
-        cavmask = np.array(np.cos(self.tt) <= mu_cav, dtype=float)
+        cavmask = np.array( np.abs(np.cos(self.tt)) <= mu_cav, dtype=float)
         cbmask = np.array(self.rr >= CB, dtype=float)
         self.rho = rho_prof * cbmask * cavmask
         self.vr = -vff * np.sqrt((1 - CB / self.rr).clip(0))
@@ -245,22 +253,35 @@ class Disk(ModelBase):
         self.vt = np.zeros_like(self.rho)
         self.vp = OmegaK * self.R
 
-
-class ExptailDisk(Disk):
-    def __init__(self, grid, Ms, Rd, Td=30, fracMd=0.1, meanmolw=2.3, index=-1):
+class PowerlawDisk(Disk):
+    def __init__(self, grid, Ms, Rd, ind_S=-1, Td10=40, ind_T=-0.5, fracMd=0.1, meanmolw=2.3, tail="exp", ind_tail=None):
         self.rho = None
         self.vr = None
         self.vt = None
         self.vp = None
         self.read_grid(grid)
+        self.tail = tail
+        self.ind_tail = ind_tail
         Mdisk = fracMd * Ms
-        Sigma = self.get_Sigma(Mdisk, Rd, index)
+        Sigma = self.get_Sigma(Mdisk, Rd, ind_S)
+        Td = Td10 * (self.R/10/au)**ind_T
         cs_disk = np.sqrt(kB * Td / (meanmolw * amu))
         self.calc_kinematic_structure_from_Sigma(Sigma, Ms, cs_disk)
         # self.set_cylindrical_velocity()
 
-    def get_Sigma(self, Mdisk, Rd, ind):
-        Sigma0 = Mdisk / (2 * np.pi * Rd ** 2) / (1 - 2 / np.e)
-        power = (self.R / au) ** ind
-        exptail = np.exp(-((self.R / Rd) ** (2 + ind)))
-        return Sigma0 * power * exptail
+    def get_Sigma(self, Mdisk, Rd, ind_S):
+        _R = self.rc_ax / Rd
+        power = _R**ind_S
+        if self.tail == "exp":
+            ind_tail = 2 + ind_S if self.ind_tail is None else self.ind_tail
+            tailprof = np.exp( -_R**(ind_tail) )
+        elif self.tail == "cut":
+            tailprof = np.where(_R < 1, 1, 0)
+        #Sigma0 = Mdisk * (ind_S + 2.) / (2*np.pi * Rd**2)  # assume ind_rho < -2
+        Sigma0 = Mdisk /(2*np.pi*Rd**2*integrate.simpson(_R*power*tailprof, _R) )
+        print(f"Disk surface density profile: Sigma = {Sigma0} g/cm2 * (R/{Rd/au}au)**({ind_S})")
+        Mdisk_check = integrate.simpson( 2*np.pi*self.rc_ax*Sigma0 * power * tailprof, self.rc_ax)
+        print(f"Actual total disk mass = {Mdisk_check/Msun} Msun , excepted mass = {Mdisk/Msun} Msun ")
+        Sigma_R = Sigma0 * power * tailprof
+        return interpolate.interp1d(_R, Sigma_R,bounds_error=False,fill_value=0.0)(self.R / Rd)
+
