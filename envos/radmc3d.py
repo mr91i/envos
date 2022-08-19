@@ -49,6 +49,7 @@ class RadmcController:
             self.molname = config.molname
             self.molabun = config.molabun
             self.iline = config.iline
+            self.nonlte = config.nonlte
 
         self.set_dirs(run_dir, radmc_dir, storage_dir)
 
@@ -187,10 +188,15 @@ class RadmcController:
             # "optimized_motion":1,
             # "camera_spher_cavity_relres":0.01,
             # "camera_diagnostics_subpix": 1,
+            "lines_mode": 3 if self.nonlte else 1,
+            "istar_sphere": 1
         }
+
+
         self._save_input_file(
             "radmc3d.inp", *[f"{k} = {v}" for k, v in param_dict.items()]
         )
+
 
         #    if self.temp_mode == "mctherm":
         # remove gas_temperature.inp and dust_temperature.inp
@@ -210,7 +216,8 @@ class RadmcController:
     ):
         self.set_mctherm_inpfiles()
         vr, vt, vp = self.model.vr, self.model.vt, self.model.vp
-        nmol = self._rhog / (2 * nc.amu / self.mfrac_H2) * self.molabun
+        nh2 = self._rhog / (2 * nc.amu / self.mfrac_H2)
+        nmol = nh2 * self.molabun
         # n_mol = np.where(rr < self.mol_rlim, n_mol, 0)
 
         # set molcular number density
@@ -218,11 +225,17 @@ class RadmcController:
 
         # set_mol_lines
         self._copy_from_storage(f"molecule_{self.molname}.inp")
+        if self.nonlte:
+            speclines = [f"{self.molname} leiden 0 0 2", "o-h2", "p-h2"]
+            self.set_numberdens_collpartners(nh2)
+        else:
+            speclines = [f"{self.molname} leiden 0 0 0"]
+
         self._save_input_file(
             "lines.inp",
             "2",
-            "1",
-            f"{self.molname}  leiden 0 0 0",
+            "1", # len(speclines),
+            "\n".join(speclines),
         )
 
         # set_gas_velocity
@@ -312,6 +325,23 @@ class RadmcController:
             f"{nmol.size:d}",
             *nmol.ravel(order="F"),
         )
+
+    def set_numberdens_collpartners(self, nh2, opratio=0.75):
+        self._save_input_file(
+            f"numberdens_o-h2.inp",
+            "1",
+            f"{nh2.size:d}",
+            *(nh2*opratio).ravel(order="F"),
+        )
+
+        self._save_input_file(
+            f"numberdens_p-h2.inp",
+            "1",
+            f"{nh2.size:d}",
+            *(nh2*(1-opratio)).ravel(order="F"),
+        )
+
+
 
     def set_velocity(self, vr, vt, vp):
         _zipped_vel = zip(
