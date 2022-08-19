@@ -75,6 +75,7 @@ class Config:
     disk: str = None # {"exptail"}
     rot_ccw: bool = False
     # usr_density_func: Callable = None
+    disk_config: dict = None
 
     # RADMC-3D input
     nphot: int = 1e6
@@ -93,6 +94,7 @@ class Config:
     # mol_rlim: float = 1000.0
     lineobs_option: str = ""
     modified_random_walk: int = 0
+    nonlte: int=0
 
     # Observarion input
     dpc: float = 100
