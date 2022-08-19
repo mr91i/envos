@@ -6,6 +6,7 @@ import numpy as np
 import envos.nconst as nc
 import pandas
 from dataclasses import dataclass, asdict
+from scipy import interpolate, integrate
 
 from .log import set_logger
 from . import gpath
@@ -26,7 +27,7 @@ def savefile(target, basename="file", mode="pickle", filepath=None):
         #output_ext = {"joblib": "jb", "pickle": "pkl", "fits": "fits"}[mode]
         output_ext = {"joblib": "jb", "pickle": "pkl"}[mode]
         filename = basename + "." + output_ext
-        filepath = gpath.run_dir/filename
+        filepath = gpath.run_dir / filename
         if filepath.exists():
             logger.info(f"remove old fits file: {filepath}")
             os.remove(filepath)
@@ -61,6 +62,10 @@ def freq_to_vkms(freq0, dfreq):
     return nc.c / 1e5 * dfreq / freq0
 
 
+def vkms_to_freq(vkms, freq0):
+    return (1 - vkms/nc.c*1e5 ) * freq0
+
+
 def make_array_center(xi):
     return 0.5 * (xi[0:-1] + xi[1:])
 
@@ -90,6 +95,22 @@ def find_roots(x, y1, y2):
             if dy[i] * dy[i + 1] <= 0
         ]
     )
+
+def take_midplane_average(model, value, dtheta=0.03, ntheta=1000, vabs=False):
+    # rho_mid(r) = 1/(2rΔθ) int_-Δθ^Δθ ρ r dθ
+    #            = 1/(2Δθ) int_-Δθ^Δθ ρ dθ
+    dth = np.pi/2-model.tc_ax
+    if dth[-1] >= 0:
+        return value[:,-1,:]
+
+    val = np.abs( value ) if vabs else value
+    func = interpolate.interp1d(dth, val, axis=1)
+    dth_new = np.linspace(-dtheta, dtheta, ntheta)
+    midvalue = integrate.simpson(func(dth_new), dth_new, axis=1)/(2*dtheta)
+    return midvalue
+
+def take_horizontal_average(value):
+    return np.average(value, axis=-1)
 
 
 def show_used_memory():
