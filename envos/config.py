@@ -1,11 +1,13 @@
 import numpy as np
 from dataclasses import dataclass, asdict, replace
-from envos.log import set_logger, enable_saving_output
+#from envos.log import set_logger, set_output
+from .log import logger
 from envos import gpath
 import textwrap
 from pathlib import Path
 
-logger = set_logger(__name__)
+#logger = log.logger
+#logger = log.set_logger(__name__)
 
 
 @dataclass
@@ -58,6 +60,7 @@ class Config:
     dr_to_r: float = None
     aspect_ratio: float = 1.0
     logr: bool = True
+    ringhost: bool = False
 
     # Model input
     T: float = None  # 10
@@ -83,7 +86,7 @@ class Config:
     opac: str = "silicate"
     Lstar_Lsun: float = 1.0
     mfrac_H2: float = 0.74
-    Rstar_Rsun: float = 1.0
+    Rstar_Rsun: float = 4.0
     # temp_mode: str = "mctherm"
     molname: str = "c18o"
     molabun: float = ""
@@ -169,7 +172,7 @@ class Config:
         if self.logfile is not None:
             print("set logfile")
             gpath.logfile = Path(self.logfile)
-            enable_saving_output()
+            log.set_logfile("on")
 
     def replaced(self, **changes):
         return replace(self, **changes)

@@ -1,12 +1,13 @@
-import os
+#import os
 import numpy as np
+from pathlib import Path
 from dataclasses import dataclass, field
 from scipy import interpolate, integrate
-from envos import log
-from envos.gpath import run_dir
-import envos.nconst as nc
+from .log import logger
+from . import nconst as nc
+from .gpath import run_dir
 
-logger = log.set_logger(__name__)
+#logger = log.set_logger(__name__)
 
 
 def calc_physical_values_along_streamlines(model, start_points, **kwargs):
@@ -179,7 +180,8 @@ def save_data(streamlines, filename="stream", dpath=None):
     global run_dir
     if dpath is None:
         dpath = run_dir
-    os.makedirs(dpath, exist_ok=True)
+    #os.makedirs(dpath, exist_ok=True)
+    Path(str(dpath)).mkdr(exist_ok=True)
 
     for sl in streamlines:
         label = f"r{sl.pos0[0]/nc.au:.0f}_th{np.rad2deg(sl.pos0[1]):.0f}"
@@ -322,7 +324,7 @@ class StreamlineCalculator2:
         global run_dir
         if dpath is None:
             dpath = run_dir
-        os.makedirs(dpath, exist_ok=True)
+        Path(str(dpath)).mkdr(exist_ok=True)
 
         for sl in self.streamlines:
             label = f"r{sl.pos0[0]/nc.au:.0f}_th{np.rad2deg(sl.pos0[1]):.0f}"

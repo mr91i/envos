@@ -6,7 +6,7 @@ from . import nconst as nc
 from . import tools
 from . import plot_tools
 from . import log
-from . import pvcor
+from . import datacor
 
 __all__ = [
     "Config",
@@ -19,7 +19,7 @@ __all__ = [
     "tools",
     "plot_tools",
     "log",
-    "pvcor",
+    "datacor",
 ]
 
 __version__ = "0.1.0"

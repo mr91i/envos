@@ -8,11 +8,11 @@ from typing import Callable, Any
 from envos import tools, cubicsolver, tsc
 from .nconst import G, kB, amu, au, Msun
 from .gpath import run_dir
-from .log import set_logger
+from .log import logger
 from . import tools
 from scipy import interpolate, integrate
 
-logger = set_logger(__name__)
+#logger = set_logger(__name__)
 
 
 class ModelBase:
@@ -54,10 +54,13 @@ class ModelBase:
 #        return np.average(midvalue, axis=1)
 
 
-
-
 @dataclass
 class CircumstellarModel(ModelBase):
+    """
+    Data structure of physical variable:
+        var: (# of rc_ax, # of tc_ax, # of pc_ax)
+
+    """
     grid: Any = None
     rc_ax: np.ndarray = None
     tc_ax: np.ndarray = None
@@ -116,6 +119,10 @@ class CircumstellarModel(ModelBase):
     def set_gas_temperature(self, temperature):
         self.Tgas = temperature
         self.Tdust = temperature
+
+#    def get_midplane_gas_temperature(self):
+#        return tools.take_midplane_average(model, value, dtheta=0.03, ntheta=1000, vabs=False)
+
 
     def set_dust_density(self, f_dg=None):
         self.f_dg = f_dg
@@ -254,7 +261,7 @@ class Disk(ModelBase):
         self.vp = OmegaK * self.R
 
 class PowerlawDisk(Disk):
-    def __init__(self, grid, Ms, Rd, ind_S=-1, Td10=40, ind_T=-0.5, fracMd=0.1, meanmolw=2.3, tail="exp", ind_tail=None):
+    def __init__(self, grid, Ms, Rd, ind_S=-1, Td10=40, ind_T=-0.5, fracMd=0.1, meanmolw=2.3, tail="exp", ind_tail=None, Tmid=None):
         self.rho = None
         self.vr = None
         self.vt = None
@@ -264,8 +271,13 @@ class PowerlawDisk(Disk):
         self.ind_tail = ind_tail
         Mdisk = fracMd * Ms
         Sigma = self.get_Sigma(Mdisk, Rd, ind_S)
-        Td = Td10 * (self.R/10/au)**ind_T
-        cs_disk = np.sqrt(kB * Td / (meanmolw * amu))
+        if Tmid is None:
+            self.Td = Td10 * (self.R/10/au)**ind_T
+        else:
+            self.Td = np.repeat(Tmid[:,None, None], len(self.tc_ax) , axis=1 ) # np.tile(Tmid.T, (1, len(self.tc_ax), 1 ) )
+            if np.shape(self.Td) != np.shape(self.R):
+                raise Exception
+        cs_disk = np.sqrt(kB * self.Td / (meanmolw * amu))
         self.calc_kinematic_structure_from_Sigma(Sigma, Ms, cs_disk)
         # self.set_cylindrical_velocity()
 
@@ -284,4 +296,3 @@ class PowerlawDisk(Disk):
         print(f"Actual total disk mass = {Mdisk_check/Msun} Msun , excepted mass = {Mdisk/Msun} Msun ")
         Sigma_R = Sigma0 * power * tailprof
         return interpolate.interp1d(_R, Sigma_R,bounds_error=False,fill_value=0.0)(self.R / Rd)
-

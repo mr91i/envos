@@ -1,8 +1,7 @@
 import numpy as np
-import envos.nconst as nc
-from envos.log import set_logger
-
-logger = set_logger(__name__)
+from . import nconst as nc
+from .log import logger
+#logger = set_logger(__name__)
 
 
 def calc_dependent_params(

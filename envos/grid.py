@@ -1,8 +1,8 @@
 import numpy as np
-import envos.nconst as nc
-from envos.log import set_logger
+from . import nconst as nc
+from .log import logger
 
-logger = set_logger(__name__)
+#logger = set_logger(__name__)
 
 
 class Grid:
@@ -21,6 +21,7 @@ class Grid:
         dr_to_r=None,
         aspect_ratio=1.0,
         logr=True,
+        ringhost=False,
     ):
 
         if (
@@ -52,6 +53,12 @@ class Grid:
         else:
             return None
 
+        if ringhost:
+            print(self.ri_ax)
+            self.ri_ax= np.insert(self.ri_ax, 0, np.linspace(1.001*4*nc.Rsun, self.ri_ax[0], 4)[:-1] )
+            print(self.ri_ax)
+
+
         self.set_cellcenter_axes()
         self.set_meshgrid()
         self.set_cylyndrical_coord()
@@ -82,7 +89,7 @@ class Grid:
         aspect_ratio=1.0,
         logr=True,
     ):
-        thax_ver = 1
+        thax_ver = 3
         ismirror = True if abs(theta_lim[1] - np.pi/2) < 1e-8 else False
 
         if dr_to_r is not None:
@@ -108,6 +115,14 @@ class Grid:
             ti_ax = np.linspace(theta_lim[0], theta_lim[1] - dtheta*eps, ntheta + 1)
             self.ti_ax = np.concatenate([ti_ax, [ theta_lim[1] ]])
             ntheta += 1
+
+        elif thax_ver == 3:
+            print(theta_lim)
+            self.ti_ax = compressed_x2(theta_lim[0], theta_lim[1], 0.95, ntheta+1)
+            print(self.ti_ax)
+            self.ti_ax[-1] = theta_lim[1]
+            ti_ax = np.linspace(*theta_lim, ntheta + 1)
+            print(ti_ax)
 
         self.pi_ax = np.linspace(*phi_lim, nphi + 1)
 
@@ -157,3 +172,27 @@ def get_interface_coord(
     pi_ax = np.linspace(*phi_lim, nphi + 1)
 
     return ri_ax, ti_ax, pi_ax
+
+
+def compressed_x2(xmin, xmax, xrat_root, nfaces):
+    x2rat = np.abs(xrat_root)
+    xmid = 0.5*np.pi
+    #x = np.arange(nfaces)/(nfaces-1)
+    x = np.linspace(xmin, xmax, nfaces)/np.pi
+    def func(x):
+        if x<=0.5: #
+            ratn = x2rat**(0.5*nfaces)
+            rnx = x2rat**(x*nfaces)
+            lw = (rnx-ratn)/(1.0-ratn)
+            rw = 1.0-lw
+            return xmin*lw + xmid*rw
+
+        else:
+            ratn = (1.0/x2rat)**(0.5*nfaces)
+            rnx = (1.0/x2rat)**((x-0.5)*nfaces)
+            lw = (rnx-ratn)/(1.0-ratn)
+            rw = 1.0-lw
+            return xmid*lw + xmax*rw
+
+    return np.vectorize(func)(x)
+

@@ -6,10 +6,10 @@ from scipy import integrate, interpolate, optimize
 from dataclasses import dataclass, asdict
 
 import envos.nconst as nc
-from envos import gpath
-from envos.log import set_logger
+from . import gpath
+from .log import logger
 
-logger = set_logger(__name__)
+# logger = set_logger(__name__)
 
 FILENAME = "tscsol.pkl"
 

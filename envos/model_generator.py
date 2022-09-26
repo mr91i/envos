@@ -7,12 +7,12 @@ from .models import (
     PowerlawDisk,
 )
 from .radmc3d import RadmcController
-from .log import set_logger
+from .log import logger
 from .grid import Grid
 from .physical_params import PhysicalParameters
 from . import tools
 
-logger = set_logger(__name__)
+# logger = set_logger(__name__)
 
 
 class ModelGenerator:
@@ -20,6 +20,7 @@ class ModelGenerator:
     def __init__(self, config=None, readfile=None):
         self.grid = None
         self.ppar = None
+        self.models = {}
         self.inenv = None
         self.outenv = None
         self.disk = None
@@ -34,7 +35,6 @@ class ModelGenerator:
     def init_from_config(self, config):
         self.config = config
 
-#        try:
         grid = Grid(
             config.ri_ax,
             config.ti_ax,
@@ -48,13 +48,9 @@ class ModelGenerator:
             dr_to_r=config.dr_to_r,
             aspect_ratio=config.aspect_ratio,
             logr=config.logr,
+            ringhost=config.ringhost,
         )
         self.set_grid(grid=grid)
-
-#　        except Exception as e:
-#            logger.info("Failed to generate grid.")
-#            logger.info(e.args)
-
 
         self.set_physical_parameters(
             config.T,
@@ -68,6 +64,7 @@ class ModelGenerator:
             config.meanmolw,
             config.cavangle_deg,
         )
+
         self.set_model(inenv=config.inenv, outenv=config.outenv, disk=config.disk)
         self.f_dg = config.f_dg
 
@@ -75,8 +72,6 @@ class ModelGenerator:
         mg = tools.read_pickle(readfile)
         for k, v in mg.__dict__.items():
             setattr(self, k, v)
-
-
 
     def set_grid(self, ri=None, ti=None, pi=None, grid=None):
         if grid is not None:
@@ -123,9 +118,12 @@ class ModelGenerator:
         )
 
     def set_model(self, inenv=None, outenv=None, disk=None):
-        self.inenv = inenv
-        self.outenv = outenv
-        self.disk = disk
+        #self.inenv = inenv
+        #self.outenv = outenv
+        #self.disk = disk
+        self.set_inenv(inenv)
+        self.set_outenv(outenv)
+        self.set_disk(disk)
 
     def set_gas_density(self, rho):
         self.model.set_gas_density(rho)
@@ -150,18 +148,15 @@ class ModelGenerator:
         ### Set models
         logger.info("Calculating kinematic structure")
         logger.info("Models:")
-        # logger.info(f"    inner-envelope: {inenv or self.inenv}")
-        # logger.info(f"    outer-envelope: {outenv or self.outenv}")
-        # logger.info(f"    disk: {disk or self.disk}\n")
-        # self.set_inenv(inenv or self.inenv)
-        # self.set_outenv(outenv or self.outenv)
-        # self.set_disk(disk or self.disk)
-        logger.info(f"    inner-envelope: {self.inenv}")
-        logger.info(f"    outer-envelope: {self.outenv}")
-        logger.info(f"    disk: {self.disk}\n")
+        logger.info(f"    inner-envelope: %s", self.inenv if self.inenv else None)
+        logger.info(f"    outer-envelope: %s", self.outenv if self.outenv else None)
+        logger.info(f"    disk: %s\n", self.disk if self.disk else None)
+
+        """
         self.set_inenv(self.inenv)
         self.set_outenv(self.outenv)
         self.set_disk(self.disk)
+        """
 
         ### Make kmodel
         zeros = np.zeros_like(self.grid.rr)
@@ -266,10 +261,18 @@ class ModelGenerator:
 
         if hasattr(disk, "rho"):
             self.disk = disk
+
         elif disk == "powerlaw":
-            config = {"fracMd":0.1, "ind_S":-1.0, "Td10":40, "ind_T":-0.5, "meanmolw":self.ppar.meanmolw}
+            config = {
+                "fracMd":0.1,
+                "ind_S":-1.0,
+                "Td10":40,
+                "ind_T":-0.5,
+                "meanmolw":self.ppar.meanmolw
+            }
             if self.config.disk_config is not None:
                 config.update(self.config.disk_config)
+            print(config)
             self.disk = PowerlawDisk(
                 self.grid,
                 self.ppar.Ms,

@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import os
+import glob
 import shutil
 import numpy as np
 import pandas as pd
 import radmc3dPy
 import radmc3dPy.analyze as rmca
-from envos import tools
-import envos.nconst as nc
-from envos import gpath
-from envos.log import set_logger
+from . import tools
+from . import nconst as nc
+from . import gpath
+from .log import logger
 
-logger = set_logger(__name__)
+#logger = set_logger(__name__)
 
 """
  Classes
@@ -359,9 +360,6 @@ class RadmcController:
             *vturb.ravel(order="F"),
         )
     def clean_radmc_dir(self):
-        import glob
-        import shutil
-
         logger.info(f"Cleaning {self.radmc_dir} which now contains:")
         files = glob.glob(f"{self.radmc_dir}/*")
         if len(files) == 0:
@@ -393,24 +391,32 @@ class RadmcController:
         #self.rmcdata = rmca.readData(ddens=True, dtemp=True, gdens=True, gtemp=True, gvel=True, ispec=self.molname)  # radmc3dData()
         #self.rmcdata = rmca.readData(ddens=True, dtemp=True, gdens=True, gtemp=True, gvel=True, ispec=self.molname)  # radmc3dData()
         self.rmcdata = rmca.readData(ispec=self.molname)  # radmc3dData()
-#        print(vars(self.rmcdata))
-# {'grid': <radmc3dPy.reggrid.radmc3dGrid object at 0x7f759c4f9460>,
-# 'octree': False, 'rhodust': array([], dtype=float64),
-# 'dusttemp': array([], dtype=float64),
-# 'rhogas': array([], dtype=float64), 'ndens_mol': array([], dtype=float64), 'ndens_cp': array([], dtype=float64), 'gasvel': array([], dtype=float64), 'gastemp': array([], dtype=float64), 'vturb': array([], dtype=float64), 'taux': array([], dtype=float64), 'tauy': array([], dtype=float64), 'tauz': array([], dtype=float64), 'sigmadust': array([], dtype=float64), 'sigmagas': array([], dtype=float64)}
-
-
-#        exit()
-
+        """
+        radmcdata keys
+        {
+        'grid': <radmc3dPy.reggrid.radmc3dGrid object at 0x7f759c4f9460>,
+        'octree': False,
+        'rhodust': array([], dtype=float64),
+        'dusttemp': array([], dtype=float64),
+        'rhogas': array([], dtype=float64),
+        'ndens_mol': array([], dtype=float64),
+        'ndens_cp': array([], dtype=float64),
+        'gasvel': array([], dtype=float64),
+        'gastemp': array([], dtype=float64),
+        'vturb': array([], dtype=float64),
+        'taux': array([], dtype=float64),
+        'tauy': array([], dtype=float64),
+        'tauz': array([], dtype=float64),
+        'sigmadust': array([], dtype=float64),
+        'sigmagas': array([], dtype=float64)
+        }
+        """
         os.chdir(cwd)
 
     def get_dust_density(self):
         return self.get_value("rhodust")
 
     def get_gas_density(self):
-        #print( self.rmcdata.__dict__.keys() )
-        #print(self.get_value("ndens_mol"), self.mfrac_H2, self.molabun)
-        #return self.get_value("ndens_mol") * 2 * nc.amu / (self.mfrac_H2 * self.molabun)
         return self.get_value("rhodust") / self.f_dg
 
     def get_mol_number_density(self):

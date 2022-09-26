@@ -8,10 +8,10 @@ import pandas
 from dataclasses import dataclass, asdict
 from scipy import interpolate, integrate
 
-from .log import set_logger
+from .log import logger
 from . import gpath
 
-logger = set_logger(__name__)
+# logger = set_logger(__name__)
 
 
 def read_pickle(filepath):
@@ -49,6 +49,26 @@ def savefile(target, basename="file", mode="pickle", filepath=None):
     else:
         logger.error("Unknown mode")
         exit()
+
+
+def clean_radmcdir():
+    import shutil
+    logger.info(f"Cleaning {gpath.radmc_dir}")
+    """
+    files = glob.glob(f"{self.radmc_dir}/*")
+    if len(files) == 0:
+        logger.info("    Nothing")
+    else:
+        for f in files:
+            logger.info(" V   " + f)
+    """
+    shutil.rmtree(gpath.radmc_dir)
+    # os.mkdir(self.radmc_dir)
+    logger.info("Done")
+
+    # del log
+    # del pkl
+    # del fits etc...
 
 
 #######
@@ -153,7 +173,7 @@ def compute_object_size(o, handlers={}):
     return sizeof(o)
 
 
-def dataclass_str(self):
+def dataclass_str(self, _w=""):
     space = "  "
     txt = self.__class__.__name__
     txt += "("
@@ -167,11 +187,15 @@ def dataclass_str(self):
             txt += space + var + str(v).replace("\n", "\n" + space + space_var)
 
         if isinstance(v, np.ndarray):
-            info = f"array(shape={np.shape(v)}, min={np.min(v)}, max={np.max(v)})"
+            info = f'array(shape={np.shape(v)}, min={np.min(v):{_w}g}, max={np.max(v):{_w}g})'
             txt += space + var + info
 
         elif isinstance(v, str):
             txt += space + var + f'"{str(v)}"'
+        elif isinstance(v, float):
+            txt += space + var + f'{v:{_w}g}'
+        elif isinstance(v, int):
+            txt += space + var + f'{v:d}'
         else:
             txt += space + var + str(v)
         txt += ","
