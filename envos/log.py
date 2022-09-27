@@ -24,7 +24,7 @@ def set_logger(name, htype="stream", filepath=None):
 
     ## generate a new logger, which belongs to logging
 
-    if name in loggers: 
+    if name in loggers:
         return loggers[name]
 
     logger = logging.getLogger(name)
@@ -66,10 +66,10 @@ def get_level(level_name):
     return logging.getLevelName(level_name.upper())
 
 def add_stream_hdlr(logger, level=None):
-    global stream_level, MyStreamFormatter
+    global stream_level, StandardFormatter
     level = level if level is not None else stream_level
     hdlr = logging.StreamHandler()
-    hdlr.setFormatter(MyStreamFormatter())
+    hdlr.setFormatter(StandardFormatter())
     hdlr.setLevel(level)
     logger.addHandler(hdlr)
     if debug_logger:
@@ -77,7 +77,7 @@ def add_stream_hdlr(logger, level=None):
 
 
 def add_file_hdlr(logger, path, level=None, write_mode="w"):
-    global file_level, MyFileFormatter
+    global file_level, StandardFormatter
     level = level if level is not None else file_level
     #from . import gpath
     # gpath.make_dirs(run=gpath.run_dir)
@@ -88,9 +88,11 @@ def add_file_hdlr(logger, path, level=None, write_mode="w"):
     #gpath.logfile.parent.mkdir(exist_ok=True, parents=True)
 
     hdlr = logging.FileHandler(_logfile, write_mode, "utf-8")
-    hdlr.setFormatter(MyFileFormatter())
+    hdlr.setFormatter(StandardFormatter())
     hdlr.setLevel(level)
     logger.addHandler(hdlr)
+
+
     if debug_logger:
         print("logger after _add_file_handler", logger)
 
@@ -102,8 +104,8 @@ def change_rundir(new_rundir):
             if type(hdlr) == logging.FileHandler:
                 fn = hdlr.baseFilename # removeHandler(hdlr)
                 old_rundir = pathlib.Path(fn).parents[0]
-                fn.replace(old_rundir, new_rundir)
-                print(fn)
+                fn.replace(str(old_rundir), str(new_rundir))
+                print(fn, old_rundir, new_rundir)
                 logger.handlers[i].__init__(fn)
 
         #if enable_saving:
@@ -129,35 +131,28 @@ def change_rundir(new_rundir):
 #
 # user_logger = set_logger(name="", type="file", filepath="**", )
 # user_logger.info(" ***** ")
+def update_logfile(name="envos", filename=None, filepath=None, level=None):
+    unset_logfile(name)
+    set_logfile(name, filename=filename, filepath=filepath, level=level)
+
+
 def set_logfile(name="envos", filename=None, filepath=None, level=None):
     """
     add a file handler to all loggers in envos
     filename: located under run directory
     filepath: specify exact location of created file
     """
-
     global file_level, logger
-
-    #_file_level = file_level if level is None else get_level(level_name)
     level = level if level is not None else file_level
-#get_level(level_name)
-
     from . import gpath
     filepath = filepath if filepath is not None else gpath.logfile
-
-    #rootlogger = logging.getLogger()
-    #logger = logging.getLogger("envos")
-    #print(logger)
     add_file_hdlr(loggers[name], filepath, level)
 
-#        exit()
-#
-        #for logger in loggers.values():
-        #    for hdlr in logger.handlers:
-        #        _add_file_handler(logger, filepath, file_level)
 
-
-def unset_file(name):
+def unset_logfile(name):
+    """
+    Note that this function destroys all file handlers included in the logger.
+    """
     for hdlr in loggers[name].handlers:
         if type(hdlr) == logging.FileHandler:
             logger.removeHandler(hdlr)
@@ -285,9 +280,9 @@ class color:
     END = "\033[0m"
 
 
-class MyStreamFormatter(logging.Formatter):
+class StandardFormatter(logging.Formatter):
     def __init__(self):
-        super().__init__(fmt="[%(filename)s] %(levelname)s: %(message)s")
+        super().__init__(fmt="[%(filename)s] %(levelname)s: %(message)s is this used? ")
 
         self._fmtdict = {
             logging.DEBUG: "(Debug) %(message)s",
@@ -304,7 +299,7 @@ class MyStreamFormatter(logging.Formatter):
         self._style._fmt = format_orig
         return result
 
-class MyFileFormatter(logging.Formatter):
+class DebugFormatter(logging.Formatter):
     def __init__(self):
         super().__init__(fmt="[%(filename)s] %(levelname)s: %(message)s")
 

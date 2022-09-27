@@ -358,7 +358,7 @@ class ObsSimulator:
         #odat = Cube(datatype="line")
         #odat.read(radmcdata=self.data)
         odat = read_radmcdata(self.data)
-        odat.add_obs_info(
+        odat.set_sobs_info(
             iline=iline, molname=molname, incl=incl, phi=phi, posang=posang
         )
 
@@ -589,6 +589,9 @@ class BaseObsData:
 
 
     def set_sobs_info(self, iline=None, molname=None, incl=None, phi=None, posang=None):
+        """
+        sobs info is nit used for actual observation data.
+        """
         self.sobs_info = {
             "iline":  iline,
             "molname": molname,
@@ -599,10 +602,12 @@ class BaseObsData:
         for k, v in self.sobs_info.items():
             setattr(self, k, v)
 
-    def save(self, basename="obsdata", mode="pickle", dpc=None, filepath=None):
+    def save(self, filename=None, basename="obsdata", mode="pickle", dpc=None, filepath=None):
+
         if filepath is None:
-            output_ext = {"joblib": "jb", "pickle": "pkl", "fits": "fits"}[mode]
-            filename = basename + "." + output_ext
+            if filename is None:
+                output_ext = {"joblib": "jb", "pickle": "pkl", "fits": "fits"}[mode]
+                filename = basename + "." + output_ext
             filepath = os.path.join(gpath.run_dir, filename)
             if os.path.exists(filepath):
                 logger.info(f"remove old fits file: {filepath}")
@@ -709,20 +714,21 @@ class BaseObsData:
         return setattr(self, self.get_Iname(), _I)
 
     def get_axes(self):
-        dtype = type(self).__name__
-        print(dtype)
-        if dtype == "Cube":
+        #dtype = self.dtype() # type(self).__name__
+       # print(dtype)
+        if self.dtype == "Cube":
             return [self.xau, self.yau, self.vkms]
-        elif dtype == "Image":
+        elif self.dtype == "Image":
             return [self.xau, self.yau]
-        elif dtype == "Image2":
+        elif self.dtype == "Image2":
             return [self.xau, self.yau]
-        elif dtype == "PVmap":
+        elif self.dtype == "PVmap":
             return [self.xau, self.vkms]
         else:
             raise Exception("Unknown class type")
 
-
+#    def dtype(self):
+#        return type(self).__name__
 
     def trim(self, xlim=None, ylim=None, vlim=None):
         if xlim is not None:
@@ -805,8 +811,7 @@ class Obreso:
             print("Something wrong in obsdata")
 
 
-
-
+#obj = Cube(Ippv, xau, yau, vkms, Iunit=Iunit, dpc=dpc, freq0=freq0)
 @dataclasses.dataclass
 class Cube(BaseObsData):
     """
@@ -834,9 +839,11 @@ class Cube(BaseObsData):
     conv_info: dict=None
     sobs_info: dict = None
     Iunit: str=None
-    freq0:float = None
-    datatype: str = None
-    _axorder: dict = field(default_factory={"xau":0, "yau":1, "vkms":2})
+    freq0: float = None
+    #datatype: str = None
+   #  _axorder: dict = field(default_factory={"xau":0, "yau":1, "vkms":2})
+    dtype = "Cube"
+    _axorder = {"xau":0, "yau":1, "vkms":2}
 
     def __post_init__(self):
         self._check_data_shape()
@@ -860,7 +867,7 @@ class Cube(BaseObsData):
         self.Lv = self.vkms[-1] - self.vkms[0]
 
     def get_mom0_map(self, normalize="peak", method="sum", vlim=None):
-        if self.I.shape[2] == 1:
+        if self.Ippv.shape[2] == 1:
             _Ipp = self.Ippv[...,0]
         else:
             if (vlim is not None) and (len(vlim) == 2):
@@ -936,6 +943,7 @@ class Image(BaseObsData):
     sobs_info: dict = None
     fitsfile: str = None
     freq0:float = None
+    dtype = "Image"
     _axorder = {"xau":0, "yau":1}
 
     def __post_init__(self):
@@ -1007,6 +1015,7 @@ class Image2(BaseObsData):
     sobs_info: dict = None
     fitsfile: str = None
     freq0:float = None
+    dtype = "Image"
     _axorder = {"ra":0, "dec":1, "xau":0, "yau": 1}
     radec_deg: dataclasses.InitVar[tuple] = None
 
@@ -1138,7 +1147,9 @@ class PVmap(BaseObsData):
     conv_info: dict=None
     sobs_info: dict = None
     freq0:float = None
-    _axorder: dict = field(default_factory={"xau":0, "vkms":1})
+    #_axorder: dict = field(default_factory={"xau":0, "vkms":1})
+    _axorder ={"xau":0, "vkms":1}
+    dtype = "PVmap"
 
     def __post_init__(
         self,
@@ -1349,6 +1360,7 @@ def read_radmcdata(data):
     #    print("Something might be wrong in reading a radmcdata")
     #    exit(1)
 
+    print(Cube)
     if dtype == "cube":
         obj = Cube(Ippv, xau, yau, vkms, Iunit=Iunit, dpc=dpc, freq0=freq0)
 

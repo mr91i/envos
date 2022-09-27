@@ -188,24 +188,22 @@ def do_pmap_survey_for_cube_correlation(conf, single=False): # for mass estimate
     from multiprocessing import Pool
     from joblib import Parallel,delayed
 
-    single = 1
+    single = 0
 
     def task(_conf, M, CR, model):
         label = f"{model}_M{M}_cr{CR}"
         if model == "Simple":
-            ca = 80
-        else:
-            ca = 45
+            conf = _conf.replaced(cavangle_deg=80)
 
         _conf = _conf.replaced(
             Ms_Msun=M,
             CR_au=CR,
             inenv=model,
-            cavangle_deg=ca,
+            #cavangle_deg=ca,
             run_dir=f"./cubes3/run_" + label,
-            n_thread=2,
-            dr_to_r = 0.1,
-            nphot=1e4, #1e7,
+            n_thread=1,
+        #    dr_to_r = 0.1,
+        #    nphot=1e4, #1e7,
         )
         synobs(
             _conf,
@@ -236,7 +234,7 @@ def do_pmap_survey_for_cube_correlation(conf, single=False): # for mass estimate
             task(conf, *p)
     else:
         logging.info("Start")
-        result = Parallel(n_jobs=1)(
+        result = Parallel(n_jobs=9)(
             [delayed(task)(conf, *p) for p in params]
         )
         logging.info("End")
@@ -439,8 +437,8 @@ def synobs(
     """
     set logging
     """
-    envos.gpath.logfile = envos.gpath.fig_dir / "log.dat"
-    envos.log.set_logfile()
+    # envos.gpath.logfile = envos.gpath.run_dir / "log.dat"
+    envos.log.update_logfile()
     conf.log()
 
     """
@@ -497,7 +495,7 @@ def synobs(
         model = mg.get_model()
         osim.set_model(model)
         cube = osim.observe_line(obsdust=obsdust)
-        cube.save_instance(filename=filename)
+        cube.save(filename=filename)
     else:
         #cube = envos.read_obsdata(envos.gpath.run_dir / filename)
         cube = envos.read_obsdata(envos.gpath.home_dir / "run" / filename)

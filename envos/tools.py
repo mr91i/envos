@@ -64,7 +64,7 @@ def clean_radmcdir():
     """
     shutil.rmtree(gpath.radmc_dir)
     # os.mkdir(self.radmc_dir)
-    logger.info("Done")
+#    logger.info("Done")
 
     # del log
     # del pkl
@@ -255,7 +255,7 @@ def shell(
             if (error_keyword is not None) and (error_keyword in _line):
                 error_flag = 1
 
-        
+
         # if output == '' and (process.poll() is not None):
         if (_line == "") and (proc.poll() is not None):
         #if (not _line) and (proc.poll() is not None):

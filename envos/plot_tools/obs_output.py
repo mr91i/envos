@@ -38,7 +38,7 @@ def plot_mom0_map(
         return pos_x, pos_y
         # return np.stack([pos_x, pos_y], axis=-1)
 
-    if hasattr(cube, "Ippv"):
+    if cube.dtype == "Cube":  # # hasattr(cube, "Ippv"):
         if len(cube.vkms) >= 2:
             dv = cube.vkms[1] - cube.vkms[0]
         else:
@@ -49,8 +49,8 @@ def plot_mom0_map(
         Ipp = cube.get_mom0_map()
 
         # exit()
-    elif hasattr(cube, "Ipp"):
-        Ipp = cube.Ipp
+    elif cube.dtype == "Image":
+        Ipp = cube.get_I()
     else:
         raise Exception("Data type error")
 
