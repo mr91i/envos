@@ -5,9 +5,9 @@ import pandas as pd
 from scipy import integrate, interpolate, optimize
 from dataclasses import dataclass, asdict
 
-import envos.nconst as nc
 from . import gpath
 from .log import logger
+from . import nconst as nc
 
 # logger = set_logger(__name__)
 

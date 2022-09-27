@@ -304,7 +304,7 @@ class RadmcController:
         """
         Set gas & dust temperature
         """
-        ntot = temp.size  # len(temp.ravel())
+        ntot = len(temp.ravel()) # temp.size  # len(temp.ravel())
         self._save_input_file(
             "gas_temperature.inp",
             "1",

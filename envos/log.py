@@ -23,7 +23,15 @@ def set_logger(name, htype="stream", filepath=None):
         print("set logger: name = ", name)
 
     ## generate a new logger, which belongs to logging
+
+    if name in loggers: 
+        return loggers[name]
+
     logger = logging.getLogger(name)
+    logger.propagate = False
+    loggers[name] = logger
+
+    return logger
 
     ## if it alredy exists, skip this process
     #if logger.hasHandlers():
@@ -44,7 +52,6 @@ def set_logger(name, htype="stream", filepath=None):
 
     ## Not allow logger to send messages to its parent logger
     ## if child logger name is xxxx.aaaa, parent logger name is xxxx.
-    logger.propagate = False
 
 #    if enable_saving:
 #        _add_file_handler(logger)
@@ -52,49 +59,55 @@ def set_logger(name, htype="stream", filepath=None):
     ## loggers holds all loggers and their name as a dictionary
     # loggers.update({name: logger})
 
-    return logger
 
 
 def get_level(level_name):
     #return logging._nameToLevel[level_name.upper()]
     return logging.getLevelName(level_name.upper())
 
-def add_stream_hdlr(logger, stream_level=stream_level):
+def add_stream_hdlr(logger, level=None):
+    global stream_level, MyStreamFormatter
+    level = level if level is not None else stream_level
     hdlr = logging.StreamHandler()
     hdlr.setFormatter(MyStreamFormatter())
-    hdlr.setLevel(stream_level)
+    hdlr.setLevel(level)
     logger.addHandler(hdlr)
     if debug_logger:
         print("logger after _add_stream_handler", logger)
 
 
-def add_file_hdlr(logger, path, file_level=file_level):
-    #global file_level
+def add_file_hdlr(logger, path, level=None, write_mode="w"):
+    global file_level, MyFileFormatter
+    level = level if level is not None else file_level
     #from . import gpath
     # gpath.make_dirs(run=gpath.run_dir)
     # os.makedirs(os.path.dirname(gpath.logfile), exist_ok=True)
 
-    _logfile = pathlib.Path(path)
+    _logfile = pathlib.Path(str(path))
     _logfile.parent.mkdir(exist_ok=True, parents=True)
     #gpath.logfile.parent.mkdir(exist_ok=True, parents=True)
 
-    hdlr = logging.FileHandler(_logfile, "a", "utf-8")
+    hdlr = logging.FileHandler(_logfile, write_mode, "utf-8")
     hdlr.setFormatter(MyFileFormatter())
-    hdlr.setLevel(file_level)
-
+    hdlr.setLevel(level)
     logger.addHandler(hdlr)
     if debug_logger:
         print("logger after _add_file_handler", logger)
 
-def update_file_handler_for_all_loggers():
+#def update_file_handler_for_all_loggers():
+def change_rundir(new_rundir):
     global loggers, enable_saving, file_level
-
     for logger in loggers.values():
-        for hdlr in logger.handlers:
+        for i, hdlr in enumerate(logger.handlers):
             if type(hdlr) == logging.FileHandler:
-                logger.removeHandler(hdlr)
-        if enable_saving:
-            _add_file_handler(logger, file_level)
+                fn = hdlr.baseFilename # removeHandler(hdlr)
+                old_rundir = pathlib.Path(fn).parents[0]
+                fn.replace(old_rundir, new_rundir)
+                print(fn)
+                logger.handlers[i].__init__(fn)
+
+        #if enable_saving:
+        #    _add_file_handler(logger, file_level)
 
 #    for logger in loggers.values():
 #        for hdlr in logger.handlers:
@@ -116,41 +129,42 @@ def update_file_handler_for_all_loggers():
 #
 # user_logger = set_logger(name="", type="file", filepath="**", )
 # user_logger.info(" ***** ")
-def set_file(filename=None, filepath=None, switch="on", level_name=None):
+def set_logfile(name="envos", filename=None, filepath=None, level=None):
     """
     add a file handler to all loggers in envos
+    filename: located under run directory
+    filepath: specify exact location of created file
     """
 
-    global file_level
+    global file_level, logger
 
-    if switch == "on":
-        _file_level = file_level if level_name is None else get_level(level_name)
+    #_file_level = file_level if level is None else get_level(level_name)
+    level = level if level is not None else file_level
+#get_level(level_name)
 
-        from . import gpath
-        if os.path.isfile(gpath.logfile):
-            os.remove(gpath.logfile)
+    from . import gpath
+    filepath = filepath if filepath is not None else gpath.logfile
 
-#        if filepath is None:
-#            filepath =
-        rootlogger = logging.getLogger()
-        logger = logging.getLogger("envos")
-        print(logger)
-        exit()
+    #rootlogger = logging.getLogger()
+    #logger = logging.getLogger("envos")
+    #print(logger)
+    add_file_hdlr(loggers[name], filepath, level)
 
-        for logger in loggers.values():
-            for hdlr in logger.handlers:
-                _add_file_handler(logger, filepath, file_level)
+#        exit()
+#
+        #for logger in loggers.values():
+        #    for hdlr in logger.handlers:
+        #        _add_file_handler(logger, filepath, file_level)
 
-    elif switch == "off":
 
-        for logger in loggers.values():
-            for hdlr in logger.handlers:
-                if type(hdlr) == logging.FileHandler:
-                    logger.removeHandler(hdlr)
+def unset_file(name):
+    for hdlr in loggers[name].handlers:
+        if type(hdlr) == logging.FileHandler:
+            logger.removeHandler(hdlr)
 
 
 ## Controll Level of Handlers
-def set_level(level_name, target="all", ver=2):
+def set_level(name, level_name, target="all", ver=2):
     global loggers, stream_level, file_level
 
     level = get_level(level_name)
@@ -160,17 +174,16 @@ def set_level(level_name, target="all", ver=2):
         "all": None,
     }[target]
 
-    for name, logger in loggers.items():
-        for hdlr in logger.handlers:
-            if (type(hdlr) == htype) or (target == "all"):
-                if debug_logger:
-                    print(f"Now setting level to be {level_name}:{level} for {type(hdlr)}")
-                if ver == 2:
-                    hdlr.setLevel(level)
-                elif ver == 1:
-                    logger.removeHandler(hdlr)
-                    hdlr.setLevel(level)
-                    logger.addHandler(hdlr)
+    for hdlr in loggers[name].handlers:
+        if (type(hdlr) == htype) or (target == "all"):
+            if debug_logger:
+                print(f"Now setting level to be {level_name}:{level} for {type(hdlr)}")
+            if ver == 2:
+                hdlr.setLevel(level)
+            elif ver == 1:
+                logger.removeHandler(hdlr)
+                hdlr.setLevel(level)
+                logger.addHandler(hdlr)
 
     if debug_logger:
         show_loggers()
@@ -314,6 +327,7 @@ class MyFileFormatter(logging.Formatter):
 # Set envos logger
 #
 logger = logging.getLogger("envos")
+logger.propagate = False
 logger.setLevel(logger_level)
 add_stream_hdlr(logger)
-
+loggers = {"envos": logger}

@@ -184,9 +184,11 @@ def do_pmap_survey_for_mass_estimate(conf): # for mass estimate , not for cube c
     logging.info("End")
 
 
-def do_pmap_survey_for_cube_correlation(conf): # for mass estimate , not for cube correlation
+def do_pmap_survey_for_cube_correlation(conf, single=False): # for mass estimate , not for cube correlation
     from multiprocessing import Pool
     from joblib import Parallel,delayed
+
+    single = 1
 
     def task(_conf, M, CR, model):
         label = f"{model}_M{M}_cr{CR}"
@@ -201,7 +203,8 @@ def do_pmap_survey_for_cube_correlation(conf): # for mass estimate , not for cub
             inenv=model,
             cavangle_deg=ca,
             run_dir=f"./cubes3/run_" + label,
-            n_thread=12,
+            n_thread=2,
+            dr_to_r = 0.1,
             nphot=1e4, #1e7,
         )
         synobs(
@@ -227,11 +230,16 @@ def do_pmap_survey_for_cube_correlation(conf): # for mass estimate , not for cub
     #print(  product(Mlist[1:], crlist[1:], model)  )
     #print(params)
     #exit()
-    logging.info("Start")
-    result = Parallel(n_jobs=1)(
-        [delayed(task)(conf, *p) for p in params]
-    )
-    logging.info("End")
+
+    if single:
+        for p in params:
+            task(conf, *p)
+    else:
+        logging.info("Start")
+        result = Parallel(n_jobs=1)(
+            [delayed(task)(conf, *p) for p in params]
+        )
+        logging.info("End")
 
 
 def plot_obspv(conf):
@@ -432,7 +440,7 @@ def synobs(
     set logging
     """
     envos.gpath.logfile = envos.gpath.fig_dir / "log.dat"
-    envos.log.enable_saving_output()
+    envos.log.set_logfile()
     conf.log()
 
     """

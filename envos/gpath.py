@@ -52,8 +52,10 @@ def update_all_dirs_dependent_on_rundir(run_dir):
     make_dirs(fig=fig_dir)
     logfile = run_dir / "log.dat"
 
-    from envos.log import update_file_handler_for_all_loggers
-    update_file_handler_for_all_loggers()
+    from .log import change_rundir # update_file_handler_for_all_loggers
+    #update_file_handler_for_all_loggers()
+    change_rundir(run_dir)
+
 
 
 def make_dirs(radmc=None, run=None, storage=None, fig=None):

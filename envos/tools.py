@@ -3,13 +3,13 @@ import os
 import sys
 import shutil
 import numpy as np
-import envos.nconst as nc
 import pandas
 from dataclasses import dataclass, asdict
 from scipy import interpolate, integrate
 
 from .log import logger
 from . import gpath
+from . import nconst as nc
 
 # logger = set_logger(__name__)
 
@@ -233,6 +233,7 @@ def shell(
 
     logger.info(f'Running shell command at {cwd}:\n    "{cmd}"')
 
+    simple = 1
     if simple:
         return subprocess.run(cmd, shell=True, cwd=cwd)
     else:
@@ -247,15 +248,19 @@ def shell(
 
     while True:
         _line = proc.stdout.readline().rstrip()  # .decode("utf-8").rstrip()
+        print("line:", _line)
         if _line:
             if log:
                 logger.info(log_prefix + _line)
             if (error_keyword is not None) and (error_keyword in _line):
                 error_flag = 1
 
-        if (not _line) and (proc.poll() is not None):
+        
+        # if output == '' and (process.poll() is not None):
+        if (_line == "") and (proc.poll() is not None):
+        #if (not _line) and (proc.poll() is not None):
             if log:
-                logger.info("")
+                logger.info(" break print")
             break
 
     retcode = proc.wait()
