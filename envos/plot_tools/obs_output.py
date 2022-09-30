@@ -57,7 +57,7 @@ def plot_mom0_map(
     if normalize:
         Ipp /= np.max(Ipp)
 
-    lvs = np.linspace(0, np.max(Ipp), 11)
+    lvs = np.linspace(0, np.max(Ipp), 101)
     # plt.figure(figsize=(8, 6))
 
     img = plt.pcolormesh(
@@ -71,10 +71,15 @@ def plot_mom0_map(
     )
     plt.xlim(xlim[0], xlim[1])
     plt.ylim(ylim[0], ylim[1])
-    plt.xlabel(r"$x$ [au]")
-    plt.ylabel(r"$z$ [au]")
+    plt.xlabel(r"$\Delta$RA [au]")
+    plt.ylabel(r"$\Delta$Dec [au]")
     cbar = plt.colorbar(img, pad=0.02)
     cbar.set_label(r"$I ~/ ~I_{\rm max}$")
+
+    ticks = np.around(np.linspace(0,1, 11), decimals=1)
+    cbar.set_ticks(ticks)
+    cbar.set_ticklabels(ticks)
+    cbar.ax.minorticks_off()
 
     ax = plt.gca()
     draw_center_line()
@@ -90,15 +95,18 @@ def plot_mom0_map(
                 xy=[x[-1], y[-1]],
                 xytext=[x[0], y[0]],
                 va="center",
-                arrowprops=dict(arrowstyle="->", color="gray", lw=1)
+                arrowprops=dict(arrowstyle="->", color="#aaaaaa", lw=1),
+                zorder=3
                 # arrowprops=dict(shrink=0, width=0.5, headwidth=16, headlength=18, connectionstyle='arc3', facecolor='gray', edgecolor="gray")
             )
+
+
 
         if poffset_au is not None:
             pline = position_line(cube.xau, pangle_deg, poffset_au=poffset_au)
             plt.plot(pline[0], pline[1], c="w", lw=1)
 
-    if (cube.conv_info is not None) and cube.beam_maj_au:
+    if hasattr(cube, "conv_info") and (cube.conv_info is not None) and cube.beam_maj_au:
         draw_beamsize(
             ax,
             "mom0",
@@ -173,8 +181,8 @@ def plot_image(image,
 
     plt.xlim(xlim[0], xlim[1])
     plt.ylim(ylim[0], ylim[1])
-    plt.xlabel(r"$x$ [au]")
-    plt.ylabel(r"$y$ [au]")
+    plt.xlabel(r"$\Delta$RA [au]")
+    plt.ylabel(r"$\Delta$Dec [au]")
     cbar = plt.colorbar(img, pad=0.02)
     cbar.set_label(clabel)
 
@@ -245,7 +253,7 @@ def plot_lineprofile(cube, xau_range=None, yau_range=None, unit=None, freq0=None
 
 def plot_pvdiagram(
     pv,
-    n_lv=10,
+    n_lv=100,
     Ms_Msun=None,
     rCR_au=None,
     incl=90,
@@ -263,6 +271,7 @@ def plot_pvdiagram(
     ylim=(-2.5, 2.5),
     show_beam=True,
     discrete=True,
+    contour=True,
     refpv=None,
     loglog=False,
     out="pvdiagrams.pdf",
@@ -287,6 +296,7 @@ def plot_pvdiagram(
         cmap = plt.get_cmap("cividis")
         norm = mc.Normalize(vmin=0, vmax=np.max(Ipv))
 
+
     img = plt.pcolormesh(
         xx,
         yy,
@@ -295,14 +305,20 @@ def plot_pvdiagram(
         norm=norm,  # mc.BoundaryNorm(lvs, n_lv, clip=False),
         shading="nearest",
         rasterized=True,
+        alpha=.9
     )
 
     plt.xlim(*xlim)
     plt.ylim(*ylim)
-    plt.xlabel("Position [au]")
-    plt.ylabel(r"$V$ [km s$^{-1}$]")
+    plt.xlabel(r"Offset from Center $x$ [au]")
+    plt.ylabel(r"Line-of-sight Velocity $V$ [km s$^{-1}$]")
     cbar = plt.colorbar(img, pad=0.02)
     cbar.set_label(r"$I_{V} ~/ ~I_{V,\rm max}$")
+
+    ticks = np.around(np.linspace(0,1, 11), decimals=1)
+    cbar.set_ticks(ticks)
+    cbar.set_ticklabels(ticks)
+    cbar.ax.minorticks_off()
 
     def calc_xmean(Ip):
         Ip = np.where(Ip > 0.1, Ip, 0)
@@ -326,15 +342,15 @@ def plot_pvdiagram(
         plt.yscale("log")
         x = np.geomspace(10, 1000)
 
-        func1 = lambda x: 0.05 * (x / 1e4) ** (-1)
-        plt.plot(x, func1(x), c="w", ls="--", lw=2)
-        plt.text(400 * 1.1, func1(400) * 1.1, r"$x^{-1} $", c="w", size=20)
+        func1 = lambda x: 0.03 * (x / 1e4) ** (-1)
+        plt.plot(x, func1(x), c="w", ls="--", lw=2, zorder=10)
+        plt.text(400 * 1.1, func1(400) * 1.1, r"$x^{-1} $", c="w", size=20, zorder=10)
 
         func2 = lambda x: 0.1 * (x / 1e4) ** (-0.5)
-        plt.plot(x, func2(x), c="w", ls=":", lw=2)
-        plt.text(50 * 1.1, func2(50) * 1.1, r"$x^{-0.5}$", c="w", size=20)
+        plt.plot(x, func2(x), c="w", ls=":", lw=2, zorder=10)
+        plt.text(50 * 1.1, func2(50) * 1.1, r"$x^{-0.5}$", c="w", size=20, zorder=10)
 
-        if 1:
+        if 0:
             xx, vv = np.meshgrid(xau, vkms, indexing="ij")
             vpeaks = np.array(
                 [get_maximum_position(vkms, Iv) for Iv in np.where(vv > 0, Ipv, 0)]
@@ -349,23 +365,44 @@ def plot_pvdiagram(
     # ax.tick_params("both", direction="inout")
     ax.tick_params(direction="inout")
 
+
+    if contour:
+        c = "k"#, "dimgray"
+        img = plt.contour(
+            xx,
+            yy,
+            Ipv,
+            [0.3, 0.5, 0.7, 0.9], #np.linspace(lvs[0], lvs[-1], 6),
+            colors=c,  # make_listed_cmap("cividis", n_lv, extend="neither"),
+            norm=mc.Normalize(vmin=0, vmax=np.max(Ipv)),  # mc.BoundaryNorm(lvs, n_lv, clip=False),
+            corner_mask=False,
+            linewidths=1.3,
+            linestyles="-",
+            alpha=0.6,
+            zorder=4,
+        )
+        x_ipeak, v_ipeak = get_coord_ipeak(xau, vkms, Ipv, mode="max")
+        plt.scatter(x_ipeak, v_ipeak, s=15, alpha=0.9, linewidth=1, c=c, ec=None,zorder=4)
+
     if refpv:
         x_ipeak, v_ipeak = get_coord_ipeak(refpv.xau, refpv.vkms, refpv.Ipv, mode="max")
         # x_vmax, v_vmax = get_coord_vmax(refpv.xau, refpv.vkms, refpv.Ipv, f_crit)
+        c="#88CCFF" #"lightsalmon"#"mistyrose"
         plt.contour(
             refpv.xau,
             refpv.vkms,
             refpv.Ipv.T.clip(1e-10),
             #[0.1, 0.3, 0.5, 0.7, 0.9], #np.linspace(lvs[0], lvs[-1], 6),
             [0.3, 0.5, 0.7, 0.9], #np.linspace(lvs[0], lvs[-1], 6),
-            colors="w",
-            linewidths=1.0,
+            colors=c,
+            linewidths=.9,
             linestyles="-",
-            alpha=0.5,
+            alpha=.9,
             norm=mc.Normalize(vmin=0, vmax=np.max(refpv.Ipv)),
             corner_mask=False,
+            zorder=5,
         )
-        plt.scatter(x_ipeak, v_ipeak, s=15, alpha=0.5, linewidth=1, c="w", ec=None)
+        plt.scatter(x_ipeak, v_ipeak, s=15, alpha=1.0, linewidth=1, c=c, fc=c,zorder=5)
 
     if mass_estimate:
         add_mass_estimate_plot(

@@ -537,20 +537,20 @@ def get_coord_vmax(xau, vkms, Ipv, Icrit, quadrant=None):
     #x_vmax = np.apply_along_axis(lambda Ip: get_maximum_position(xau, Ip), 0, _Ipv)
     #I_vmax = np.apply_along_axis(np.max, 0, _Ipv)
     I_vmax = np.array([fun(_x, _v)[0,0] for _x, _v in zip(x_vmax, vkms)])
-    print(I_vmax)
+    #print(I_vmax)
 
     mask = I_vmax >  0.0
     plt.plot(x_vmax[mask], vkms[mask])
     #plt.plot(x_vmax, vkms)
-    print(np.array([vkms, x_vmax, I_vmax]).T , Icrit)
-    print(np.array([vkms[mask], x_vmax[mask], I_vmax[mask]]).T , Icrit)
+    #print(np.array([vkms, x_vmax, I_vmax]).T , Icrit)
+    #print(np.array([vkms[mask], x_vmax[mask], I_vmax[mask]]).T , Icrit)
     v_crit = tools.find_roots(vkms[mask], I_vmax[mask], Icrit)
     if len(v_crit) == 0:
         v_crit = vkms[0]
     else:
         v_crit = v_crit[-1]
     x_crit = tools.find_roots(x_vmax, vkms, v_crit)[-1]
-    print(x_crit, v_crit)
+    #print(x_crit, v_crit)
     return x_crit, v_crit
 
 

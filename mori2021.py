@@ -20,13 +20,13 @@ mpl_setting.set_rc(lw=1.2, bold=False, fontsize=12)
 
 def main(conf):
     #do_fiducial_run(conf)
-    #plot_obspv(conf)
+    #t2=unit2, plot_obspv(conf)
     #do_debug_run(conf)
+    #do_parameter_study(conf)
     #exit()
     #do_pmap_survey_for_mass_estimate(conf)
-    do_pmap_survey_for_cube_correlation(conf)
-    #compare_bestmodel_obspvs(conf)
-    #do_parameter_study(conf)
+    #do_pmap_survey_for_cube_correlation(conf)
+    compare_bestmodel_obspvs(conf)
     # do_ring_test()
     #plot_obspv(conf)
     # do_disk_envelope_runs()
@@ -40,16 +40,13 @@ def main(conf):
 # Fiducial run
 #
 def do_fiducial_run(conf):
-
-
-    exit()
-    _conf = conf.replaced(fig_dir=f"run/fig_fid", n_thread=15, dr_to_r=0.01, nphot=1e4)
+    _conf = conf.replaced(fig_dir=f"run/fig_fid", n_thread=15, dr_to_r=0.02, nphot=1e7)
     synobs(
         _conf,
         filename=f"lobs_fid.pkl",
         calc_model=0,
         plot_model_structure=1,
-        calc_obs=False,
+        #calc_obs=False,
     )
 
 def do_debug_run(conf):
@@ -85,6 +82,8 @@ def do_parameter_study(config):
     def _obs(config, label, refcube=None, **kwargs):
         _conf = config.replaced(
             run_dir=f"./run/run_" + label,
+            dr_to_r=0.05,
+            nphot=1e6,
         )
         synobs(
             _conf,
@@ -102,11 +101,12 @@ def do_parameter_study(config):
     #config = config.replaced(n_thread=16)
     #_obs(config, "fid")
 
-    _obs(config.replaced(incl=30), f"i{30}")
-    exit()
+    #_obs(config.replaced(incl=30), f"i{30}")
+    #exit()
 
     refcube = envos.read_obsdata(envos.gpath.home_dir / "run" / "lobs_fid.pkl")
     _obs(config.replaced(inenv="Simple"), "SB", refcube)
+    exit()
 
     """
     for T0 in [10, 30, 100]:
@@ -200,9 +200,9 @@ def do_pmap_survey_for_cube_correlation(conf, single=False): # for mass estimate
             CR_au=CR,
             inenv=model,
             #cavangle_deg=ca,
-            run_dir=f"./cubes3/run_" + label,
-            n_thread=1,
-        #    dr_to_r = 0.1,
+            run_dir=f"./cubes4/run_" + label,
+            n_thread = 1,
+            dr_to_r = 0.02,
         #    nphot=1e4, #1e7,
         )
         synobs(
@@ -218,8 +218,8 @@ def do_pmap_survey_for_cube_correlation(conf, single=False): # for mass estimate
 
     model = ["UCM", "Simple"]
     #model = ["Simple"]
-    Mlist = np.linspace(0, 0.5, 30)
-    crlist = np.linspace(0, 300, 30)
+    Mlist = np.linspace(0, 0.5, 20) # 0.025
+    crlist = np.linspace(0, 300, 20) # 15
     #Mlist = np.linspace(0, 0.25, 10)
     #crlist = np.linspace(100, 250, 10)
     #params = np.array(list(product(Mlist[1:], crlist[1:], model)) )
@@ -234,7 +234,7 @@ def do_pmap_survey_for_cube_correlation(conf, single=False): # for mass estimate
             task(conf, *p)
     else:
         logging.info("Start")
-        result = Parallel(n_jobs=9)(
+        result = Parallel(n_jobs=16)(
             [delayed(task)(conf, *p) for p in params]
         )
         logging.info("End")
@@ -254,7 +254,8 @@ def plot_obspv(conf):
 
 def compare_bestmodel_obspvs(conf):
 
-    cube = envos.read_obsdata(envos.gpath.home_dir / "run" / "lobs_fid.pkl")
+    cube = envos.read_obsdata(envos.gpath.home_dir / "run"/ "lobs_fid.pkl")
+
 
     for dpa in [0, 30, 60]:
         pa =  conf.posang - 90 + dpa
@@ -370,8 +371,8 @@ config_default = envos.Config(
     aspect_ratio=1,
     nphi=91,
     nphot=1e7,
-    CR_au=157.9,    #157.36,
-    Ms_Msun=0.1439, #0.17223,
+    CR_au=124.623,  #157.9,    #157.36,
+    Ms_Msun=0.192226, #0.1439, #0.17223,
     T=None,
     Mdot_smpy=4.5e-6,
     cavangle_deg=45,
@@ -424,11 +425,12 @@ def synobs(
     """
     check if file exists and if so skip synobs
     """
-    if (envos.gpath.run_dir / filename).exists() and skip_if_exist:
+    savefile = envos.gpath.run_dir / filename
+    if savefile.exists() and skip_if_exist:
         print(f"Skip syonbs for {envos.gpath.run_dir/filename} because it already exists")
         return
 
-    if ( not (envos.gpath.run_dir / filename).exists()) and skip_if_not_exist:
+    if ( not savefile.exists()) and skip_if_not_exist:
         print(f"Skip syonbs for {envos.gpath.run_dir/filename} because it does not exist")
         return
 
@@ -498,7 +500,8 @@ def synobs(
         cube.save(filename=filename)
     else:
         #cube = envos.read_obsdata(envos.gpath.run_dir / filename)
-        cube = envos.read_obsdata(envos.gpath.home_dir / "run" / filename)
+       # print(envos.gpath.home_dir / "run" / filename )
+        cube = envos.read_obsdata(savefile)
 
     if plot_pv:
         opt = {
@@ -559,19 +562,41 @@ def get_refcube():
         unit1="deg",
         unit2="deg",
         unit3="m/s",
-        v0_kms=5.8,
+        # v0_kms=5.8,
     )
-    refcube.move_position(poscen[0], ax="x", unit="deg")
-    refcube.move_position(poscen[1], ax="y", unit="deg")
-    refcube.trim(range_x=[-700, 700], range_y=[-700, 700], range_v=[-2.5, 2.5])
+ #   print(refcube)
+    #print(refcube.ra[256], refcube.dec[256], refcube.vkms[0])
+    #exit()
+
+
+    refcube.reset_center(v0_kms = 5.85)
+
+
+
+#    print(refcube)
+    #exit()
+    #print(refcube)
+    #refcube.move_position(poscen[0], ax="x", unit="deg")
+    #print(refcube)
+    #refcube.move_position(poscen[1], ax="y", unit="deg")
+
+    refcube.trim(xlim=[-700, 700], ylim=[-700, 700], vlim=[-2.5, 2.5])
     return refcube
 
 
 def get_obspv(pa):
     refcube = get_refcube()
+    #print(refcube)
+    img = refcube.get_mom0_map()
+    envos.plot_tools.plot_mom0_map(
+        img,
+        pangle_deg=[pa],#[95 - 90 + pa],
+        n_lv=11,
+        out=f"mom0_{pa}.pdf"
+    )
     opv = refcube.get_pv_map(pangle_deg=pa, Inorm=None)
-    opv.reverse_v()
-    opv.reverse_x()
+    #opv.reverse_v()
+    #opv.reverse_x()
     return opv
 
 

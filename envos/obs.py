@@ -555,9 +555,23 @@ class BaseObsData:
         )
         self.data = conv(self.data)
 
+    def get_Iname(self):
+        return self._Iname # {"Cube":"Ippv", "Image":"Ipp", "Image2":"data", "PVmap":"Ipv" }[type(self).__name__]
+
+    def get_I(self):
+        return getattr(self, self.get_Iname())
+
+    def set_I(self, _I):
+        return setattr(self, self.get_Iname(), _I)
+
+    def get_axes(self):
+        return [getattr(self, _axn) for _axn in self._axnames if hasattr(self, _axn)]
+
+
     def set_dpc(self, dpc):
         self.dpc = dpc
 
+    """
     def set_conv_info(
         self, beam_maj_au=None, beam_min_au=None, vreso_kms=None, beam_pa_deg=None
     ):
@@ -569,6 +583,7 @@ class BaseObsData:
         }
         for k, v in self.conv_info.items():
             setattr(self, k, v)
+    """
 
     def set_obs_resolution(
         self, beam_maj_au=None, beam_min_au=None, vreso_kms=None, beam_pa_deg=None,
@@ -584,9 +599,6 @@ class BaseObsData:
             beam_pa_deg=beam_pa_deg,
             dpc=self.dpc,
         )
-        #for k, v in self.conv_info.items():
-        #    setattr(self, k, v)
-
 
     def set_sobs_info(self, iline=None, molname=None, incl=None, phi=None, posang=None):
         """
@@ -615,35 +627,17 @@ class BaseObsData:
             os.makedirs(os.path.dirname(filepath), exist_ok=True)
 
         if mode == "joblib":
-            self._save_joblib(filepath)
+            import joblib
+            joblib.dump(self, filepath, compress=3)
+            logger.info(f"Saved joblib file: {filepath}")
+
         elif mode == "pickle":
-            self._save_instance(filepath)
+            pd.to_pickle(self, filepath)
+            logger.info(f"Saved pickle file: {filepath}")
+
         elif mode == "fits":
-            self._save_fits(filepath)
-
-    def _save_joblib(self, filepath):
-        import joblib
-        joblib.dump(self, filepath, compress=3)
-        logger.info(f"Saved joblib file: {filepath}")
-
-    def _save_instance(self, filepath):
-        pd.to_pickle(self, filepath)
-        logger.info(f"Saved pickle file: {filepath}")
-
-    def _save_fits(self, filename):
-        save_fits(self, filename)
-        logger.info(f"Saved fits file: {filename}")
-
-    def save_instance(self, filename="obsdata.pkl", filepath=None):
-        logger.warning(
-            'The function "save_instance"  will be imcompatible in a future version. Instead please use a function:\n'
-            '    save(basename="obsdata", mode="pickle", dpc=None, filepath=None) ,\n'
-            '    selecting a mode that you want use among {"pickle"(default), "joblib", "fits"}.'
-        )
-        if filepath is None:
-            filepath = os.path.join(gpath.run_dir, filename)
-        os.makedirs(os.path.dirname(filepath), exist_ok=True)
-        pd.to_pickle(self, filepath)
+            save_fits(self, filename)
+            logger.info(f"Saved fits file: {filename}")
 
     def move_position(self, center_pos, ax="x", unit="au"): # ra=False, decl=False, deg=False, au=False):
         fac = 3600 * self.dpc
@@ -662,60 +656,50 @@ class BaseObsData:
         elif ax == "y":
             self.yau -= d
 
-    def _reset_positive_axes_2(self):
-        axnames = ["xau", "yau", "vkms"]
-        daxnames = ["dx", "dy", "dv"]
-        axLnames = ["Lx", "Ly", "Lv"]
-        for _Ln, _axn in zip(axLnames, axnames):
-            if hasattr(self, _axn):
-                ax = getattr(self, _axn)
-                if ax[1] < ax[0] and len(ax) >= 2:
-                    setattr(self, _axn, ax[::-1])
-                    setattr(self, _daxn, ax[1] - ax[0])
-                    setattr(self, "image",  np.flip(getattr(self, "image"), i) )
-
-
     def _reset_positive_axes(self, img, axs):
         for i, ax in enumerate(axs):
             if (len(ax) >= 2) and (ax[1] < ax[0]):
                 axs[i] = ax[::-1]
                 img = np.flip(img, i)
 
+    def reset_center(self, xyau=None, radecdeg=None, v0_kms=None):
+        if xyau is not None:
+            self.xau -= xyau[0]
+            self.yau -= xyau[1]
+            self.calc_stdcoord_to_radec()
+
+        elif radecdeg is not None:
+            self.dec0 -= np.deg2rad( decdeg[0] )
+            self.rad0 -= np.deg2rad( decdeg[1] )
+            self.dec -= np.deg2rad( decdeg[0] )
+            self.rad -= np.deg2rad( decdeg[1] )
+            self.calc_radec_to_stdcoord()
+
+        if v0_kms is not None:
+            self.vkms -= v0_kms
+            # self.freq0 -= *** : freq is not changed here, for now
+
+    def _check_data_shape(self):
+        lens = tuple([ len(ax) for ax in self.get_axes() ])
+        if self.get_I().shape != lens:
+            logger.info("Data type error")
+            raise Exception
 
     def convert_Jyppix_to_brightness_temperature(self, imageJyppix, freq0=None, lam0=None):
         if lam0 is not None:
             freq0 = nc.c / lam0
-        # freq = tools.vkms_to_freq(self.vkms, freq0)
         lam0 = nc.c / freq0
         conv = 2.3504431e-11 * self.dx * self.dy / self.dpc**2 * 1e23
         Inu = (imageJyppix/conv).clip(0.0)
         Tb_RJ = Inu * lam0**2/(2 * nc.kB)
-        Tb =  nc.h * freq0/nc.kB * 1./np.log(1. + 2.*nc.h*freq0**3/(Inu*nc.c**2) )
         Tb_app =  nc.h * freq0/nc.kB * np.nan_to_num( 1./np.log(1. + np.nan_to_num( 2.*nc.h*freq0**3/(Inu*nc.c**2) ) ) )
-        # x =  2.*nc.h*freq0**3/(Inu*nc.c**2)
-        #Tb_app =  nc.h * freq0/nc.kB * Inu*nc.c**2/2.*nc.h*freq0**3 * (1 + x/2 - x**2/12 + 1/24*x**3-19/720*x**4+3/160*x**5)
-        # Tb_app = Inu*lam0**2/(2.*nc.kB) * (1. + x/2 - 1/12*x**2 + 1/24*x**3 - 19/720*x**4 + 3/160*x**5)
-        #Tb_app =  nc.h * freq0/nc.kB * 1./np.log(1. + 2.*nc.h*freq0**3/(Inu*nc.c**2) )
-        # 1e-6 - 1 * 0.1**2 /   1e-16  *
         print(f"Tb_app is {np.max(Tb)} K , Tb is {np.max(Tb)} K, Tb_RJ is {np.max(Tb_RJ)} K")
         if np.isnan(np.max(Tb_app)):
             raise Exception
         return Tb_app
 
 
-
-    def get_Iname(self):
-        return {"Cube":"Ippv", "Image":"Ipp", "Image2":"data", "PVmap":"Ipv" }[type(self).__name__]
-
-    def get_I(self):
-        return getattr(self, self.get_Iname())
-
-    def set_I(self, _I):
-        return setattr(self, self.get_Iname(), _I)
-
-    def get_axes(self):
-        #dtype = self.dtype() # type(self).__name__
-       # print(dtype)
+        """
         if self.dtype == "Cube":
             return [self.xau, self.yau, self.vkms]
         elif self.dtype == "Image":
@@ -726,9 +710,7 @@ class BaseObsData:
             return [self.xau, self.vkms]
         else:
             raise Exception("Unknown class type")
-
-#    def dtype(self):
-#        return type(self).__name__
+        """
 
     def trim(self, xlim=None, ylim=None, vlim=None):
         if xlim is not None:
@@ -745,22 +727,16 @@ class BaseObsData:
 
         if vlim is not None and hasattr(self, "vkms"):
             nax = self._axorder["vkms"]
-            jmin, jmax = minmaxargs(self.vkms, vlim)
+            kmin, kmax = minmaxargs(self.vkms, vlim)
             self.set_I(np.take(self.get_I(), range(kmin,kmax), axis=nax))
             self.vkms = self.vkms[kmin:kmax]
 
 
     def copy_info_from_obsdata(self, obsdata):
-        if hasattr(obsdata, "conv_info"):
-            self.set_conv_info(
-                beam_maj_au=obsdata.beam_maj_au,
-                beam_min_au=obsdata.beam_min_au,
-                vreso_kms=obsdata.vreso_kms,
-                beam_pa_deg=obsdata.beam_pa_deg,
-            )
-            print("Here will be modified in near future")
+        if hasattr(obsdata, "obreso"):
+            self.obreso = obsdata.obreso
 
-        if hasattr(obsdata, "sobs_info"):
+        if hasattr(obsdata, "sobs_info") and (obsdata.sobs_info is not None):
             self.set_sobs_info(
                 iline=obsdata.iline,
                 molname=obsdata.molname,
@@ -768,6 +744,46 @@ class BaseObsData:
                 phi=obsdata.phi,
                 posang=obsdata.posang,
             )
+
+
+    def _complement_coord(self):
+        if self.ra is not None and self.dec is not None:
+            self.calc_radec_to_stdcoord()
+       # elif self.rad_deg is not None and self.dec_deg is not None:
+       #     self.update_radec_rad()
+       #     self.calc_radec_to_stdcoord()
+        elif self.xau is not None and self.yau is not None:
+            self.calc_stdcoord_to_radec()
+        else:
+            raise Exception("Incomplete data")
+
+    def calc_radec_to_stdcoord(self):
+        self.xau =  -self.dpc * nc.pc/nc.au * np.cos(self.dec0) * self.ra
+        self.yau = self.dpc * nc.pc/nc.au * self.dec
+
+    def calc_stdcoord_to_radec(self):
+        if self.dpc is None:
+            self.dpc = 1
+            print("****** Please set correct dpc *****")
+        self.dec0 = 0.5 * (self.yau[-1] + self.yau[0] ) * nc.au/(self.dpc * nc.pc)
+        self.ra0 = -0.5 * (self.xau[-1] + self.xau[0] ) * nc.au/(self.dpc * nc.pc * np.cos(self.dec0))
+        self.dec = self.yau * nc.au/(self.dpc * nc.pc)
+        self.ra = -self.xau * nc.au/(self.dpc * nc.pc * np.cos(self.dec0))
+
+    def set_radec_deg(self):
+        """
+        Set ra-dec coordinate in degree. This is useful sometimes.
+        """
+        self.dec0_deg = np.rad2deg(self.dec0)
+        self.rad0_deg = np.rad2deg(self.rad0)
+        self.dec_deg = np.rad2deg(self.dec)
+        self.rad_deg = np.rad2deg(self.rad)
+
+    def set_radec_rad(self, ra0, dec0, ra, dec):
+        self.dec0 = np.deg2rad(dec0)
+        self.ra0 = np.deg2rad(ra0)
+        self.dec = np.deg2rad(dec)
+        self.ra = np.deg2rad(ra)
 
 @dataclasses.dataclass
 class Obreso:
@@ -811,7 +827,6 @@ class Obreso:
             print("Something wrong in obsdata")
 
 
-#obj = Cube(Ippv, xau, yau, vkms, Iunit=Iunit, dpc=dpc, freq0=freq0)
 @dataclasses.dataclass
 class Cube(BaseObsData):
     """
@@ -819,52 +834,53 @@ class Cube(BaseObsData):
     But one can generate obsdata by reading fitsfile or radmcdata
     """
     Ippv: np.ndarray
-    xau: np.ndarray
-    yau: np.ndarray
-    vkms: np.ndarray
-    Nx: int = None
-    Ny: int = None
-    Nv: int = None
-    dx: float = None
-    dy: float = None
-    dv: float = None
-    Lx: float = None
-    Ly: float = None
-    Lv: float = None
-    dpc: float = None
-#    beam_maj_au: float = None
-#    beam_min_au: float = None
-#    vreso_kms: float = None
-#    beam_pa_deg: float = None
-    conv_info: dict=None
-    sobs_info: dict = None
-    Iunit: str=None
+    xau: np.ndarray = None
+    yau: np.ndarray = None
+    vkms: np.ndarray = None
+    ra: np.ndarray = None # in rad
+    dec: np.ndarray = None # in rad
+    freq: np.ndarray = None # in Hz
+    ra0: float = 0
+    dec0: float = 0
     freq0: float = None
-    #datatype: str = None
-   #  _axorder: dict = field(default_factory={"xau":0, "yau":1, "vkms":2})
+    dpc: float = None
+    obreso: dict=None
+    sobs_info: dict = None
+    Iunit: str = r"[Jy pixel$^{-1}$]"
     dtype = "Cube"
-    _axorder = {"xau":0, "yau":1, "vkms":2}
+    _axorder = {"ra":0, "dec":1, "xau":0, "yau": 1, "vkms": 2}
+    radec_deg: dataclasses.InitVar[tuple] = None
+    _Iname = "Ippv"
+    _axnames = ["xau", "yau", "vkms"]
 
-    def __post_init__(self):
-        self._check_data_shape()
+    def __post_init__(self, radec_deg):
+        if radec_deg:
+            self.set_radec_rad(*radec_deg)
+        self._complement_coord()
         self._reset_positive_axes(self.Ippv, [self.xau, self.yau, self.vkms])
         self._process_axinfo()
+        self._check_data_shape()
 
-    def _check_data_shape(self):
-        if self.Ippv.shape != (len(self.xau), len(self.yau), len(self.vkms)):
-           logger.info("Data type error")
-           raise Exception
 
     def _process_axinfo(self):
-        self.Nx = len(self.xau)
-        self.Ny = len(self.yau)
+#        self.Nx = len(self.xau)
+#        self.Ny = len(self.yau)
+        self.Nx = self.Nra = len(self.ra)
+        self.Ny = self.Ndec = len(self.dec)
         self.Nv = len(self.vkms)
+
         self.dx = self.xau[1] - self.xau[0]
         self.dy = self.yau[1] - self.yau[0]
         self.dv = self.vkms[1] - self.vkms[0]
+        self.dra = self.ra[1] - self.ra[0]
+        self.ddec = self.dec[1] - self.dec[0]
+
         self.Lx = self.xau[-1] - self.xau[0]
         self.Ly = self.yau[-1] - self.yau[0]
         self.Lv = self.vkms[-1] - self.vkms[0]
+        self.Lra = self.ra[-1] - self.ra[0]
+        self.Ldec = self.dec[-1] - self.dec[0]
+        self._axes = [self.xau, self.yau, self.vkms]
 
     def get_mom0_map(self, normalize="peak", method="sum", vlim=None):
         if self.Ippv.shape[2] == 1:
@@ -910,8 +926,10 @@ class Cube(BaseObsData):
             )
         else:
             Ipv = self.Ippv[:, 0, :]
+        #print(self.vkms)
+        #exit()
 
-        pv = PVmap(Ipv, self.xau, self.vkms, self.dpc, pangle_deg, poffset_au)
+        pv = PVmap(Ipv, xau=self.xau, vkms=self.vkms, dpc=self.dpc, pangle_deg=pangle_deg, poffset_au=poffset_au)
         pv.copy_info_from_obsdata(self)
         pv.normalize(Inorm)
         if save:
@@ -925,92 +943,18 @@ class Cube(BaseObsData):
         pos_y = xau * np.sin(PA_rad) + poffset_au * np.sin(PA_rad)
         return np.stack([pos_x, pos_y], axis=-1)
 
-    #def move_center(self, center_pos, ra=False, decl=False, deg=False, au=False):
-
-
-@dataclasses.dataclass
-class Image(BaseObsData):
-    Ipp: np.ndarray
-    xau: np.ndarray
-    yau: np.ndarray
-    dpc: float = None
-    Iunit: str = r"[Jy km s$^{-1}$ pixel$^{-1}$]"
-#    beam_maj_au: float = None
-#    beam_min_au: float = None
-#    vreso_kms: float = None
-#    beam_pa_deg: float = None
-    conv_info: dict=None
-    sobs_info: dict = None
-    fitsfile: str = None
-    freq0:float = None
-    dtype = "Image"
-    _axorder = {"xau":0, "yau":1}
-
-    def __post_init__(self):
-        self._check_data_shape()
-        self._reset_positive_axes(self.Ipp, [self.xau, self.yau])
-        self._process_axinfo()
-
-    def _check_data_shape(self):
-        if self.Ipp.shape != (len(self.xau), len(self.yau)):
-            logger.info("Data type error")
-            raise Exception
-
-    def _process_axinfo(self):
-        self.Nx = len(self.xau)
-        self.Ny = len(self.yau)
-        self.dx = self.xau[1] - self.xau[0]
-        self.dy = self.yau[1] - self.yau[0]
-        self.Lx = self.xau[-1] - self.xau[0]
-        self.Ly = self.yau[-1] - self.yau[0]
-
-    def get_peak_position(self, interp=True):
-        ip, jp = skimage.feature.peak_local_max(self.Ipp, num_peaks=1)[0]
-        xau_peak, yau_peak = self.xau[ip], self.yau[jp]
-
-        if interp:
-            fun = interpolate.RectBivariateSpline(self.xau, self.yau, self.Ipp)
-            dx = self.xau[1] - self.xau[0]
-            dy = self.yau[1] - self.yau[0]
-            res = optimize.minimize(
-                lambda _x: 1 / fun(_x[0], _x[1])[0, 0],
-                [xau_peak, yau_peak],
-                bounds=[
-                    (xau_peak - 4 * dx, xau_peak + 4 * dx),
-                    (yau_peak - 4 * dy, yau_peak + 4 * dy),
-                ],
-            )
-            return res.x[0], res.x[1]
-
-        return self.xau[ip], self.yau[jp]
-
-    def convert_perbeam_to_perpixel(self): # this could go base
-        bmaj = self.ob["beam_maj_au"]
-        bmin = self.conv_info["beam_min_au"]
-        A_beam = np.pi * bmaj * bmin
-        A_pix = self.dx * self.dy
-        self.Ipp *= A_pix / A_beam
-        self.Iunit = "Jy/pix"
-
 @dataclasses.dataclass
 class Image2(BaseObsData):
     data: np.ndarray
+    xau: np.ndarray = None
+    yau: np.ndarray = None
     ra: np.ndarray = None # in rad
     dec: np.ndarray = None # in rad
     ra0: float = 0
     dec0: float = 0
-    #ra_deg: np.ndarray = None # in deg
-    #dec_deg: np.ndarray = None # in deg
-    #dec0_deg: float = 0
-    #ra0_deg: float = 0
-    xau: np.ndarray = None
-    yau: np.ndarray = None
+
     dpc: float = None
     Iunit: str = r"[Jy pixel$^{-1}$]"
-#    beam_maj_au: float = None
-#    beam_min_au: float = None
-#    vreso_kms: float = None
-#    beam_pa_deg: float = None
     obreso: dict=None
     sobs_info: dict = None
     fitsfile: str = None
@@ -1018,6 +962,8 @@ class Image2(BaseObsData):
     dtype = "Image"
     _axorder = {"ra":0, "dec":1, "xau":0, "yau": 1}
     radec_deg: dataclasses.InitVar[tuple] = None
+    _Iname = "data"
+    _axnames = ["xau", "yau"]
 
     def __post_init__(self, radec_deg):
         if radec_deg:
@@ -1027,34 +973,6 @@ class Image2(BaseObsData):
         self._reset_positive_axes(self.data, [self.xau, self.yau])
         self._process_axinfo()
 
-    def _complement_coord(self):
-        if self.ra is not None and self.dec is not None:
-            self.calc_radec_to_stdcoord()
-       # elif self.rad_deg is not None and self.dec_deg is not None:
-       #     self.update_radec_rad()
-       #     self.calc_radec_to_stdcoord()
-        elif self.xau is not None and self.yau is not None:
-            self.calc_stdcoord_to_radec()
-        else:
-            raise Exception("Incomplete data")
-
-    def calc_radec_to_stdcoord(self):
-        self.xau =  -self.dpc * nc.pc/nc.au * np.cos(self.dec0) * self.ra
-        self.yau = self.dpc * nc.pc/nc.au * self.dec
-
-    def calc_stdcoord_to_radec(self):
-        if self.dpc is None:
-            self.dpc = 1
-            print("Please set dpc")
-        self.dec0 = 0.5 * (self.yau[-1] + self.yau[0] ) * nc.au/(self.dpc * nc.pc)
-        self.ra0 = -0.5 * (self.xau[-1] + self.xau[0] ) * nc.au/(self.dpc * nc.pc * np.cos(self.dec0))
-        self.dec = self.yau * nc.au/(self.dpc * nc.pc)
-        self.ra = -self.xau * nc.au/(self.dpc * nc.pc * np.cos(self.dec0))
-
-    def _check_data_shape(self):
-        if self.data.shape != (len(self.ra), len(self.dec)):
-            logger.info("Data type error")
-            raise Exception
 
     def _process_axinfo(self):
         self.Nx = self.Nra = len(self.ra)
@@ -1067,6 +985,7 @@ class Image2(BaseObsData):
         self.Ldec = self.dec[-1] - self.dec[0]
         self.Lx = self.xau[-1] - self.xau[0]
         self.Ly = self.xau[-1] - self.xau[0]
+        self._axes = [self.xau, self.yau]
 
     def get_peak_position(self, interp=True):
         #ip, jp = skimage.feature.peak_local_max(self.data, num_peaks=1)[0]
@@ -1115,27 +1034,13 @@ class Image2(BaseObsData):
         self.data *= A_pix / A_beam
         self.Iunit = "Jy/pix"
 
-    def set_radec_deg(self):
-        """
-        Set ra-dec coordinate in degree. This is useful sometimes.
-        """
-        self.dec0_deg = np.rad2deg(self.dec0)
-        self.rad0_deg = np.rad2deg(self.rad0)
-        self.dec_deg = np.rad2deg(self.dec)
-        self.rad_deg = np.rad2deg(self.rad)
-
-    def set_radec_rad(self, ra0, dec0, ra, dec):
-        self.dec0 = np.deg2rad(dec0)
-        self.ra0 = np.deg2rad(ra0)
-        self.dec = np.deg2rad(dec)
-        self.ra = np.deg2rad(ra)
-
 
 @dataclasses.dataclass
 class PVmap(BaseObsData):
     Ipv: np.ndarray = None
     xau: np.ndarray = None
     vkms: np.ndarray = None
+    x: np.ndarray = None
     dpc: float = None
     pangle_deg: float = None
     poffset_au: float = None
@@ -1150,17 +1055,17 @@ class PVmap(BaseObsData):
     #_axorder: dict = field(default_factory={"xau":0, "vkms":1})
     _axorder ={"xau":0, "vkms":1}
     dtype = "PVmap"
+    _Iname = "Ipv"
+    _axnames = ["xau", "vkms"]
 
     def __post_init__(
         self,
     ):
-        self._check_data_shape()
+        print(self)
+        #self._check_data_shape()
         self._reset_positive_axes(self.Ipv, [self.xau, self.vkms])
         self._process_axinfo()
-    def _check_data_shape(self):
-        if self.Ipv.shape != (len(self.xau), len(self.vkms)):
-            logger.info("Data type error")
-            raise Exception
+        self._check_data_shape()
 
 
     def _process_axinfo(self):
@@ -1170,6 +1075,7 @@ class PVmap(BaseObsData):
         self.dv = self.vkms[1] - self.vkms[0]
         self.Lx = self.xau[-1] - self.xau[0]
         self.Lv = self.vkms[-1] - self.vkms[0]
+        self._axes = [self.xau, self.vkms]
 
 
     def normalize(self, Ipv_norm=None):
@@ -1213,26 +1119,13 @@ class PVmap(BaseObsData):
         pv = self.reversed_x()
         return pv.reversed_v()
 
+    """
     def offset_x(self, dx):
-        # self.Ipv = self.Ipv[:,::-1]
         self.xau += dx
 
     def offset_v(self, dv):
         self.vkms += dv
-
-    def trim(self, range_x=None, range_v=None):
-        if range_x is not None:
-            imax, imin = [np.abs(self.xau - xl).argmin() for xl in range_x]
-            self.Ipv = self.Ipv[:, imin:imax+1]
-            self.xau = self.xau[imin:imax+1]
-
-        if range_v is not None:
-            jmin, jmax = [np.abs(self.vkms - vl).argmin() for vl in range_v]
-            self.Ipv = self.Ipv[jmin:jmax+1, :]
-            self.vkms = self.vkms[jmin:jmax+1]
-
-
-
+    """
 
 #########################################################
 # Save & Read Functions
@@ -1360,7 +1253,6 @@ def read_radmcdata(data):
     #    print("Something might be wrong in reading a radmcdata")
     #    exit(1)
 
-    print(Cube)
     if dtype == "cube":
         obj = Cube(Ippv, xau, yau, vkms, Iunit=Iunit, dpc=dpc, freq0=freq0)
 
@@ -1380,9 +1272,12 @@ def read_pv_fits(
     return read_fits(filepath, "pv", dpc=dpc)
 
 def read_cube_fits(
-    filepath, unit1="au", unit2="au", unit3="kms", dpc=1, unit1_cm=None, unit2_cm=None, unit3_cms=None, v0_kms=0
+    #filepath, unit1=None, unit2=None, unit3=None, dpc=1, unit1_cm=None, unit2_cm=None, unit3_cms=None, v0_kms=0
+    filepath, unit1=None, unit2=None, unit3=None, dpc=1
 ):
-    return read_fits(filepath, "cube", dpc=dpc)
+    #return read_fits(filepath, "cube", dpc=dpc)
+#    return read_fits(filepath, "cube", dpc=dpc)
+    return read_fits(filepath, "cube", dpc=dpc, unit1=unit1, unit2=unit2,  unit3=unit3) #, unit1_fac=unit1_cm, unit2_fac=unit2_cm, unit3_fac=unit3_cms)
 
 #!Constracting!
 
@@ -1393,37 +1288,32 @@ def read_fits(filepath, fitstype, dpc, unit1=None, unit2=None, unit3=None, unit1
     hdul = afits.open(filepath)[0]
     header = hdul.header
     data = hdul.data.T ## .T is due to data shape
-
 #    print(header)
-
     naxis = header["NAXIS"]
     wcs = astropy.wcs.WCS(header, naxis=naxis)
 #    logger.debug("header:\n" + textwrap.fill(str(header), 80) + "\n")
-    centerpix = wcs.wcs.crpix # should be improved into the center pixcoord
+    centerpix = wcs.wcs.crpix - 1 # should be improved into the center pixcoord
+    #print(centerpix)
     axref =  wcs.wcs_pix2world([centerpix], 0)[0]
+    #print(centerpix, axref)
+    #exit()
 
     Iunit = Iunit if Iunit is not None else (header["BUNIT"] if "BUNIT" in header else None)
     unit1 = unit1 if unit1 is not None else ( header["CUNIT1"].rstrip() if "CUNIT1" in header else None )
     unit2 = unit2 if unit2 is not None else ( header["CUNIT2"].rstrip() if "CUNIT2" in header else None )
     unit3 = unit3 if unit3 is not None else ( header["CUNIT3"].rstrip() if "CUNIT3" in header else None )
 
-    def _get_ax(axnum):
+    def _get_ax(axnum, sub=True):
         n = header[f"NAXIS{axnum:d}"]
         pixcoord = np.tile(centerpix, (n,1))
-
-#        print(pixcoord)
-#        ax_2 = wcs.array_index_to_world_values(pixcoord, 0)[:,axnum-1]
-#        print(axnum, ax_2[1] - ax_2[0] )
-
-        pixcoord[:,axnum-1] = np.arange(n)
-#        print(pixcoord)
+        pixcoord[:,axnum-1] = np.arange(0, n) # pixcoord in python starts from 0 but that in fits from 1 ??
         ax = wcs.wcs_pix2world(pixcoord, 0)[:,axnum-1]
-        axc =  wcs.wcs_pix2world([centerpix], 0)[:,axnum-1]
-        print(axnum, ax[1] - ax[0])
-        ax_1 = wcs.p4_pix2foc(pixcoord, 0)[:,axnum-1]
-#        axc_1 =  wcs.all_pix2world([centerpix], 0)[:,axnum-1]
-        print(axnum, ax_1)
-        return ax - axc
+        if sub:
+            axc =  wcs.wcs_pix2world([centerpix], 0)[:,axnum-1]
+            return ax - axc
+        else:
+            return ax
+
 
     def _add_beam_info(obj, dpc, vkms=None):
         if not "BMAJ" in header:
@@ -1459,12 +1349,9 @@ def read_fits(filepath, fitstype, dpc, unit1=None, unit2=None, unit3=None, unit1
                 raise Exception
         else:
             ndata = data
-        #print(ndata.shape)
-        #if transpose:
-        #    ndata = ndata.T
         return ndata
 
-    def _get_lenscale(unit_name=None, unit_cm=None):
+    def _lfac_to_cm(unit_name=None, unit_cm=None):
         if unit_cm is not None:
             logger.info(
                 "   1st axis is interpreted as POSITION "
@@ -1477,9 +1364,10 @@ def read_fits(filepath, fitstype, dpc, unit1=None, unit2=None, unit3=None, unit1
             fac = 1.0
         else:
             raise Exception("Unknown datatype in 1st axis")
+        #print(fac)
         return fac
 
-    def _get_velscale(unit_name=None, unit_cms=None):
+    def _vfac_to_kms(unit_name=None, unit_cms=None):
         if unit_cms:
             logger.info(
                 "   **nd axis is interpreted as VELOCITY "
@@ -1511,41 +1399,33 @@ def read_fits(filepath, fitstype, dpc, unit1=None, unit2=None, unit3=None, unit1
         ax1 = _get_ax(1) #* _get_lenscale(unit_name=unit1, unit_cm=unit1_fac)
         ax2 = _get_ax(2) #* _get_lenscale(unit_name=unit2, unit_cm=unit2_fac)
         data = _data_shape_convert(data, 2)
-        #print(data.shape, _get_ax(1).shape, xau.shape, yau.shape)
         if unit1 == "deg":
             radec_deg=(axref[0], axref[1], ax1, ax2)
-            im = Image2(data, radec_deg=radec_deg, dpc=dpc, Iunit=Iunit, freq0=freq0)
+            obj = Image2(data, radec_deg=radec_deg, dpc=dpc, Iunit=Iunit, freq0=freq0)
         elif unit1 == "au":
-            im = Image2(data, xau=ax1, yau=ax2, dpc=dpc, Iunit=Iunit, freq0=freq0)
-        _add_beam_info(im, dpc)
-        obj = im
-        """
-        xau = _get_ax(1) * _get_lenscale(unit_name=unit1, unit_cm=unit1_fac)
-        yau = _get_ax(2) * _get_lenscale(unit_name=unit2, unit_cm=unit2_fac)
-        data = _data_shape_convert(data, 2)
-        #print(data.shape, _get_ax(1).shape, xau.shape, yau.shape)
-        im = Image(data, xau, yau, dpc=dpc, Iunit=Iunit, freq0=freq0)
-        _add_beam_info(im, dpc)
-        obj = im
-        """
+            obj = Image2(data, xau=ax1, yau=ax2, dpc=dpc, Iunit=Iunit, freq0=freq0)
 
     elif fitstype.lower()=="pv":
-        xau = _get_ax(1) * _get_lenscale(unit_name=unit1, unit_cm=unit1_fac)
-        vkms = _get_ax(2) * _get_velscale(unit_name=unit2, unit_cms=unit2_fac)
+        ax1 = _get_ax(1) #* _get_lenscale(unit_name=unit1, unit_cm=unit1_fac)
+        ax2 = _get_ax(2) * _vfac_to_kms(unit_name=unit2, unit_cms=unit2_fac) #* _get_velscale(unit_name=unit2, unit_cms=unit2_fac)
         data = _data_shape_convert(data, 2)
-        pv = PVmap(data, xau, vkms, dpc=dpc, Iunit=Iunit, freq0=freq0)
-        _add_beam_info(pv, dpc, vkms)
-        obj = pv
+        if  unit1 == "deg":
+            radec_deg=(axref[0], axref[1], ax1, ax2)
+            obj = PVmap(data, radec_deg=radec_deg, dpc=dpc, Iunit=Iunit, freq0=freq0)
+        elif unit1 == "au":
+            obj = PVmap(data, xau=ax1, vkms=ax2, dpc=dpc, Iunit=Iunit, freq0=freq0)
 
     elif fitstype.lower()=="cube":
-        xau = _get_ax(1) * _get_lenscale(unit_name=unit1, unit_cm=unit1_fac)
-        yau = _get_ax(2) * _get_lenscale(unit_name=unit2, unit_cm=unit2_fac)
-        vkms = _get_ax(3) * _get_velscale(unit_name=unit3, unit_cms=unit3_fac)
+        ax1 = _get_ax(1) #* _get_lenscale(unit_name=unit1, unit_cm=unit1_fac)
+        ax2 = _get_ax(2) #* _get_lenscale(unit_name=unit2, unit_cm=unit2_fac)
+        ax3 = _get_ax(3, sub=0) * _vfac_to_kms(unit_name=unit3, unit_cms=unit3_fac)
         data = _data_shape_convert(data, 3)
-        cube = Cube(data, xau, yau, vkms, dpc=dpc, Iunit=Iunit, freq0=freq0)
-        _add_beam_info(cube, dpc, vkms)
-        obj = cube
-
+        if unit1 == "deg":
+            radec_deg=(axref[0], axref[1], ax1, ax2)
+            obj = Cube(data, radec_deg=radec_deg, vkms=ax3, dpc=dpc, Iunit=Iunit, freq0=freq0)
+        elif unit1 == "au":
+            obj = Cube(data, xau=ax1, yau=ax2, vkms=ax3, dpc=dpc, Iunit=Iunit, freq0=freq0)
+    _add_beam_info(obj, dpc)
     return obj
 
 
@@ -1582,6 +1462,7 @@ def decl_to_deg(deg, arcmin, arcsec):
 #########################################################
 
 def minmaxargs(array, lim):
+    #print(array, lim)
     imin, imax = np.take(np.argwhere((array>lim[0]) & (array<lim[-1])), (0,-1))
     return imin, imax+1
 

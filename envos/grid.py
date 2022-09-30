@@ -89,7 +89,7 @@ class Grid:
         aspect_ratio=1.0,
         logr=True,
     ):
-        thax_ver = 3
+        thax_ver = 1
         ismirror = True if abs(theta_lim[1] - np.pi/2) < 1e-8 else False
 
         if dr_to_r is not None:
