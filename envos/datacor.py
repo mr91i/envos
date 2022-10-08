@@ -63,7 +63,7 @@ def calc_datacor(
 
     #newgrid = np.stack(np.meshgrid(*axes), axis=-1)
     newgrid = np.stack(np.meshgrid(*axes_newgrid), axis=-1)
-    _interp_option = {}
+    _interp_option = {"bounds_error":False, "fill_value":0}
     _interp_option.update(interp_option)
 
     ## Make data
@@ -85,7 +85,6 @@ def calc_datacor(
 
     if norm2:
         im2 /= np.max(im2)
-
 
     if threshold1 is not None:
         im1 = np.where(im1 > threshold1, im1, 0)

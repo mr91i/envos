@@ -1040,7 +1040,8 @@ class PVmap(BaseObsData):
     Ipv: np.ndarray = None
     xau: np.ndarray = None
     vkms: np.ndarray = None
-    x: np.ndarray = None
+    xrad: np.ndarray = None
+    xrad0: float = None
     dpc: float = None
     pangle_deg: float = None
     poffset_au: float = None
@@ -1063,6 +1064,9 @@ class PVmap(BaseObsData):
     ):
         print(self)
         #self._check_data_shape()
+        #self._complement_coord()
+        if self.xrad is not None:
+            self.xau = (self.xrad - self.xrad0) * self.dpc * nc.pc / nc.au 
         self._reset_positive_axes(self.Ipv, [self.xau, self.vkms])
         self._process_axinfo()
         self._check_data_shape()
@@ -1073,7 +1077,9 @@ class PVmap(BaseObsData):
         self.Nv = len(self.vkms)
         self.dx = self.xau[1] - self.xau[0]
         self.dv = self.vkms[1] - self.vkms[0]
+        self.dxrad =  self.xrad[1] - self.xrad[0]
         self.Lx = self.xau[-1] - self.xau[0]
+        self.Lxrad = self.xrad[-1] - self.xrad[0]
         self.Lv = self.vkms[-1] - self.vkms[0]
         self._axes = [self.xau, self.vkms]
 
@@ -1264,26 +1270,26 @@ def read_radmcdata(data):
 def read_image_fits(
     filepath, unit1="au", unit2="au", dpc=1, unit1_cm=None, unit2_cm=None
 ):
-    return read_fits(filepath, "image", dpc=dpc)
+    return read_fits(filepath, "image", dpc=dpc, unit1=unit1, unit2=unit2)
 
 def read_pv_fits(
     filepath, unit1="au", unit2="kms", dpc=1, unit1_cm=None, unit2_cms=None, v0_kms=0
 ):
-    return read_fits(filepath, "pv", dpc=dpc)
+    return read_fits(filepath, "pv", dpc=dpc, unit1=unit1, unit2=unit2, v0_kms=v0_kms)
 
 def read_cube_fits(
     #filepath, unit1=None, unit2=None, unit3=None, dpc=1, unit1_cm=None, unit2_cm=None, unit3_cms=None, v0_kms=0
-    filepath, unit1=None, unit2=None, unit3=None, dpc=1
+    filepath, unit1=None, unit2=None, unit3=None, dpc=1, v0_kms=0
 ):
     #return read_fits(filepath, "cube", dpc=dpc)
 #    return read_fits(filepath, "cube", dpc=dpc)
-    return read_fits(filepath, "cube", dpc=dpc, unit1=unit1, unit2=unit2,  unit3=unit3) #, unit1_fac=unit1_cm, unit2_fac=unit2_cm, unit3_fac=unit3_cms)
+    return read_fits(filepath, "cube", dpc=dpc, unit1=unit1, unit2=unit2,  unit3=unit3, v0_kms=v0_kms) #, unit1_fac=unit1_cm, unit2_fac=unit2_cm, unit3_fac=unit3_cms)
 
 #!Constracting!
 
 from astropy.nddata import CCDData
 
-def read_fits(filepath, fitstype, dpc, unit1=None, unit2=None, unit3=None, unit1_fac=None, unit2_fac=None, unit3_fac=None, Iunit=None):
+def read_fits(filepath, fitstype, dpc, unit1=None, unit2=None, unit3=None, unit1_fac=None, unit2_fac=None, unit3_fac=None, Iunit=None, v0_kms=0):
     logger.info(f"Reading fits file: {filepath}")
     hdul = afits.open(filepath)[0]
     header = hdul.header
@@ -1407,11 +1413,13 @@ def read_fits(filepath, fitstype, dpc, unit1=None, unit2=None, unit3=None, unit1
 
     elif fitstype.lower()=="pv":
         ax1 = _get_ax(1) #* _get_lenscale(unit_name=unit1, unit_cm=unit1_fac)
-        ax2 = _get_ax(2) * _vfac_to_kms(unit_name=unit2, unit_cms=unit2_fac) #* _get_velscale(unit_name=unit2, unit_cms=unit2_fac)
+        ax2 = _get_ax(2,sub=0) * _vfac_to_kms(unit_name=unit2, unit_cms=unit2_fac) #* _get_velscale(unit_name=unit2, unit_cms=unit2_fac)
+        ax2 -= v0_kms
         data = _data_shape_convert(data, 2)
         if  unit1 == "deg":
-            radec_deg=(axref[0], axref[1], ax1, ax2)
-            obj = PVmap(data, radec_deg=radec_deg, dpc=dpc, Iunit=Iunit, freq0=freq0)
+            #radec_deg=(axref[0], axref[1], ax1, ax2)
+            #print(radec_deg)
+            obj = PVmap(data, xrad=np.deg2rad(ax1), xrad0=np.deg2rad(axref[0]),  vkms=ax2, dpc=dpc, Iunit=Iunit, freq0=freq0)
         elif unit1 == "au":
             obj = PVmap(data, xau=ax1, vkms=ax2, dpc=dpc, Iunit=Iunit, freq0=freq0)
 
@@ -1419,6 +1427,7 @@ def read_fits(filepath, fitstype, dpc, unit1=None, unit2=None, unit3=None, unit1
         ax1 = _get_ax(1) #* _get_lenscale(unit_name=unit1, unit_cm=unit1_fac)
         ax2 = _get_ax(2) #* _get_lenscale(unit_name=unit2, unit_cm=unit2_fac)
         ax3 = _get_ax(3, sub=0) * _vfac_to_kms(unit_name=unit3, unit_cms=unit3_fac)
+        ax3 -= v0_kms
         data = _data_shape_convert(data, 3)
         if unit1 == "deg":
             radec_deg=(axref[0], axref[1], ax1, ax2)

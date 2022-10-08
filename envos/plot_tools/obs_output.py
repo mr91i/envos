@@ -51,6 +51,7 @@ def plot_mom0_map(
         # exit()
     elif cube.dtype == "Image":
         Ipp = cube.get_I()
+
     else:
         raise Exception("Data type error")
 
@@ -76,7 +77,8 @@ def plot_mom0_map(
     cbar = plt.colorbar(img, pad=0.02)
     cbar.set_label(r"$I ~/ ~I_{\rm max}$")
 
-    ticks = np.around(np.linspace(0,1, 11), decimals=1)
+    ticks = np.around(np.linspace(0, 1, 11), decimals=1)
+    print(ticks)
     cbar.set_ticks(ticks)
     cbar.set_ticklabels(ticks)
     cbar.ax.minorticks_off()
