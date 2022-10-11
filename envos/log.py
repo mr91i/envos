@@ -6,7 +6,7 @@ loggers = {}
 logger_level = logging.INFO
 stream_level = logging.INFO
 file_level = logging.INFO
-debug_logger = 1
+debug_logger = 0
 
 
 def set_logger(name, htype="stream", filepath=None):
@@ -91,7 +91,6 @@ def add_file_hdlr(logger, path, level=None, write_mode="w"):
     hdlr.setFormatter(StandardFormatter())
     hdlr.setLevel(level)
     logger.addHandler(hdlr)
-
 
     if debug_logger:
         print("logger after _add_file_handler", logger)
