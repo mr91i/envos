@@ -25,8 +25,8 @@ def main(conf):
     #do_parameter_study(conf)
     #exit()
     #do_pmap_survey_for_mass_estimate(conf)
-    #do_pmap_survey_for_cube_correlation(conf)
-    compare_bestmodel_obspvs(conf)
+    do_pmap_survey_for_cube_correlation(conf)
+    #compare_bestmodel_obspvs(conf)
     # do_ring_test()
     #plot_obspv(conf)
     # do_disk_envelope_runs()
@@ -193,14 +193,14 @@ def do_pmap_survey_for_cube_correlation(conf, single=False): # for mass estimate
     def task(_conf, M, CR, model):
         label = f"{model}_M{M}_cr{CR}"
         if model == "Simple":
-            conf = _conf.replaced(cavangle_deg=80)
+            _conf = _conf.replaced(cavangle_deg=80)
 
         _conf = _conf.replaced(
             Ms_Msun=M,
             CR_au=CR,
             inenv=model,
             #cavangle_deg=ca,
-            run_dir=f"./cubes4/run_" + label,
+            run_dir=f"./cubes5/run_" + label,
             n_thread = 1,
             dr_to_r = 0.02,
         #    nphot=1e4, #1e7,
@@ -218,8 +218,9 @@ def do_pmap_survey_for_cube_correlation(conf, single=False): # for mass estimate
 
     model = ["UCM", "Simple"]
     #model = ["Simple"]
-    Mlist = np.linspace(0, 0.5, 20) # 0.025
-    crlist = np.linspace(0, 300, 20) # 15
+    Mlist = np.linspace(0, 0.6, 30) # 0.025
+    crlist = np.linspace(0, 600, 30) # 15
+    # 0 -- 300
     #Mlist = np.linspace(0, 0.25, 10)
     #crlist = np.linspace(100, 250, 10)
     #params = np.array(list(product(Mlist[1:], crlist[1:], model)) )
