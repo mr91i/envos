@@ -17,11 +17,13 @@ def calc_datacor(
     norm1=False,
     norm2=False,
     interp_option={},
+    get_images=False,
 ):
     ## Set axes
     axes_data = data1.get_axes()
     axes_newgrid = []
     for _ax_data, _range, _ax_user in itertools.zip_longest(axes_data, ranges, axes):
+     #   print(_ax_data, _range, _ax_user)
         if _range is None:
             continue
         cond = (_range[0] < _ax_data) & (_ax_data < _range[1])
@@ -30,12 +32,19 @@ def calc_datacor(
 
     grid = np.meshgrid(*axes_newgrid, indexing="ij") 
     newgrid = np.stack(grid, axis=-1)
+    #print(*axes_newgrid)
+    #print(data2)
+    #exit()
     _interp_option = {} # {"bounds_error":False, "fill_value":0}
     _interp_option.update(interp_option)
 
     ## Make data
     im1 = interpolate.interpn(data1.get_axes(), data1.get_I(), newgrid, **_interp_option)
     im2 = interpolate.interpn(data2.get_axes(), data2.get_I(), newgrid, **_interp_option)
+
+    #print(data1.get_axes())
+    #print(data2.get_axes())
+    #exit()
     
     if norm1:
         im1 /= np.max(im1)
@@ -49,6 +58,9 @@ def calc_datacor(
     if threshold2 is not None:
         im2 = np.where(im2 > threshold2, im2, floor)
 
+    if im1.shape != im2.shape:
+        raise Exception("Wrong data shape")
+
     if method == "ZNCC":
         res = calc_ZNCC_data(im1, im2)
     elif method == "SSD":
@@ -57,7 +69,19 @@ def calc_datacor(
     if np.isnan(res):
         raise Exception("Nan!")
 
-    return res
+    if get_images:
+        d1 = data1.copy()
+        d1.set_I(im1)
+        d1.set_axes(axes_newgrid)
+        d2 = data2.copy()
+        d2.set_I(im2)
+        d2.set_axes(axes_newgrid)
+        #print(d1)
+        #print(d1)
+        #exit()
+        return res, (d1, d2)
+    else:
+        return res
 
 def calc_ZNCC_data(im1, im2):
     indmax1 = np.array( im1.shape )
