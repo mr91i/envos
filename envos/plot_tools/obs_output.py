@@ -29,6 +29,7 @@ def plot_mom0_map(
     normalize=False,
     xlim=(-700, 700),
     ylim=(-700, 700),
+    clim=(None, None),
 ):
     def position_line(length, pangle_deg, poffset_au=0):
         line = np.linspace(-length / 2, length / 2, 10)
@@ -37,6 +38,11 @@ def plot_mom0_map(
         pos_y = line * np.sin(pangle_rad) + poffset_au * np.sin(pangle_rad)
         return pos_x, pos_y
         # return np.stack([pos_x, pos_y], axis=-1)
+#    def position_line(xau, PA_deg, poffset_au=0):
+#        PA_rad = (PA_deg + 90) * np.pi / 180
+#        pos_x = xau * np.cos(PA_rad) - poffset_au * np.sin(PA_rad)
+#        pos_y = xau * np.sin(PA_rad) + poffset_au * np.sin(PA_rad)
+#        return np.stack([pos_x, pos_y], axis=-1)
 
     if cube.dtype == "Cube":  # # hasattr(cube, "Ippv"):
         if len(cube.vkms) >= 2:
@@ -58,8 +64,13 @@ def plot_mom0_map(
     if normalize:
         Ipp /= np.max(Ipp)
 
-    lvs = np.linspace(0, np.max(Ipp), 101)
+    #lvs = np.linspace(0, np.max(Ipp), 101)
     # plt.figure(figsize=(8, 6))
+    lvs = np.linspace(
+        clim[0] if clim[0] is not None else np.min(Ipp),  
+        clim[1] if clim[1] is not None else np.max(Ipp), 
+        n_lv + 1
+    )
 
     img = plt.pcolormesh(
         cube.xau,
@@ -72,15 +83,20 @@ def plot_mom0_map(
     )
     plt.xlim(xlim[0], xlim[1])
     plt.ylim(ylim[0], ylim[1])
-    plt.xlabel(r"$\Delta$RA [au]")
-    plt.ylabel(r"$\Delta$Dec [au]")
+    plt.xlabel(r" $-\xi$ [au]")
+    plt.ylabel(r" $\eta$ [au]")
     cbar = plt.colorbar(img, pad=0.02)
     cbar.set_label(r"$I ~/ ~I_{\rm max}$")
 
-    ticks = np.around(np.linspace(0, 1, 11), decimals=1)
-    print(ticks)
+#    ticks = np.around(np.linspace(0, 1, 11), decimals=1)
+#    print(ticks)
+#    cbar.set_ticks(ticks)
+#    cbar.set_ticklabels(ticks)
+#    cbar.ax.minorticks_off()
+
+    ticks = np.linspace(lvs[0], lvs[-1], 11 )
     cbar.set_ticks(ticks)
-    cbar.set_ticklabels(ticks)
+    #cbar.set_ticklabels(ticks)
     cbar.ax.minorticks_off()
 
     ax = plt.gca()
@@ -92,6 +108,7 @@ def plot_mom0_map(
         for _pangle_deg in pangle_deg:
             x, y = position_line(1400, _pangle_deg)
             # plt.plot(x, y, ls="--", c="w", lw=1.5)
+            #xy = position_line(cube.xau[-1] - cube.xau[0], _pangle_deg) #position_line(cbe.xau, _pangle_deg)
             ax.annotate(
                 "",
                 xy=[x[-1], y[-1]],
@@ -268,16 +285,16 @@ def plot_pvdiagram(
     mapmode="grid",
     oplot={},
     subax=False,
-    figsize=None,  # (8, 6),
+    figsize=None,
     xlim=(-700, 700),
     ylim=(-2.5, 2.5),
+    clim=(None, None),
     show_beam=True,
     discrete=True,
     contour=True,
     refpv=None,
     loglog=False,
     out="pvdiagrams.pdf",
-    clim=(0, None),
 ):
     Ipv = pv.Ipv
     xau = pv.xau
@@ -285,7 +302,9 @@ def plot_pvdiagram(
 
     plt.figure(figsize=figsize)
     lvs = np.linspace(
-        clim[0], clim[1] if clim[1] is not None else np.max(Ipv), n_lv + 1
+        clim[0] if clim[0] is not None else np.min(Ipv),  
+        clim[1] if clim[1] is not None else np.max(Ipv), 
+        n_lv + 1
     )
     nlvs = len(lvs)
 
@@ -296,20 +315,18 @@ def plot_pvdiagram(
         norm = mc.BoundaryNorm(lvs, n_lv, clip=False)
     else:
         cmap = plt.get_cmap("cividis")
-        norm = mc.Normalize(vmin=0, vmax=np.max(Ipv))
-
+        norm = mc.Normalize(vmin=lvs[0], vmax=lvs[-1])
 
     img = plt.pcolormesh(
         xx,
         yy,
         Ipv,
-        cmap=cmap,  # make_listed_cmap("cividis", n_lv, extend="neither"),
-        norm=norm,  # mc.BoundaryNorm(lvs, n_lv, clip=False),
+        cmap=cmap,  
+        norm=norm,  
         shading="nearest",
         rasterized=True,
         alpha=.9
     )
-
     plt.xlim(*xlim)
     plt.ylim(*ylim)
     plt.xlabel(r"Offset from Center $x$ [au]")
@@ -317,25 +334,10 @@ def plot_pvdiagram(
     cbar = plt.colorbar(img, pad=0.02)
     cbar.set_label(r"$I_{V} ~/ ~I_{V,\rm max}$")
 
-    ticks = np.around(np.linspace(0,1, 11), decimals=1)
+    ticks = np.linspace(lvs[0], lvs[-1], 11 )
     cbar.set_ticks(ticks)
-    cbar.set_ticklabels(ticks)
+    #cbar.set_ticklabels(ticks)
     cbar.ax.minorticks_off()
-
-    def calc_xmean(Ip):
-        Ip = np.where(Ip > 0.1, Ip, 0)
-        Ip = np.where(xau > 0, Ip, 0)
-        return integrate.simpson(Ip * xau, xau) / integrate.simpson(Ip, xau)
-
-    def calc_vmean(Iv):
-        Iv = np.where(Iv > 0.1, Iv, 0)
-        Iv = np.where(vkms > 0, Iv, 0)
-        return integrate.simpson(Iv * vkms, vkms) / integrate.simpson(Iv, vkms)
-
-    # xmean = [calc_xmean(Ip) for Ip in Ipv.T]
-    # plt.scatter(xmean, vkms, c="r", marker="o", s=4)
-    # vmean = [calc_vmean(Iv) for Iv in Ipv ]
-    # plt.scatter(xau, vmean, c="y", marker="o", s=4)
 
     if loglog:
         plt.xlim(30, 1000)
@@ -343,22 +345,18 @@ def plot_pvdiagram(
         plt.xscale("log")
         plt.yscale("log")
         x = np.geomspace(10, 1000)
-
         func1 = lambda x: 0.03 * (x / 1e4) ** (-1)
         plt.plot(x, func1(x), c="w", ls="--", lw=2, zorder=10)
         plt.text(400 * 1.1, func1(400) * 1.1, r"$x^{-1} $", c="w", size=20, zorder=10)
-
         func2 = lambda x: 0.1 * (x / 1e4) ** (-0.5)
         plt.plot(x, func2(x), c="w", ls=":", lw=2, zorder=10)
         plt.text(50 * 1.1, func2(50) * 1.1, r"$x^{-0.5}$", c="w", size=20, zorder=10)
-
         if 0:
             xx, vv = np.meshgrid(xau, vkms, indexing="ij")
             vpeaks = np.array(
                 [get_maximum_position(vkms, Iv) for Iv in np.where(vv > 0, Ipv, 0)]
             )
             plt.scatter(xau[vpeaks > 0], vpeaks[vpeaks > 0], c="red", marker="o", s=4)
-
         show_beam = False
 
     ax = plt.gca()
@@ -367,15 +365,15 @@ def plot_pvdiagram(
     # ax.tick_params("both", direction="inout")
     ax.tick_params(direction="inout")
 
-
     if contour:
+        contlvs = np.array([0.3, 0.5, 0.7, 0.9])
         c = "k"#, "dimgray"
         img = plt.contour(
             xx,
             yy,
             Ipv,
-            [0.3, 0.5, 0.7, 0.9], #np.linspace(lvs[0], lvs[-1], 6),
-            colors=c,  # make_listed_cmap("cividis", n_lv, extend="neither"),
+            contlvs*(lvs[-1] - lvs[0]) + lvs[0],
+            colors=c, # make_listed_cmap("cividis", n_lv, extend="neither"),
             norm=mc.Normalize(vmin=0, vmax=np.max(Ipv)),  # mc.BoundaryNorm(lvs, n_lv, clip=False),
             corner_mask=False,
             linewidths=1.3,
@@ -387,6 +385,7 @@ def plot_pvdiagram(
         plt.scatter(x_ipeak, v_ipeak, s=15, alpha=0.9, linewidth=1, c=c, ec=None,zorder=4)
 
     if refpv:
+        contlvs = np.array([0.3, 0.5, 0.7, 0.9])
         x_ipeak, v_ipeak = get_coord_ipeak(refpv.xau, refpv.vkms, refpv.Ipv, mode="max")
         # x_vmax, v_vmax = get_coord_vmax(refpv.xau, refpv.vkms, refpv.Ipv, f_crit)
         c="#88CCFF" #"lightsalmon"#"mistyrose"
@@ -394,8 +393,7 @@ def plot_pvdiagram(
             refpv.xau,
             refpv.vkms,
             refpv.Ipv.T.clip(1e-10),
-            #[0.1, 0.3, 0.5, 0.7, 0.9], #np.linspace(lvs[0], lvs[-1], 6),
-            [0.3, 0.5, 0.7, 0.9], #np.linspace(lvs[0], lvs[-1], 6),
+            contlvs*(lvs[-1] - lvs[0]) + lvs[0],
             colors=c,
             linewidths=.9,
             linestyles="-",
@@ -414,7 +412,6 @@ def plot_pvdiagram(
             Ms_Msun=Ms_Msun,
             rCR_au=rCR_au,
             f_crit=f_crit,
-            # f_crit_list=[0.01, 0.1, 0.2, 0.3, 0.4, 0.5 ],
             incl=incl,
             mass_ip=True,
             mass_vp=True,
