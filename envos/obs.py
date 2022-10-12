@@ -545,7 +545,7 @@ class Convolver:
 class BaseObsData:
     au2pc = nc.au / nc.pc
     fac_deg2au = np.pi / 180 * nc.pc / nc.au
-    
+
     def __str__(self):
         return tools.dataclass_str(self)
 
@@ -563,11 +563,11 @@ class BaseObsData:
             raise Exception
 
     """
-    Dynamical variables 
+    Dynamical variables
     """
 
     def __getattr__(self, vname):
-        dyv =  self._dynamic_vars(vname) 
+        dyv =  self._dynamic_vars(vname)
         if dyv is not None:
             return dyv
         else:
@@ -586,11 +586,11 @@ class BaseObsData:
             return self.yau[-1] - self.yau[0]
         elif key == "Lv":
             return self.vkms[-1] - self.vkms[0]
-        elif key == "Nx": 
+        elif key == "Nx":
             return len(self.xau)
-        elif key == "Ny": 
+        elif key == "Ny":
             return len(self.yau)
-        elif key == "Nv": 
+        elif key == "Nv":
             return len(self.vkms)
         else:
             return None
@@ -606,13 +606,13 @@ class BaseObsData:
             beam_pa_deg=self.obreso.beam_pa_deg,
         )
         self.data = conv(self.data)
-    
+
     """
     Get and set I and axes
     """
-    
+
     def get_Iname(self):
-        return self._Iname 
+        return self._Iname
 
     def get_I(self):
         return getattr(self, self.get_Iname())
@@ -630,7 +630,7 @@ class BaseObsData:
         #self.calc_stdcoord_to_radec()
 
     """
-    Functions setting important attributes 
+    Functions setting important attributes
     """
     def set_dpc(self, dpc):
         self.dpc = dpc
@@ -706,7 +706,7 @@ class BaseObsData:
             logger.info(f"Saved fits file: {filename}")
 
     """
-    Functions operating I and axes 
+    Functions operating I and axes
     """
     def norm_I(self, norm="max"):
         I = self.get_I()
@@ -755,10 +755,10 @@ class BaseObsData:
             ax = getattr(self, axn)
             axrev = ax[::-1]
             setattr(self, axn, axrev)
-            I = self.get_I() 
+            I = self.get_I()
             Irev = np.flip(I, axis=_num)
             self.set_I(Irev)
-    
+
     def reversed_ax_data(self, nums):
         if isinstance(nums, int):
             nums = [nums]
@@ -768,13 +768,13 @@ class BaseObsData:
             ax = getattr(obj, axn)
             axrev = ax[::-1]
             setattr(obj, axn, axrev)
-            I = obj.get_I() 
+            I = obj.get_I()
             Irev = np.flip(I, axis=_num)
             obj.set_I(Irev)
         return obj
-    
+
     """
-    Functions for conversion 
+    Functions for conversion
     """
     def convert_Jyppix_to_brightness_temperature(self, imageJyppix, freq0=None, lam0=None):
         if lam0 is not None:
@@ -804,26 +804,26 @@ class BaseObsData:
         return self.ra(), self.dec()
 
     def freq(self):
-        return tools.vkms_to_freq(self.vkms, self.refpos.freq0) 
+        return tools.vkms_to_freq(self.vkms, self.refpos.freq0)
 
     def set_coord_from_radec(self, ra0_deg, dec0_deg, ra_deg, dec_deg):
-        self.refpos.ra0 = ra0_deg 
-        self.refpos.dec0 = dec0_deg 
-        self.yau = self.deg2au(dec_deg - dec0_deg) 
+        self.refpos.ra0 = ra0_deg
+        self.refpos.dec0 = dec0_deg
+        self.yau = self.deg2au(dec_deg - dec0_deg)
         self.xau = -np.cos(dec0_deg*nc.deg2rad) * self.deg2au(ra_deg - ra0_deg)
 
     def set_coord_from_radecSIN(self, ra0_deg, dec0_deg, ra_deg, dec_deg):
-        self.refpos.ra0 = ra0_deg 
-        self.refpos.dec0 = dec0_deg 
-        self.yau =  self.deg2au(dec_deg - dec0_deg) 
+        self.refpos.ra0 = ra0_deg
+        self.refpos.dec0 = dec0_deg
+        self.yau =  self.deg2au(dec_deg - dec0_deg)
         self.xau = -self.deg2au(ra_deg - ra0_deg)
 
     def deg2au(self, v_deg):
-        return v_deg * 3600 * self.dpc #self.fac_deg2au * self.dpc 
+        return v_deg * 3600 * self.dpc #self.fac_deg2au * self.dpc
 
     """
-    set coorfdinate functions 
-    To be marged 
+    set coorfdinate functions
+    To be marged
     """
     def move_position(self, center_pos, ax="x", unit="au"): # ra=False, decl=False, deg=False, au=False):
         deg2au = 3600 * self.dpc
@@ -855,7 +855,7 @@ class BaseObsData:
             self.move_position(xyau[1], "y", "au")
             self.refpos.dec0 += xyau[1] * nc.au/nc.pc/self.dpc * 180 / np.pi
             self.refpos.ra0 -= xyau[0] * nc.au/nc.pc/self.dpc/np.cos(self.refpos.dec0) * 180 / np.pi
-        
+
         ""
         elif radecdeg is not None:
             self.dec0 -= np.deg2rad( decdeg[0] )
@@ -886,12 +886,12 @@ class BaseObsData:
         if xy_au is not None:
             self.move_position(xy_au[0], "x", "au")
             self.move_position(xy_au[1], "y", "au")
-         
+
     "1. Just change ra0 dec0"
     "2. Change origin of the coordinate but not change the reference point"
-    
 
-    
+
+
 
 
 @dataclasses.dataclass
@@ -943,7 +943,7 @@ class RefPos:
     vkms0: float = 0
     def radec(self):
         return np.array([self.ra0, self.dec0])
-        
+
 
 @dataclasses.dataclass
 class Cube(BaseObsData):
@@ -954,19 +954,19 @@ class Cube(BaseObsData):
     Coordinate:
         A standard coordinate respect to the reference position (RA, Dec, freq0).
         One can generate RA--Dec coordinate by using Cube.ra, Cube.dec, or Cube.radec.
-        The refrence position is contained as refpos.  
-        The origin of coordinate is set to be the same as the FITS file, 
+        The refrence position is contained as refpos.
+        The origin of coordinate is set to be the same as the FITS file,
         but the origin can be moved arbitrary.
         # Actually I have considered to use, e.g., x in arcsecond as the basic coordinate.
         # But I have not been sure if it is clearer than xau, so I gave up thinking...
         # Also, historically, this class has had the two coordinate, xau and ra.
-        # It was very confusing, produced many bugs, and destroyed my confidence... 
-        # Please tell me your thoughts... 
-        # For now, I am partially convinced because directly obtained coordinate 
-        # from synthetic observation to models is physical coordinate rather than 
-        # observational coordinate. So this choice of the basic coordinate is somewhat reasonable. 
+        # It was very confusing, produced many bugs, and destroyed my confidence...
+        # Please tell me your thoughts...
+        # For now, I am partially convinced because directly obtained coordinate
+        # from synthetic observation to models is physical coordinate rather than
+        # observational coordinate. So this choice of the basic coordinate is somewhat reasonable.
     """
-    
+
     Ippv: np.ndarray
     xau: np.ndarray = None
     yau: np.ndarray = None
@@ -978,7 +978,7 @@ class Cube(BaseObsData):
     refpos: RefPos = RefPos() #list[float, float, float] = [0,0,0]
     radec_deg: dataclasses.InitVar[tuple] = None
     radecSIN_deg: dataclasses.InitVar[tuple] = None
-    freq0: dataclasses.InitVar[float] = None 
+    freq0: dataclasses.InitVar[float] = None
     ##
     dtype = "Cube"
     _axorder = {"xau":0, "yau": 1, "vkms": 2}
@@ -991,7 +991,7 @@ class Cube(BaseObsData):
         elif radecSIN_deg:
             self.set_coord_from_radecSIN(*radecSIN_deg)
         if freq0:
-            self.refpos.freq0 = freq0 
+            self.refpos.freq0 = freq0
         #self._complement_coord()
         self._check_data_shape()
         self._reset_positive_axes(self.Ippv, [self.xau, self.yau, self.vkms])
@@ -1135,8 +1135,8 @@ class PVmap(BaseObsData):
     conv_info: dict=None
     obreso: Obreso = None
     freq0: float = None
-    xrad: dataclasses.InitVar[float] = None 
-    ## 
+    xrad: dataclasses.InitVar[float] = None
+    ##
     dtype = "PVmap"
     _axorder ={"xau":0, "vkms":1}
     _Iname = "Ipv"
@@ -1147,7 +1147,7 @@ class PVmap(BaseObsData):
         xrad
     ):
         if xrad is not None:
-            self.xau = xrad * self.dpc * nc.pc / nc.au 
+            self.xau = xrad * self.dpc * nc.pc / nc.au
         self._check_data_shape()
         self._reset_positive_axes(self.Ipv, [self.xau, self.vkms])
 
