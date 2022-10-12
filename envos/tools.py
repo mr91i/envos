@@ -235,7 +235,11 @@ def shell(
 
     simple = 1
     if simple:
-        return subprocess.run(cmd, shell=True, cwd=cwd)
+        if log:
+            return subprocess.run(cmd, shell=True, cwd=cwd)
+        else:
+            return subprocess.run(cmd, shell=True, cwd=cwd, stdout=subprocess.DEVNULL)
+
     else:
         proc = subprocess.Popen(
             cmd,
