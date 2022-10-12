@@ -244,7 +244,7 @@ class ObsSimulator:
 
         if self.conv:
             odat.data = self.convolver(odat.data)
-            odat.set_conv_info(**self.convolve_config)
+            odat.set_obs_resolution(**self.convolve_config)
 
         return odat
 
@@ -352,19 +352,16 @@ class ObsSimulator:
             logger.warning("Zero image !")
             raise Exception
 
-        #        self.data.dpc = self.dpc
         self.data.dpc = self.dpc
         self.data.freq0 = self.mol.freq[iline - 1]
-        #odat = Cube(datatype="line")
-        #odat.read(radmcdata=self.data)
         odat = read_radmcdata(self.data)
         odat.set_sobs_info(
             iline=iline, molname=molname, incl=incl, phi=phi, posang=posang
         )
 
         if self.conv:
-            odat.Ippv = self.convolver(odat.Ippv)
-            odat.set_conv_info(**self.convolve_config)
+            odat.set_I(self.convolver(odat.Ippv))
+            odat.set_obs_resolution(**self.convolve_config)
 
         return odat
 
@@ -1258,25 +1255,25 @@ def read_radmcdata(data):
     Iunit = "Jy/pixel"
 
     dpc = data.dpc  # or 100
-    Nx = data.nx
-    Ny = data.ny
-    Nv = data.nfreq
-    Nf = data.nfreq
+    #Nx = data.nx
+    #Ny = data.ny
+    #Nv = data.nfreq
+    #Nf = data.nfreq
     xau = data.x / nc.au
     yau = data.y / nc.au
     freq = data.freq
     freq0 = data.freq0
     vkms = tools.freq_to_vkms_array(freq, freq0)
-    dx = data.sizepix_x / nc.au
-    dy = data.sizepix_y / nc.au
-    dv = vkms[1] - vkms[0] if len(vkms) > 1 else 0
+    #dx = data.sizepix_x / nc.au
+    #dy = data.sizepix_y / nc.au
+    #dv = vkms[1] - vkms[0] if len(vkms) > 1 else 0
     # Check
-    #if data.nx != len(xau) or data.ny != len(yau)  or data.nfreq != len(vkms) or dx != (xau[1]-xau[0]) or  dy != (yau[1]-yau[0]) or dv != (vkms[1] - vkms[0]):
-    #    print("Something might be wrong in reading a radmcdata")
-    #    exit(1)
+    #if (data.nx != len(xau)) or (data.ny != len(yau)) or (data.nfreq != len(vkms) or \
+    #   (dx != (xau[1]-xau[0])) or (dy != (yau[1]-yau[0])) or (dv != (vkms[1] - vkms[0])):
+    #    sys.exit("Something in this radmcdata will be wrong.")
 
     if dtype == "cube":
-        obj = Cube(Ippv, xau, yau, vkms, Iunit=Iunit, dpc=dpc, freq0=freq0)
+        obj = Cube(Ippv, xau=xau, yau=yau, vkms=vkms, Iunit=Iunit, dpc=dpc, freq0=freq0)
 
     elif dtype == "image":
         obj = Image(Ipp, xau=xau, yau=yau, Iunit=Iunit, dpc=dpc, freq0=freq0)
@@ -1313,7 +1310,7 @@ def read_fits(filepath, fitstype, dpc, unit1=None, unit2=None, unit3=None, unit1
 #    print(header)
     naxis = header["NAXIS"]
 
-    print("Below is warning in reading fits (see wcs in astropy):")
+    print("Warning can apper in reading fits (see wcs in astropy):")
     print("**** Warning start ****")
     wcs = astropy.wcs.WCS(header, naxis=naxis)
     print("**** Warning end ****")
@@ -1325,10 +1322,18 @@ def read_fits(filepath, fitstype, dpc, unit1=None, unit2=None, unit3=None, unit1
     print("Taking centerpix as ",centerpix, " gives reference position ",  axref)
     print("This should be equal to CRVAL* in FITS")
 
-    Iunit = Iunit if Iunit is not None else (header["BUNIT"] if "BUNIT" in header else None)
-    unit1 = unit1 if unit1 is not None else ( header["CUNIT1"].rstrip() if "CUNIT1" in header else None )
-    unit2 = unit2 if unit2 is not None else ( header["CUNIT2"].rstrip() if "CUNIT2" in header else None )
-    unit3 = unit3 if unit3 is not None else ( header["CUNIT3"].rstrip() if "CUNIT3" in header else None )
+    def input_header_value(usr_val, name_fits):
+        if usr_val is not None:
+            return usr_val
+        elif name_fits in header:
+            return header[name_fits].rstrip()
+        else:
+            return None
+
+    Iunit = input_header_value(Iunit, "BUNIT") #Iunit if Iunit is not None else ( header["BUNIT"] if "BUNIT" in header else None)
+    unit1 = input_header_value(Iunit, "CUNIT1") #unit1 if unit1 is not None else ( header["CUNIT1"].rstrip() if "CUNIT1" in header else None )
+    unit2 = input_header_value(Iunit, "CUNIT2") #unit2 if unit2 is not None else ( header["CUNIT2"].rstrip() if "CUNIT2" in header else None )
+    unit3 = input_header_value(Iunit, "CUNIT3") # unit3 if unit3 is not None else ( header["CUNIT3"].rstrip() if "CUNIT3" in header else None )
 
     def _get_ax(axnum, sub=True):
         n = header[f"NAXIS{axnum:d}"]
@@ -1341,29 +1346,16 @@ def read_fits(filepath, fitstype, dpc, unit1=None, unit2=None, unit3=None, unit1
         else:
             return ax
 
-
     def _add_beam_info(obj, dpc, vkms=None):
         if not "BMAJ" in header:
             return
-        beam_maj_deg = header["BMAJ"] #* _get_lenscale(unit_name=unit1, unit_cm=unit1_fac)
-        beam_min_deg = header["BMIN"] #* _get_lenscale(unit_name=unit1, unit_cm=unit1_fac)
-        beam_pa_deg = header["BPA"]
-
         if (vkms is not None) and (len(vkms) >= 2):
             vreso_kms = vkms[1] - vkms[0]
-        else:
-            vreso_kms = None
-        #obj.set_conv_info(
-        #    beam_maj_au,
-        #    beam_min_au,
-        #    vreso_kms,
-        #    beam_pa_deg,
-        #)
         obj.set_obs_resolution(
-            beam_maj_deg=beam_maj_deg,
-            beam_min_deg=beam_min_deg,
+            beam_maj_deg=header["BMAJ"],
+            beam_min_deg=header["BMIN"],
             vreso_kms=vreso_kms,
-            beam_pa_deg=beam_pa_deg,
+            beam_pa_deg=header["BPA"],
         )
 
     def _data_shape_convert(data, ndim, transpose=True):
