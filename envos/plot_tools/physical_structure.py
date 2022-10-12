@@ -20,6 +20,7 @@ figext = "pdf"
 
 from cycler import cycler
 cyclestyle = cycler(ls=["-", "--", ":", "-."])
+logger = log.logger
 
 
 @dataclasses.dataclass
@@ -75,7 +76,7 @@ def plot_density_map(
 
     rho = np.average(m.rhogas, axis=2)
     #ex = np.floor( np.log10( np.abs( np.max(rho) ) ) )
-    print(f"Maximum density is {np.max(rho)}, minimum density is {np.min(rho)}" )
+    logger.debug(f"Maximum density is {np.max(rho)}, minimum density is {np.min(rho)}" )
     plot_colormap(
         m.R[..., 0] / nc.au,
         m.z[..., 0] / nc.au,
@@ -111,7 +112,7 @@ def plot_temperature_map(
         np.max(m.Tgas[m.rr > rinlim * nc.au]) + 10 + 1e-10,
         10
     )
-    print("Level is", lvs, np.average(m.Tgas, axis=2) )
+    logger.debug("Level is", lvs, np.average(m.Tgas, axis=2) )
     plot_colormap(
         m.R[..., 0] / nc.au,
         m.z[..., 0] / nc.au,
