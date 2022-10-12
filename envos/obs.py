@@ -333,9 +333,11 @@ class ObsSimulator:
 
             args = [(i, cmdfunc(i)) for i in range(self.n_thread)]
 
+            logger.info("Follwing messages come from RADMC-3D running at representative #1 core")
+            loggr.info("***** RADMC-3D message start *****")
             with multiprocessing.Pool(self.n_thread) as pool:
-
                 results = pool.starmap(self._subcalc, args)
+            loggr.info("***** RADMC-3D message end *****")
 
             self._check_multiple_returns(results)
             self.data = self._combine_multiple_returns(results)
@@ -343,8 +345,9 @@ class ObsSimulator:
         else:
             logger.info(f"Not use OpenMP.")
             cmd = gen_radmc_cmd(vhw_kms=self.vfw_kms / 2, nlam=self.nlam, **common_cmd)
-
+            loggr.info("***** RADMC-3D message start *****")
             tools.shell(cmd, cwd=self.radmc_dir)
+            loggr.info("***** RADMC-3D message end *****")
             self.data = rmci.readImage(fname=f"{self.radmc_dir}/image.out")
 
         if np.max(self.data.image) == 0:
@@ -907,9 +910,9 @@ class Obreso:
 
     def __post_init__(self, obsdata):
         self.set_dpc_from_obsdata(obsdata)
-        if self.beam_maj_au is None:
+        if None in (self.beam_maj_au, self.beam_min_au):
             self.set_beamsize_au()
-        elif beam_maj_deg is None:
+        elif None in (self.beam_maj_deg, self.beam_min_deg):
             self.set_beamsize_deg()
 
     def set_beamsize_au(self):
