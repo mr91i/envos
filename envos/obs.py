@@ -18,6 +18,7 @@ from dataclasses import dataclass, asdict, field
 import pathlib
 
 import astropy
+from astropy import units as u
 import astropy.io.fits as afits
 import astropy.convolution as aconv
 import radmc3dPy.image as rmci
@@ -334,10 +335,10 @@ class ObsSimulator:
             args = [(i, cmdfunc(i)) for i in range(self.n_thread)]
 
             logger.info("Follwing messages come from RADMC-3D running at representative #1 core")
-            loggr.info("***** RADMC-3D message start *****")
+            logger.info("***** RADMC-3D message start *****")
             with multiprocessing.Pool(self.n_thread) as pool:
                 results = pool.starmap(self._subcalc, args)
-            loggr.info("***** RADMC-3D message end *****")
+            logger.info("***** RADMC-3D message end *****")
 
             self._check_multiple_returns(results)
             self.data = self._combine_multiple_returns(results)
@@ -345,9 +346,9 @@ class ObsSimulator:
         else:
             logger.info(f"Not use OpenMP.")
             cmd = gen_radmc_cmd(vhw_kms=self.vfw_kms / 2, nlam=self.nlam, **common_cmd)
-            loggr.info("***** RADMC-3D message start *****")
+            logger.info("***** RADMC-3D message start *****")
             tools.shell(cmd, cwd=self.radmc_dir)
-            loggr.info("***** RADMC-3D message end *****")
+            logger.info("***** RADMC-3D message end *****")
             self.data = rmci.readImage(fname=f"{self.radmc_dir}/image.out")
 
         if np.max(self.data.image) == 0:
@@ -710,17 +711,19 @@ class BaseObsData:
         if norm is None:
             pass
 
-        elif norm == "max":
+        elif norm == "max" :
             self.set_I(I/np.max(I))
             #self.Ipv /= np.max(self.Ipv)
-            self.Iunit = r"[$I_{\rm max}$]"
+            #self.Iunit = r"[$I_{\rm max}$]"
+            self.Iunit = u.def_unit('I_max', np.max(I) * self.Iunit, format={'latex': r'I_{\rm max}'}) #r"[$I_{\rm max}$]"
 
         elif isinstance(norm, float):
             self.set_I(I/norm)
-            self.Iunit = f"[{norm:.2g}" + r"Jy pixel$^{-1}$]"
+            self.Iunit = norm * self.Iunit # f"[{norm:.2g}" + r"Jy pixel$^{-1}$]"
 
         else:
-            return None
+            raise Exception
+            #return None
 
 
     def trim(self, xlim=None, ylim=None, vlim=None):
@@ -971,7 +974,7 @@ class Cube(BaseObsData):
     dpc: float = None
     obreso: Obreso = None
     sobs_info: dict = None
-    Iunit: str = r"Jy pixel$^{-1}$"
+    Iunit: str = u.Jy/u.pix #r"Jy pixel$^{-1}$"
     refpos: RefPos = RefPos() #list[float, float, float] = [0,0,0]
     radec_deg: dataclasses.InitVar[tuple] = None
     radecSIN_deg: dataclasses.InitVar[tuple] = None
@@ -1021,11 +1024,14 @@ class Cube(BaseObsData):
         return img
 
 
-    def get_pv_map(self, length=[-700, 700], pangle_deg=0, poffset_au=0, norm=None, save=False):
+    def get_pv_map(self, length=None, pangle_deg=0, poffset_au=0, norm=None, save=False):
     # norm: None, "max", float
         if self.Ippv.shape[1] > 1:
-            Nl = np.sqrt(self.Nx**2 + self.Ny**2)
-            posax = np.linspace(length[0], length[1], int(Nl))
+            pa = pangle_deg * nc.deg2rad
+            L =  np.sqrt(self.Lx**2 + self.Ly**2)
+            dl = ((np.sin(pa)/self.dx)**2 + (np.cos(pa)/self.dy)**2)**(-0.5)
+            #posax = np.linspace(length[0], length[1], int(Nl))
+            posax = np.arange(-L/2, L/2+dl, dl)
             posline = self.position_line(
                 posax, PA_deg=pangle_deg, poffset_au=poffset_au
             )
@@ -1067,7 +1073,7 @@ class Image(BaseObsData):
     dpc: float = None
     obreso: Obreso = None
     sobs_info: dict = None
-    Iunit: str = r"Jy pix$^{-1}$"
+    Iunit: str = u.Jy/u.pix #r"Jy pix$^{-1}$"
     #fitsfile: str = None
     radec_deg: dataclasses.InitVar[tuple] = None
     radecSIN_deg: dataclasses.InitVar[tuple] = None
@@ -1115,7 +1121,7 @@ class Image(BaseObsData):
         A_beam = np.pi * bmaj * bmin/(4*np.log(2))
         A_pix = self.dx * self.dy
         self.data *= A_pix / A_beam
-        self.Iunit = "Jy/pix"
+        self.Iunit = u.Jy/u.pix #"Jy/pix"
 
 
 @dataclasses.dataclass
@@ -1128,7 +1134,7 @@ class PVmap(BaseObsData):
     " Information for how to have made this PV "
     pangle_deg: float = None
     poffset_au: float = None
-    Iunit: str = r"[Jy pixel$^{-1}$]"
+    Iunit: str = u.Jy/u.pix #r"[Jy pixel$^{-1}$]"
     conv_info: dict=None
     obreso: Obreso = None
     freq0: float = None
@@ -1255,7 +1261,7 @@ def read_radmcdata(data):
     elif len(data.image.shape) == 3:
         Ippv = data.imageJyppix / data.dpc**2  # .transpose(2, 1, 0)
         dtype="cube"
-    Iunit = "Jy/pixel"
+    Iunit = u.Jy/u.pix # "Jy/pixel"
 
     dpc = data.dpc  # or 100
     #Nx = data.nx
@@ -1334,9 +1340,10 @@ def read_fits(filepath, fitstype, dpc, unit1=None, unit2=None, unit3=None, unit1
             return None
 
     Iunit = input_header_value(Iunit, "BUNIT") #Iunit if Iunit is not None else ( header["BUNIT"] if "BUNIT" in header else None)
-    unit1 = input_header_value(Iunit, "CUNIT1") #unit1 if unit1 is not None else ( header["CUNIT1"].rstrip() if "CUNIT1" in header else None )
-    unit2 = input_header_value(Iunit, "CUNIT2") #unit2 if unit2 is not None else ( header["CUNIT2"].rstrip() if "CUNIT2" in header else None )
-    unit3 = input_header_value(Iunit, "CUNIT3") # unit3 if unit3 is not None else ( header["CUNIT3"].rstrip() if "CUNIT3" in header else None )
+    Iunit = u.Unit(Iunit, format='fits')
+    unit1 = input_header_value(unit1, "CUNIT1") #unit1 if unit1 is not None else ( header["CUNIT1"].rstrip() if "CUNIT1" in header else None )
+    unit2 = input_header_value(unit2, "CUNIT2") #unit2 if unit2 is not None else ( header["CUNIT2"].rstrip() if "CUNIT2" in header else None )
+    unit3 = input_header_value(unit3, "CUNIT3") # unit3 if unit3 is not None else ( header["CUNIT3"].rstrip() if "CUNIT3" in header else None )
 
     def _get_ax(axnum, sub=True):
         n = header[f"NAXIS{axnum:d}"]
