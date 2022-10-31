@@ -117,8 +117,8 @@ Ratio of the cell size in the θ or φ direction to dr.
 
 ### 6.3 Model parameters
 - `T`, `CR_au`, `Ms_Msun`, `t_yr`, `Omega`, `jmid`, `Mdot_smpy`
-UCMモデルは３つのパラメーターから与えられる: 降着率\[Msun/yr\] `Mdot_smpy`、中心星質量\[Msun\] `Ms_Msun`、分子雲コアの回転角速度\[s^-1\] `Omega`.
-ただし、Mdotは分子雲コアの温度[K] `T`から、`Ms_Msun`は収縮開始後の時間\[yr\] `t_yr`から、Omegaは遠心力半径\[au\] `CR_au`や赤道面の比角運動量`jmid` \[cm^2 s^-1\]からでも与えられる。
+The kinetic structure of the UCM model is basically given by three parameters: 
+    the accretion rate \[Msun/yr\] `Mdot_smpy`, central stellar mass \[Msun\] `Ms_Msun`, and angular velocity of the parental cloud core, \[s^-1\] `Omega`. However, Mdot can be given by the temperature of the molecular cloud core [K] `T`, `Ms_Msun` can be given by the time from begining of the collapse\[yr\] `t_yr`, and `Omega` can be also given by the centrifugal radius\[au\] `CR_au` or the specific angular momentum of the equatorial plane `jmid` \[cm^2 s^-1\].
 - `meanmolw`
 Mean molecular weight。デフォルトは 2.3。
 - `cavangle_deg`
