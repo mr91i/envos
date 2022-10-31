@@ -16,6 +16,9 @@ from scipy import interpolate, integrate
 
 
 class ModelBase:
+    def __str__(self):
+        return f"models.{self.__class__.__name__}"
+
     def read_grid(self, grid):
         for k, v in grid.__dict__.items():
             setattr(self, k, v)
