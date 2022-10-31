@@ -25,8 +25,8 @@ def main(conf):
     #do_parameter_study(conf)
     #exit()
     #do_pmap_survey_for_mass_estimate(conf)
-    do_pmap_survey_for_cube_correlation(conf)
-    #compare_bestmodel_obspvs(conf)
+    #do_pmap_survey_for_cube_correlation(conf)
+    compare_bestmodel_obspvs(conf)
     # do_ring_test()
     #plot_obspv(conf)
     # do_disk_envelope_runs()
@@ -105,8 +105,9 @@ def do_parameter_study(config):
     #exit()
 
     refcube = envos.read_obsdata(envos.gpath.home_dir / "run" / "lobs_fid.pkl")
-    _obs(config.replaced(inenv="Simple"), "SB", refcube)
-    exit()
+    refcube.norm_I("max")
+    _obs(config.replaced(inenv="Simple", cavangle_deg=80), "SB", refcube)
+    #exit()
 
     """
     for T0 in [10, 30, 100]:
@@ -118,10 +119,10 @@ def do_parameter_study(config):
         _obs(config, f"T30-p{p}", refcube, Tfunc=Tfunc)
     """
 
-    for M in [0.075, 0.3]:
+    for M in [0.1, 0.3]: # 0.15
         _obs(config.replaced(Ms_Msun=M), f"M{M}", refcube)
 
-    for cr in [80, 320]:
+    for cr in [100, 300]:
         _obs(config.replaced(CR_au=cr), f"cr{cr}", refcube)
 
     for incl in [30, 60]:
@@ -242,31 +243,30 @@ def do_pmap_survey_for_cube_correlation(conf, single=False): # for mass estimate
 
 
 def plot_obspv(conf):
-    f_crit=0.4
-    opv = get_obspv(conf.posang - 90 + 0)
-    opv.normalize("max")
+    f_crit=0.3
+    opv = get_obspv(conf.posang + 90 + 0)
+    opv.norm_I("max")
+    opv.set_I(opv.get_I().clip(0))
     envos.plot_tools.plot_pvdiagram(opv, mass_estimate=False, out="obspvd.pdf", f_crit=f_crit)
-    envos.plot_tools.plot_pvdiagram(opv, mass_estimate=1, out="obspvd_mass_q1.pdf", f_crit=f_crit, quadrant=1)
-    envos.plot_tools.plot_pvdiagram(opv, mass_estimate=1, out="obspvd_mass_q3.pdf", f_crit=f_crit, quadrant=3)
+    envos.plot_tools.plot_pvdiagram(opv, mass_estimate=1, out="obspvd_mass_q4.pdf", f_crit=f_crit, quadrant=4)
+    envos.plot_tools.plot_pvdiagram(opv, mass_estimate=1, out="obspvd_mass_q2.pdf", f_crit=f_crit, quadrant=2)
     #envos.plot_tools.plot_pvdiagram(opv.reversed_xv(), mass_estimate=1, out="obspvd_mass_rev.pdf", f_crit=f_crit)
     envos.plot_tools.plot_pvdiagram(
         opv, mass_estimate=False, loglog=True, out="obspvd_loglog.pdf", f_crit=f_crit
     )
 
 def compare_bestmodel_obspvs(conf):
-
-    cube = envos.read_obsdata(envos.gpath.home_dir / "run"/ "lobs_fid.pkl")
-
-
+    cube = envos.read_obsdata(envos.gpath.home_dir / "run"/ "lobs_fid_best.pkl")
+    cube.norm_I("max")
     for dpa in [0, 30, 60]:
-        pa =  conf.posang - 90 + dpa
+        pa =  conf.posang + 90 + dpa
         refpv = get_obspv(pa)
-        refpv.normalize(Ipv_norm="max")
         envos.plot_tools.plot_pvdiagram(
             cube.get_pv_map(pangle_deg=pa),
             mass_estimate=False,
             figsize=None,
             ylim=(-2, 2),
+            clim=(0,1),
             #f_crit=0.3,
             #incl=conf.incl,
             refpv=refpv,
@@ -372,8 +372,8 @@ config_default = envos.Config(
     aspect_ratio=1,
     nphi=91,
     nphot=1e7,
-    CR_au=124.623,  #157.9,    #157.36,
-    Ms_Msun=0.192226, #0.1439, #0.17223,
+    CR_au=200, #290, #124.623,  #157.9,    #157.36,
+    Ms_Msun=0.2, #0.154, #0.192226, #0.1439, #0.17223,
     T=None,
     Mdot_smpy=4.5e-6,
     cavangle_deg=45,
@@ -507,10 +507,13 @@ def synobs(
     if plot_pv:
         opt = {
             "figsize": None,
+            "xlim": (-xlim_pvd, xlim_pvd),
             "ylim": (-vkms_pvd, vkms_pvd),
             "f_crit": 0.3,
             "incl": conf.incl,
-            "xlim": (-xlim_pvd, xlim_pvd),
+            "norm":"max",
+            "smooth_contour":True,
+            "Iunit": "I_{V,{\\rm max}}",
         }
         pv = cube.get_pv_map(pangle_deg=conf.posang - 90 + pa_pv)
         envos.plot_tools.plot_pvdiagram(pv, mass_estimate=False, out="pvd.pdf", **opt)
@@ -532,21 +535,19 @@ def synobs(
         refpv = refdata.get_pv_map(pangle_deg = conf.posang - 90 + pa_pv)
         envos.plot_tools.plot_pvdiagram(
             pv,
-            mass_estimate=False,
-            figsize=None,
-            ylim=(-vkms_pvd, vkms_pvd),
-            f_crit=0.1,
-            incl=conf.incl,
             refpv=refpv,
             out="pvd_comp.pdf",
+            mass_estimate=False,
+            **opt,
         )
 
     if plot_mom0_map:
         img = cube.get_mom0_map()
+        img.trim(xlim=[-900,900])
         envos.plot_tools.plot_mom0_map(
             img,
             pangle_deg=[conf.posang - 90 + pa_pv],
-            n_lv=11,
+            norm="max"
         )
 
     envos.tools.clean_radmcdir()
@@ -556,21 +557,20 @@ def synobs(
 
 
 def get_refcube():
-    poscen = [69.97447525, 26.05269268]
+    #poscen = [69.97447525, 26.05269268]
+    poscen =  [69.97444141, 26.05269268]
     refcube = envos.obs.read_cube_fits(
         "./ShareMori/260G_spw1_C3H2_v.fits",
         dpc=140,
         unit1="deg",
         unit2="deg",
         unit3="m/s",
-        # v0_kms=5.8,
+        v0_kms=5.85,
     )
- #   print(refcube)
-    #print(refcube.ra[256], refcube.dec[256], refcube.vkms[0])
-    #exit()
+    refcube.set_center_pos(radec_deg=poscen)
+    print(refcube)
 
 
-    refcube.reset_center(v0_kms = 5.85)
 
 
 
@@ -581,21 +581,22 @@ def get_refcube():
     #print(refcube)
     #refcube.move_position(poscen[1], ax="y", unit="deg")
 
-    refcube.trim(xlim=[-700, 700], ylim=[-700, 700], vlim=[-2.5, 2.5])
+    refcube.trim(xlim=[-700, 700], ylim=[-700, 700], vlim=[-3, 3])
     return refcube
 
 
 def get_obspv(pa):
     refcube = get_refcube()
+    refcube.norm_I("max")
     #print(refcube)
     img = refcube.get_mom0_map()
     envos.plot_tools.plot_mom0_map(
         img,
         pangle_deg=[pa],#[95 - 90 + pa],
-        n_lv=11,
-        out=f"mom0_{pa}.pdf"
+        #n_lv=11,
+        out=f"mom0_{pa}.pdf",
     )
-    opv = refcube.get_pv_map(pangle_deg=pa, Inorm=None)
+    opv = refcube.get_pv_map(pangle_deg=pa, norm=None)
     #opv.reverse_v()
     #opv.reverse_x()
     return opv
@@ -623,6 +624,8 @@ def plotpvd_angles(conf, filename="lineobs.pkl"):
             incl=conf.incl,
             out=f"pvd_pa{pa_pv:.0f}.pdf",
             n_lv=10,
+            Iunit="$I_{V,{\rm max}}$",
+            smooth_contour=True,
         )
 
 
