@@ -117,11 +117,9 @@ def make_listed_cmap(cmap_name, ncolors, extend="both"):
     iu = None
     if extend == "neither":
         pass
-
     if extend in ("max", "both"):
         io = -1
         ncolors += 1
-
     if extend in ("min", "both"):
         iu = 1
         ncolors += 1
@@ -138,7 +136,8 @@ def make_listed_cmap(cmap_name, ncolors, extend="both"):
 
 
 def add_streams(
-    model, rlim, r0=None, use_mu0=False, equal_theta0=False, equal_mu0=True
+    model, rlim, r0=None, use_mu0=False, equal_theta0=False, equal_mu0=True,
+    cavity_region=None, style_incavity={}
 ):
     r0 = r0 or rlim
     if model.tc_ax[-1] > np.pi/2 :
@@ -170,6 +169,7 @@ def add_streams(
         fill_value=None,
     )
 
+
     if use_mu0:
         r0arg = np.argmin(np.abs(r0 * nc.au - model.rc_ax))
         mu0_arr = model.mu0[r0arg, :, 0]
@@ -189,29 +189,43 @@ def add_streams(
         theta0 = np.radians(np.linspace(0, 90, 19))
 
     start_points = r0 * np.array([np.sin(theta0), np.cos(theta0)]).T
-    opt = {"density": linedens, "linewidth": 0.5, "color": "w", "arrowsize": 0.7}
-    plt.streamplot(xau, yau, vR, vz, start_points=start_points, **opt)
+    opt = {"density": linedens, "linewidth": 0.5, "color": "w", "arrowsize": 0.7} # "broken_streamlines":True}
+
+    if cavity_region is not None:
+        cavr = interpolate.interpn(
+            (model.rc_ax / nc.au, model.tc_ax),
+            np.squeeze(cavity_region),
+            newgrid,
+            bounds_error=False,
+            fill_value=None,
+        )
+        cavr = cavr > 0.8
+        opt = {"density": linedens, "linewidth": 0.5, "arrowsize": 0.7} # "broken_streamlines":True}
+        norm = mc.BoundaryNorm(boundaries=[0, 0.5, 1], ncolors=128)
+        plt.streamplot(xau, yau, vR, vz, color=cavr, norm=norm, cmap=plt.get_cmap("gist_gray_r"), start_points=start_points, **opt)
+    else:
+        plt.streamplot(xau, yau, vR, vz, start_points=start_points, **opt)
 
 
-def add_trajectries(km):
-    r0 = km.ppar.cs * km.ppar.t  # / nc.au
-    # start_points = [(r0, th0) for th0 in np.radians(np.linspace(0, 90, 10))]
-    start_points = [
-        (r0, th0) for th0 in np.radians([89.9, 85, 80, 75, 70, 65, 60, 55, 50, 44.9])
-    ]
-    t_eval = np.arange(1e3, 1e6, 100) * nc.year
-    sls = streamline.calc_streamlines(
-        km.rc_ax,
-        km.tc_ax,
-        km.vr[:, :, 0],
-        km.vt[:, :, 0],
-        start_points,
+def add_trajectories(model, theta0_deg=[80, 70, 60, 50, 40, 30, 20, 10], save=False, teval_yr=None):
+    r0 = model.ppar.cs * model.ppar.t  # / nc.au
+    start_points = [(r0, th0) for th0 in np.radians(theta0_deg)]
+
+    if teval_yr is None:
+        teval = np.arange(10, 1e6, 10) * nc.year
+    else:
+        teval = teval_yr * nc.year
+
+    sls = streamline.calc_streamline(
+        model,
+        pos0=start_points,
         method="RK23",
-        t_eval=t_eval,
+        t_eval=teval,
+        save=save,
     )
+
     for sl in sls:
         plt.plot(sl.R / nc.au, sl.z / nc.au, c="orange", lw=0.7, marker=".", ms=1.5)
-    # streamline.save_data(sls)
 
 
 def vertical_integral(value_rt, R_rt, z_rt, R_ax, z_ax, log=False):
