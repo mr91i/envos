@@ -37,6 +37,7 @@ Mj_p_Myr = Mj / (1e6 * year)
 kms = 1e5
 au2pc = au/pc
 deg2rad = pi / 180
+rad2deg = 180 / pi
 
 if __name__ == "__main__":
     import nconst
