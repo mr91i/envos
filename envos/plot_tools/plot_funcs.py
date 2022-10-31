@@ -53,10 +53,21 @@ def interp_grid(X):
                    X[:, [-1]] + dX[:, [-1]]))
     return X
 
-def plot_colormap(xx, yy, z, zregion=None, clabel=None, clog=False, lvs=None, dloglv=0.25, aspect="equal", cname="viridis", extend="both", cformat=None):
+def plot_colormap(
+    xx, yy, z, *,
+    zregion=None,
+    clabel=None,
+    clog=False,
+    lvs=None,
+    dlv=0.25,
+    aspect="equal",
+    cname="viridis",
+    extend="both",
+    cformat=None):
+
     _z = z[zregion] if zregion is not None else z
     if lvs is None:
-        lvs = make_levels(_z, dloglv, log=clog)
+        lvs = make_levels(_z, dlv, log=clog)
 
     img = plt.pcolormesh(
         xx,
@@ -65,8 +76,9 @@ def plot_colormap(xx, yy, z, zregion=None, clabel=None, clog=False, lvs=None, dl
         shading="nearest",
         rasterized=True,
     )
-    img.set_cmap(make_listed_cmap(cname, len(lvs), extend=extend))
-    img.set_norm(mc.BoundaryNorm(lvs, len(lvs), clip=0))
+    if lvs is not None:
+        img.set_cmap(make_listed_cmap(cname, len(lvs), extend=extend))
+        img.set_norm(mc.BoundaryNorm(lvs, len(lvs), clip=0))
     fmt = cformat if cformat is not None else ( "%.1e" if clog else None )
      # mt.LogFormatterSciNotation(labelOnlyBase=False, minor_thresholds=(10, 0.5))
     cbar = plt.colorbar(img, format=fmt, extend=extend, pad=0.02)
@@ -80,14 +92,17 @@ def plot_colormap(xx, yy, z, zregion=None, clabel=None, clog=False, lvs=None, dl
 def make_levels(x, dlv, log=False, minfrac=1e-8):
     _x = np.log10(x[x > np.max(x) * minfrac]) if log else x
     _x = _x[np.isfinite(_x)]
-    if len(_x) == 0:
+    if len(_x) == 0 or len(_x) == 1:
         return None
     maxlv = np.ceil(np.max(_x) / dlv) * dlv
     minlv = np.floor(np.min(_x) / dlv) * dlv
     nlv = int(round( (maxlv - minlv) / dlv ))
     logger.debug("[make_levels] max is ", np.max(_x), " min is ", np.min(_x), ", dlv is ", dlv, ", so nlv is ", nlv)
     b = np.array([*range(nlv + 1)]) * dlv + minlv
-    return 10 ** b if log else b
+    if len(b) > 1:
+        return 10 ** b if log else b
+    else:
+        return None
 
 
 def add_colorbar(label=None, fmt=None, extend="both", pad=0.02, minticks=False):
