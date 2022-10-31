@@ -627,6 +627,14 @@ class BaseObsData:
                setattr(self, _axn, ax)
         #self.calc_stdcoord_to_radec()
 
+    def Iu(self, format="latex_inline"):
+        s = f"{self.Iunit:{format}}"
+        if str(self.Iunit) == "I_max":
+            _s = re.search("\\\mathrm{(.*)}", s).group(1)
+            return rf"${_s}$"
+        else:
+            return s
+
     """
     Functions setting important attributes
     """
@@ -674,34 +682,6 @@ class BaseObsData:
                 phi=obsdata.phi,
                 posang=obsdata.posang,
             )
-    """
-    Functions for saving this object
-    """
-
-    def save(self, filename=None, basename="obsdata", mode="pickle", dpc=None, filepath=None):
-
-        if filepath is None:
-            if filename is None:
-                output_ext = {"joblib": "jb", "pickle": "pkl", "fits": "fits"}[mode]
-                filename = basename + "." + output_ext
-            filepath = os.path.join(gpath.run_dir, filename)
-            if os.path.exists(filepath):
-                logger.info(f"remove old fits file: {filepath}")
-                os.remove(filepath)
-            os.makedirs(os.path.dirname(filepath), exist_ok=True)
-
-        if mode == "joblib":
-            import joblib
-            joblib.dump(self, filepath, compress=3)
-            logger.info(f"Saved joblib file: {filepath}")
-
-        elif mode == "pickle":
-            pd.to_pickle(self, filepath)
-            logger.info(f"Saved pickle file: {filepath}")
-
-        elif mode == "fits":
-            save_fits(self, filename)
-            logger.info(f"Saved fits file: {filename}")
 
     """
     Functions operating I and axes
@@ -890,6 +870,34 @@ class BaseObsData:
     "1. Just change ra0 dec0"
     "2. Change origin of the coordinate but not change the reference point"
 
+    """
+    Functions for saving this object
+    """
+
+    def save(self, filename=None, basename="obsdata", mode="pickle", dpc=None, filepath=None):
+
+        if filepath is None:
+            if filename is None:
+                output_ext = {"joblib": "jb", "pickle": "pkl", "fits": "fits"}[mode]
+                filename = basename + "." + output_ext
+            filepath = os.path.join(gpath.run_dir, filename)
+            if os.path.exists(filepath):
+                logger.info(f"remove old fits file: {filepath}")
+                os.remove(filepath)
+            os.makedirs(os.path.dirname(filepath), exist_ok=True)
+
+        if mode == "joblib":
+            import joblib
+            joblib.dump(self, filepath, compress=3)
+            logger.info(f"Saved joblib file: {filepath}")
+
+        elif mode == "pickle":
+            pd.to_pickle(self, filepath)
+            logger.info(f"Saved pickle file: {filepath}")
+
+        elif mode == "fits":
+            save_fits(self, filename)
+            logger.info(f"Saved fits file: {filename}")
 
 
 
@@ -1018,7 +1026,7 @@ class Cube(BaseObsData):
         if normalize == "peak":
             _Ipp /= np.max(_Ipp)
 
-        img = Image(_Ipp, xau=self.xau, yau=self.yau, dpc=self.dpc)
+        img = Image(_Ipp, xau=self.xau, yau=self.yau, dpc=self.dpc, Iunit=self.Iunit)
         img.copy_info_from_obsdata(self)
 
         return img
@@ -1048,7 +1056,7 @@ class Cube(BaseObsData):
             posax = self.xau # ???
             Ipv = self.Ippv[:, 0, :]
 
-        pv = PVmap(Ipv, xau=posax, vkms=self.vkms, dpc=self.dpc, pangle_deg=pangle_deg, poffset_au=poffset_au)
+        pv = PVmap(Ipv, xau=posax, vkms=self.vkms, dpc=self.dpc, Iunit=self.Iunit, pangle_deg=pangle_deg, poffset_au=poffset_au)
         pv.copy_info_from_obsdata(self)
         if norm is not None:
             pv.norm_I(norm)
@@ -1058,7 +1066,7 @@ class Cube(BaseObsData):
         return pv
 
     def position_line(self, xau, PA_deg, poffset_au=0):
-        PA_rad = (PA_deg + 90) * np.pi / 180
+        PA_rad = (PA_deg + 90) * nc.deg2rad
         pos_x = xau * np.cos(PA_rad) - poffset_au * np.sin(PA_rad)
         pos_y = xau * np.sin(PA_rad) + poffset_au * np.sin(PA_rad)
         return np.stack([pos_x, pos_y], axis=-1)
@@ -1073,8 +1081,7 @@ class Image(BaseObsData):
     dpc: float = None
     obreso: Obreso = None
     sobs_info: dict = None
-    Iunit: str = u.Jy/u.pix #r"Jy pix$^{-1}$"
-    #fitsfile: str = None
+    Iunit: str = u.Jy/u.pix
     radec_deg: dataclasses.InitVar[tuple] = None
     radecSIN_deg: dataclasses.InitVar[tuple] = None
     ##
@@ -1113,7 +1120,7 @@ class Image(BaseObsData):
 
     def offset_center_to_maximum(self):
         xc, yc = self.get_peak_position(interp=False)
-        self.reset_center(xyau=(xc, yc))
+        self.move_center_pos(xy_au=(xc,yc))
 
     def convert_perbeam_to_perpixel(self): # this could go base
         bmaj = self.obreso.beam_maj_au # = full width half maximum along major axis
@@ -1340,7 +1347,9 @@ def read_fits(filepath, fitstype, dpc, unit1=None, unit2=None, unit3=None, unit1
             return None
 
     Iunit = input_header_value(Iunit, "BUNIT") #Iunit if Iunit is not None else ( header["BUNIT"] if "BUNIT" in header else None)
-    Iunit = u.Unit(Iunit, format='fits')
+    if Iunit.lower() == "jy/beam":
+        data *= np.pi * header["BMAJ"] * header["BMIN"] / np.abs(header["CDELT1"] * header["CDELT2"])
+        Iunit = u.Jy/u.pix
     unit1 = input_header_value(unit1, "CUNIT1") #unit1 if unit1 is not None else ( header["CUNIT1"].rstrip() if "CUNIT1" in header else None )
     unit2 = input_header_value(unit2, "CUNIT2") #unit2 if unit2 is not None else ( header["CUNIT2"].rstrip() if "CUNIT2" in header else None )
     unit3 = input_header_value(unit3, "CUNIT3") # unit3 if unit3 is not None else ( header["CUNIT3"].rstrip() if "CUNIT3" in header else None )
@@ -1356,11 +1365,13 @@ def read_fits(filepath, fitstype, dpc, unit1=None, unit2=None, unit3=None, unit1
         else:
             return ax
 
-    def _add_beam_info(obj, dpc, vkms=None):
+    def _add_beam_info(obj, dpc):
         if not "BMAJ" in header:
             return
-        if (vkms is not None) and (len(vkms) >= 2):
-            vreso_kms = vkms[1] - vkms[0]
+        if hasattr(obj, "vkms") and (obj.vkms is not None) and (len(obj.vkms) >= 2):
+            vreso_kms = obj.vkms[1] - obj.vkms[0]
+        else:
+            vreso_kms = None
         obj.set_obs_resolution(
             beam_maj_deg=header["BMAJ"],
             beam_min_deg=header["BMIN"],
