@@ -60,11 +60,11 @@ def main():
     envos.plot_tools.plot_midplane_temperature_profile(model)
     envos.plot_tools.plot_midplane_velocity_map(model)
 
-    # There are two ways to obtain the physical values along streamlines:
+    # There are two ways to get the physical values along streamlines:
     # (1) use trajectries option in plot_density_map
     envos.plot_tools.plot_density_map(model, streams=True, trajectories=True,
         trajectories_option={"save":True, "theta0_deg":[89.9, 80, 70, 60, 50, 40]})
-    # (2) directory call calc_stremline function in streamline module
+    # (2) directly call calc_stremline function in streamline module
     envos.streamline.calc_streamline(model, r0=1000*envos.nc.au, theta0=80*np.pi/180, save=True, label="direct")
 
     #
