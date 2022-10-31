@@ -398,7 +398,7 @@ def add_mass_estimate_plot(
     #        _xau = xau[xau>0]
     #        _vkms = vkms[vkms>0]
         elif quadrant == 2:
-            cond = (xx > 0) & (vv < 0)
+            cond = (xx < 0) & (vv > 0)
     #        _Ipv = Ipv[(xx > 0) & (vv < 0)]
     #        _xau = xau[xau>0]
     #        _vkms = vkms[vkms<0]
@@ -408,7 +408,7 @@ def add_mass_estimate_plot(
     #        _xau = xau[xau<0]
     #        _vkms = vkms[vkms>0]
         elif quadrant == 4:
-            cond = (xx < 0) & (vv > 0)
+            cond = (xx > 0) & (vv < 0)
     #        _Ipv = Ipv[(xx < 0) & (vv < 0)]
     #        _xau = xau[xau<0]
     #        _vkms = vkms[vkms<0]
@@ -424,12 +424,15 @@ def add_mass_estimate_plot(
     if mass_ip:
         # M_ipeak
         #print(_xau, _vkms, _Ipv)
+        xx, yy = np.meshgrid(_xau, _vkms, indexing="ij")
+        #print(np.max(_Ipv[yy>0]))
+        #print(np.max(_Ipv[yy<0]))
         #exit()
         #x_vmax, v_vmax = get_coord_vmax(_xau, _vkms, _Ipv, f_crit)
         res = get_coord_ipeak(_xau, _vkms, _Ipv, mode="quadrant")
         if res is not None:
             xau_peak, vkms_peak = res
-            draw_cross_pointer(xau_peak, vkms_peak, color_def[1], lw=1.5, s=18, ls=":")
+            draw_cross_pointer(xau_peak, vkms_peak, color_def[1], lw=1.5, s=18, ls=":", zorder=5)
             M_CR = calc_M(abs(xau_peak), vkms_peak, fac=1)
         else:
             xau_peak = 0.0
@@ -451,7 +454,7 @@ def add_mass_estimate_plot(
             x_vmax, v_vmax = get_coord_vmax2(_xau, _vkms, _Ipv, Icrit = f_crit * np.max(Ipv))
             M_CB = calc_M(abs(x_vmax), v_vmax / np.sin(np.deg2rad(incl)), fac=1 / 2)
             draw_cross_pointer(
-                x_vmax, v_vmax, color_def[0], lw=1.5, s=18, ls=":", fill=False
+                x_vmax, v_vmax, color_def[0], lw=1.5, s=18, ls=":", fill=True, zorder=5
             )
             txt_Mvp_list.append(rf"$M_{{\rm vmax,\,{f_crit*100:.0f}\%}}$={M_CB:.3f}")
             logger.info(f"Mass estimation with maximum velocity, f_crit={f_crit} :")
@@ -472,6 +475,7 @@ def add_mass_estimate_plot(
             va="bottom",
             fontsize=12,
             bbox=dict(fc="white", ec="black", pad=5),
+            zorder=6,
         )
         return txt
 
@@ -487,17 +491,18 @@ def get_coord_ipeak(xau, vkms, Ipv, mode="quadrant"): # --> (xau, vkms) or None
     if mode=="quadrant":
         xx, vv = np.meshgrid(xau, vkms, indexing="ij")
         print("get_coord_vmax for get quadrant")
-        x_vmax, v_vmax = get_coord_vmax2(xau, vkms, Ipv, 0.5*np.max(Ipv) )
-#        print(x_vmax, v_vmax)
+        x_vmax, v_vmax = get_coord_vmax2(xau, vkms, Ipv, 0.7*np.max(Ipv) )
+        print("Vmax (x,V) = ",x_vmax, v_vmax)
         quadrant = get_quadrant(x_vmax, v_vmax)
+        print("quadrant is ", quadrant)
         if quadrant == 1:
             cond = (xx > 0) & (vv > 0)
         elif quadrant == 2:
-            cond = (xx > 0) & (vv < 0)
+            cond = (xx < 0) & (vv > 0)
         elif quadrant == 3:
             cond = (xx < 0) & (vv < 0)
         elif quadrant == 4:
-            cond = (xx < 0) & (vv > 0)
+            cond = (xx > 0) & (vv < 0)
         _Ipv = np.where(cond, Ipv, 0)
     elif mode =="max":
         _Ipv = Ipv
@@ -531,7 +536,7 @@ def get_coord_vmax2(xau, vkms, Ipv, Icrit, quadrant=None):
    # x_fun = optimize.minimize_scalar(lambda x: fun(x,v) )
     x_vmax = [ optimize.minimize_scalar(lambda x: - fun(x, _v)[0,0] ).x for _v in v]
 
-    #print(x_vmax)
+ #   print(v, x_vmax)
     #exit()
 
 #    x_vmax = np.apply_along_axis(lambda Ip: get_maximum_position(xau, Ip), 0, _Ipv)
@@ -609,7 +614,7 @@ def get_localpeak_positions(x, y, min_distance=3, threshold_abs=None):
     return np.array(maxis)
 
 def get_quadrant(x, y):
-    return int( (np.rad2deg( np.arctan2(x, y) ) ) % 360 // 90 + 1 )
+    return int( (np.rad2deg( np.arctan2(y, x) ) ) % 360 // 90 + 1 )
 
 def savefig(filename):
     gpath.make_dirs(fig=gpath.fig_dir)
