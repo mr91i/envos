@@ -9,14 +9,18 @@ from scipy import interpolate, integrate
 
 #from myplot import ini
 
-def calc_column_density(model, direction, double_interp=False):
+def calc_column_density(model, direction, double_interp=True):
     if direction == "r":
         return integrate.cumulative_trapezoid(model.rhogas, model.rr, axis=0, initial=0)
     elif direction == "theta":
         return integrate.cumulative_trapezoid(model.rhogas, model.tt, axis=1, initial=0) * model.rr
     elif direction == "z":
         if double_interp:
-            x = np.linspace(0, np.max(model.rc_ax), 1000)
+            #x = np.linspace(0, np.max(model.rc_ax), 10000)
+            x = np.linspace(0, np.max(model.rc_ax)**(1/1.5), 3000)**(1.5)
+            # rho ~ r^-1.5 
+            # rho/r^1.5 ~ const
+
             z = x
             xx, zz = np.meshgrid(x, z, indexing="ij")
             
@@ -39,8 +43,6 @@ def calc_column_density(model, direction, double_interp=False):
                 fill_value=None,
             )
 
-            print(col.shape, np.max(col), np.min(col))
-            #exit()
             return col
 
         else:
