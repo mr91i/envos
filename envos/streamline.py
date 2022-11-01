@@ -12,14 +12,14 @@ def calc_streamline(
     model,
     *,
     pos0=None,
-    r0=None,
-    theta0=None,
+    r0_au=None,
+    theta0_deg=None,
     names=[],
     units=[],
     variables=[],
     t_eval=None,
-    t0_yr=1,
-    dt_yr=1,
+    t0_yr=10,
+    dt_yr=10,
     rtol=1e-4,
     method="RK23",
     save=False,
@@ -27,15 +27,26 @@ def calc_streamline(
     dpath=None,
     label=None,
 ):
-    if (r0 is not None) and (theta0 is not None):
-        pos0_list = [(r0, theta0)]
+    if (r0_au is not None) and (theta0_deg is not None):
+        if np.isscalar(r0_au) and np.isscalar(theta0_deg):
+            pos0_list = [(r0_au, theta0_deg)]
+        elif np.isscalar(r0_au) and (not np.isscalar(theta0_deg)):
+            pos0_list = [(r0_au, _theta0) for _theta0 in theta0_deg]
+        elif (not np.isscalar(r0_au) )and np.isscalar(theta0_deg):
+            pos0_list = [(_r0, theta0_deg) for _r0 in r0_au]
+        elif (not np.isscalar(r0_au) or np.isscalar(theta0_deg)) and (len(r0_au) == len(theta0_deg)):
+            pos0_list = [(_r0, _theta0) for _r0, _theta0 in zip(r0_au, theta0_deg)]
+        else:
+            raise ValueError(f"Wrong type of r0 and theta0, {r0} {theta0}")
     elif (pos0 is not None) and (np.shape(pos0) == (2,) ):
         pos0_list = [pos0]
     elif (pos0 is not None) and (np.shape(pos0)[1] == 2 ):
         pos0_list = pos0
     else:
-        raise ValueError("Wrong shape of pos0, {np.shape(pos0)}")
+        raise ValueError(f"Wrong shape of pos0, {np.shape(pos0)}")
 
+    pos0_list = np.array(pos0_list) * np.array([nc.au, nc.deg2rad])
+    
     if t_eval is None:
         t_eval = np.arange(t0_yr, 1e6, dt_yr)*nc.yr
 
