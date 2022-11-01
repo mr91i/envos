@@ -60,25 +60,39 @@ def main():
     envos.plot_tools.plot_midplane_temperature_profile(model)
     envos.plot_tools.plot_midplane_velocity_map(model)
 
+
+    # Calculate the column density along r-direction and z-direction
+    # After that, model will have colr and colz in cgs units  
     model.calc_column_density()
 
+    # Before plotting, set the common potions for using trajectories
+    # Note that streams option shows the streamlines based only on the velocity field 
+    # but the trajectories option shows the path from which we set the initial positions.
     theta0 = [80, 70, 60, 50, 40]
     option = {
         "r0_au": model.ppar.cs * model.ppar.t / envos.nc.au, 
         "theta0_deg":theta0, 
     }
+
+    # calc_streamline and trajectories_option has the same names of the arguments. 
+    # Sorry for the confusiing names... I will change sooner or later.  
+    # Only when save option is turned on, trajectory data is output 
     envos.streamline.calc_streamline(
         model, save=True, label="direct", 
         names=["colr", "colz"], units=["g cm^-2","g cm^-2"], **option
     )
 
-    # There are two ways to get the physical values along streamlines:
-    # (1) use trajectries option in plot_density_map
-    envos.plot_tools.plot_rhogas_map(model, streams=True, trajectories=True,
-        trajectories_option=option)
-    # You can draw the trajectories over the temperature map as well.
-    envos.plot_tools.plot_Tgas_map(model, streams=True, trajectories=True, trajectories_option=option)
-     
+    envos.plot_tools.plot_rhogas_map(
+        model, streams=True, trajectories=True,
+        trajectories_option=option
+    )
+    envos.plot_tools.plot_Tgas_map(
+        model, streams=True, trajectories=True, 
+        trajectories_option=option
+    )     
+    # One can use plot_tools.plot_variable_meridional_map
+    # for an arbitrary variable that is contained in model class
+    # In this case, the str "colr" are passed to the function.     
     envos.plot_tools.plot_variable_meridional_map(
         model, "colr", 
         clabel=r"Column Desnity along $r$-Direction [g cm$^{-2}$]", 
