@@ -20,6 +20,7 @@ __all__ = [
     "plot_tools",
     "log",
     "datacor",
+    "column_density",
 ]
 
 __version__ = "0.1.0"
