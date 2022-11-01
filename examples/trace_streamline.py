@@ -62,14 +62,12 @@ def main():
 
     # There are two ways to get the physical values along streamlines:
     # (1) use trajectries option in plot_density_map
-    envos.plot_tools.plot_density_map(model, streams=True, trajectories=True,
+    envos.plot_tools.plot_rhogas_map(model, streams=True, trajectories=True,
         trajectories_option={"save":True, "theta0_deg":[89.9, 80, 70, 60, 50, 40]})
-    # (2) directly call calc_stremline function in streamline module
-    envos.streamline.calc_streamline(model, r0=1000*envos.nc.au, theta0=80*np.pi/180, save=True, label="direct")
-
-    #
-    envos.plot_tools.plot_temperature_map(model, streams=True)
-    exit()
+    # (2) directly call calc_stremline function in streamline module.
+    envos.streamline.calc_streamline(model, r0_au=1000, theta0_deg=[85, 75], save=True, label="direct")
+    # You can draw the trajectories over the temperature map as well.
+    envos.plot_tools.plot_Tgas_map(model, streams=True, trajectories=True)
 
 
 if __name__ == "__main__":
