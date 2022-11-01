@@ -116,25 +116,32 @@ Ratio of the cell size in the θ or φ direction to dr.
 
 
 ### 6.3 Model parameters
-- `T`, `CR_au`, `Ms_Msun`, `t_yr`, `Omega`, `jmid`, `Mdot_smpy`
-The kinetic structure of the UCM model is basically given by three parameters: 
-    the accretion rate \[Msun/yr\] `Mdot_smpy`, central stellar mass \[Msun\] `Ms_Msun`, and angular velocity of the parental cloud core, \[s^-1\] `Omega`. However, Mdot can be given by the temperature of the molecular cloud core [K] `T`, `Ms_Msun` can be given by the time from begining of the collapse\[yr\] `t_yr`, and `Omega` can be also given by the centrifugal radius\[au\] `CR_au` or the specific angular momentum of the equatorial plane `jmid` \[cm^2 s^-1\].
-- `meanmolw`
-Mean molecular weight。デフォルトは 2.3。
-- `cavangle_deg`
+Basically the kinetic structure of the UCM model is basically given by three parameters (see below for the definitions): `Mdot_smpy`, `Ms_Msun`, and `Omega`. However, `Mdot_smpy` can be given by `T`, `Ms_Msun` can be given by `t_yr`, and `Omega` can be given by `CR_au` or `jmid`.
+- {`Mdot_smpy`, `T`}, {`Ms_Msun`, `t_yr`}, {`Omega`, `CR_au`, `jmid`} : *float*  
+    - `Mdot_smpy`\[Msun/yr\] -- accretion rate
+    - `T`\[K\] -- temperature of the molecular cloud core
+    - `Ms_Msun` \[Msun\] -- central stellar mass
+    - `t_yr`\[yr\] -- time from begining of the collapse 
+    - `Omega`\[s^-1\] -- angular velocity of the parental cloud core   
+    - `CR_au`\[au\] -- the centrifugal radius
+    - `jmid`\[cm^2 s^-1\] -- specific angular momentum of the equatorial plane
+    
+- `meanmolw`: *float* = 2.3  
+Mean molecular weight.
+- `cavangle_deg`: *float* = 0.0  
 Polar angle \[deg\] within which the density is deprecated, mimicking outflow cavities.
-- `inenv`
-"UCM"かInnerEnvelopeインスタンス
-- `outenv`
-   “TSC”かOuterEnvelopeインスタンス
-- `disk`
-   “exptail”かDiskインスタンス
+- `inenv`: *str* or *InnerEnvelope* = "UCM"  
+The model used for the inner region of the envelope 
+- `outenv`: *str* or *OuterEnvelope* = None  
+The model used for the outer region of the envelope 
+- `disk`: *str* or *Disk* = None  
+The model used for the disk region 
 - `rot_ccw`
-回転方向を反転させるかどうか。デフォルトはFalse。
+If True, the rotation velocity becomes in the opposite direction
 
 ### 6.4 RADMC-3D parameters
-- `nphot`
-温度計算時に使われるphoton数
+- `nphot`: *int* = 1e6  
+Number of photons used for thermal calculation
 - `f_dg`
 Dust-to-gas mass ratio
 - `opac`
