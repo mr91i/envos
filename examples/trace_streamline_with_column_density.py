@@ -14,7 +14,7 @@ def main():
         n_thread=10,
         rau_in=10,
         rau_out=10000,
-        dr_to_r=0.03,
+        dr_to_r=0.01,
         aspect_ratio=1,
         inenv="UCM",
         CR_au=100,
@@ -60,15 +60,36 @@ def main():
     envos.plot_tools.plot_midplane_temperature_profile(model)
     envos.plot_tools.plot_midplane_velocity_map(model)
 
+    model.calc_column_density()
+
+    theta0 = [80, 70, 60, 50, 40]
+    option = {
+        "r0_au": model.ppar.cs * model.ppar.t / envos.nc.au, 
+        "theta0_deg":theta0, 
+    }
+    envos.streamline.calc_streamline(
+        model, save=True, label="direct", 
+        names=["colr", "colz"], units=["g cm^-2","g cm^-2"], **option
+    )
+
     # There are two ways to get the physical values along streamlines:
     # (1) use trajectries option in plot_density_map
-    envos.plot_tools.plot_density_map(model, streams=True, trajectories=True,
-        trajectories_option={"save":True, "theta0_deg":[89.9, 80, 70, 60, 50, 40]})
-    # (2) directly call calc_stremline function in streamline module
-    envos.streamline.calc_streamline(model, r0=1000*envos.nc.au, theta0=80*np.pi/180, save=True, label="direct")
+    envos.plot_tools.plot_rhogas_map(model, streams=True, trajectories=True,
+        trajectories_option=option)
+    # You can draw the trajectories over the temperature map as well.
+    envos.plot_tools.plot_Tgas_map(model, streams=True, trajectories=True, trajectories_option=option)
+     
+    envos.plot_tools.plot_variable_meridional_map(
+        model, "colr", 
+        clabel=r"Column Desnity along $r$-Direction [g cm$^{-2}$]", 
+        streams=True, trajectories=True, trajectories_option=option
+    )
+    envos.plot_tools.plot_variable_meridional_map(
+        model, "colz", 
+        clabel=r"Column Desnity along $z$-Direction [g cm$^{-2}$]", 
+        streams=True, trajectories=True, trajectories_option=option
+    )
 
-    #
-    envos.plot_tools.plot_temperature_map(model, streams=True)
     exit()
 
 
