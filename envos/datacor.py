@@ -23,7 +23,6 @@ def calc_datacor(
     axes_data = data1.get_axes()
     axes_newgrid = []
     for _ax_data, _range, _ax_user in itertools.zip_longest(axes_data, ranges, axes):
-     #   print(_ax_data, _range, _ax_user)
         if _range is None:
             continue
         cond = (_range[0] < _ax_data) & (_ax_data < _range[1])
@@ -32,9 +31,6 @@ def calc_datacor(
 
     grid = np.meshgrid(*axes_newgrid, indexing="ij") 
     newgrid = np.stack(grid, axis=-1)
-    #print(*axes_newgrid)
-    #print(data2)
-    #exit()
     _interp_option = {} # {"bounds_error":False, "fill_value":0}
     _interp_option.update(interp_option)
 
@@ -42,10 +38,6 @@ def calc_datacor(
     im1 = interpolate.interpn(data1.get_axes(), data1.get_I(), newgrid, **_interp_option)
     im2 = interpolate.interpn(data2.get_axes(), data2.get_I(), newgrid, **_interp_option)
 
-    #print(data1.get_axes())
-    #print(data2.get_axes())
-    #exit()
-    
     if norm1:
         im1 /= np.max(im1)
 
