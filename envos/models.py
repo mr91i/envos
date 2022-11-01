@@ -9,7 +9,7 @@ from envos import tools, cubicsolver, tsc
 from .nconst import G, kB, amu, au, Msun
 from .gpath import run_dir
 from .log import logger
-from . import tools
+from . import tools, column_density
 from scipy import interpolate, integrate
 
 #logger = set_logger(__name__)
@@ -147,6 +147,14 @@ class CircumstellarModel(ModelBase):
         for _vn in vnames:
             _val = self.take_midplane_average(vname)
             setattr(self, vname+"_mid", _val)
+
+    def calc_column_density(self, colr=True, colz=True, colt=False):
+        if colr:
+            self.colr = column_density.calc_column_density(self, "r")
+        if colz:
+            self.colz = column_density.calc_column_density(self, "z")
+        if colt:
+            self.colt = column_density.calc_column_density(self, "theta")
 
 class CassenMoosmanInnerEnvelope(ModelBase):
     def __init__(self, grid, Mdot, CR, Ms, cavangle=0):
