@@ -1,7 +1,7 @@
 import os
 import numpy as np
 import dataclasses
-from scipy import interpolate, integrate, optimize
+from scipy import integrate, optimize
 
 import matplotlib
 import matplotlib.patches
@@ -22,6 +22,134 @@ from cycler import cycler
 cyclestyle = cycler(ls=["-", "--", ":", "-."])
 logger = log.logger
 
+## Not use easyplot
+## - it make the code complicated, though useful
+def set_plot_format(
+    xlim=None, 
+    ylim=None, 
+    xlb=None, 
+    ylb=None, 
+    legend=False, 
+    xlog=False, 
+    ylog=False, 
+    loglog=False
+):
+    if xlim is not None:
+        plt.xlim(*xlim)
+    if ylim is not None:
+        plt.ylim(*ylim)
+    if xlb is not None:
+        plt.xlabel(xlb)
+    if ylb is not None:
+        plt.ylabel(ylb)
+    if legend:
+        plt.legend()
+    if xlog or loglog:
+        plt.xscale("log")
+    if ylog or loglog:
+        plt.yscale("log")
+
+## New generation plotting format
+## - make a plotting format independent of variables
+## 
+def plot_variable_meridional_map(
+    model,
+    variable_name,
+    save_name=None,
+    xlim=500,
+    rinlim=0,
+    clabel="",
+    clog=False,
+    save=True,
+    streams=False,
+    streams_option={},
+    trajectories=False,
+    trajectories_option={},
+    dlv=None,
+    aspect="equal",
+    extend="min",
+    **kwargs,
+):
+    if xlim > np.max(model.rr[...,0]) / nc.au:
+        xlim = np.max(model.rr[...,0]) / nc.au
+
+    var_toridal_average = np.average(getattr(model, variable_name), axis=2)
+
+    plot_colormap(
+        model.R[..., 0] / nc.au,
+        model.z[..., 0] / nc.au,
+        var_toridal_average, 
+        #zregion=(modepl.R[...,0] < xlim * nc.au) & (model.z[...,0] < xlim * nc.au),
+        zregion= (model.R[...,0] < xlim * nc.au) & (model.z[...,0] < xlim * nc.au) & (model.rr[...,0] > rinlim * nc.au),
+        clabel=clabel, 
+        clog=clog,
+        dlv=dlv,
+        aspect=aspect,
+        extend=extend,
+        **kwargs,
+    )
+
+    if trajectories:
+        _trj_option = {"r0_au": xlim, "theta0_deg": 30}  
+        _trj_option.update(trajectories_option)
+        add_trajectories(model, **_trj_option)
+
+    if streams:
+        add_streams(
+            model, xlim, r0=np.sqrt(2)*xlim, 
+            use_mu0=hasattr(model, "mu0"),
+            cavity_region=(model.rhogas[...,0]==0)
+        )
+
+    set_plot_format(
+        xlim=(0, xlim), 
+        ylim=(0, xlim), 
+        xlb=r"$R$ [au]", 
+        ylb=r"$z$ [au]"
+    )
+ 
+    if save:
+        name = variable_name if save_name is None else save_name
+        savefig(name + "." + figext)
+    return
+
+# example of gas density
+def plot_rhogas_map(
+    model,
+    **kwargs
+):
+    _kwargs = {
+        "clabel": rf"Gas Density [g cm$^{{-3}}$]",
+        "clog": True,
+        "cname": "viridis",
+        "dlv": 0.2,
+    }
+    _kwargs.update(kwargs)
+    plot_variable_meridional_map(model,"rhogas",**_kwargs)
+
+# example of gas temperature
+def plot_Tgas_map(
+    model,
+    **kwargs
+):
+    _kwargs = {
+        "clabel": r"Gas Temperature [K]",
+        "rinlim": 20,
+        "cname": "inferno",
+        "dlv": 10,
+        "extend": "neither",
+    }
+    _kwargs.update(kwargs)
+    plot_variable_meridional_map(model,"Tgas",**_kwargs)
+
+
+
+
+##################################################################################################
+#                                                                                                #
+#                                          L E G A C Y                                           #
+#                                                                                                #
+##################################################################################################
 
 @dataclasses.dataclass
 class PlotInfo:
@@ -61,6 +189,7 @@ def easyplot(func):
 
     return wrapper
 
+########################
 
 @easyplot
 def plot_density_map(
@@ -92,7 +221,9 @@ def plot_density_map(
         # cformat="%.3g"
     )
     if trajectories:
-        add_trajectories(m, **trajectories_option)
+        trj_option = {"r0_au": xlim, "theta0_deg": 30}  
+        trj_option.update(trajectories_option)
+        add_trajectories(m, **trj_option)
 
     if streams:
         add_streams(m, xlim, r0=r0, use_mu0=hasattr(m, "mu0"),
