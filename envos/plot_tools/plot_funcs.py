@@ -207,25 +207,25 @@ def add_streams(
         plt.streamplot(xau, yau, vR, vz, start_points=start_points, **opt)
 
 
-def add_trajectories(model, theta0_deg=[80, 70, 60, 50, 40, 30, 20, 10], save=False, teval_yr=None):
-    r0 = model.ppar.cs * model.ppar.t  # / nc.au
-    start_points = [(r0, th0) for th0 in np.radians(theta0_deg)]
+#def add_trajectories(model, r0_au=None, theta0_deg=[30], save=False, teval_yr=None, streamlines=None, method="RK23", **options):
+def add_trajectories(model, streamlines=None, **options):
+    if streamlines is None:
+        #r0 = model.ppar.cs * model.ppar.t if r0_au is None else r0_au 
+        #start_points = [(r0, th0) for th0 in np.radians(theta0_deg)]
+        #if teval_yr is None:
+        #    teval = np.arange(10, 1e6, 10) * nc.year
+        #else:
+        #    teval = teval_yr * nc.year
 
-    if teval_yr is None:
-        teval = np.arange(10, 1e6, 10) * nc.year
-    else:
-        teval = teval_yr * nc.year
+        streamlines = streamline.calc_streamline(
+            model,
+            #pos0=start_points,
+            #t_eval=teval,
+            **options,
+        )
 
-    sls = streamline.calc_streamline(
-        model,
-        pos0=start_points,
-        method="RK23",
-        t_eval=teval,
-        save=save,
-    )
-
-    for sl in sls:
-        plt.plot(sl.R / nc.au, sl.z / nc.au, c="orange", lw=0.7, marker=".", ms=1.5)
+    for sl in streamlines:
+        plt.plot(sl.R / nc.au, sl.z / nc.au, c="orange", lw=0.7, marker=".", ms=1.4)
 
 
 def vertical_integral(value_rt, R_rt, z_rt, R_ax, z_ax, log=False):
