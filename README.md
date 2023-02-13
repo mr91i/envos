@@ -27,10 +27,11 @@ I really welcome improvements and requests from users.
 
 ## 4. Setup
 ### 4.1 Install *RADMC-3D* and *radmc3dPy*
-1. Download the installing source code from [github](https://github.com/dullemond/radmc3d-2.0).
+1. Download the installing source code from [github](https://github.com/dullemond/radmc3d-2.0):
 `git clone https://github.com/dullemond/radmc3d-2.0.git`
 
-2. Install RADMC-3D following [a HTML manual](https://www.ita.uni-heidelberg.de/~dullemond/software/radmc-3d/manual_radmc3d/index.html) or [a PDF version](https://www.ita.uni-heidelberg.de/~dullemond/software/radmc-3d/radmc3d.pdf).
+
+2. Install RADMC-3D following the [HTML manual](https://www.ita.uni-heidelberg.de/~dullemond/software/radmc-3d/manual_radmc3d/index.html) or [PDF version](https://www.ita.uni-heidelberg.de/~dullemond/software/radmc-3d/radmc3d.pdf).
     1. `cd radmc3d-2.0/src`
     2. Edit Makefile if you need
     3. Generating an executable file `radmc3d`
@@ -57,7 +58,7 @@ I really welcome improvements and requests from users.
 
 
 ### 4.2 Install *envos*
-1. Download `envos` from this github repository
+1. Download `envos` from this github repository to your preferred location: 
 `git clone https://github.com/mr91i/envos.git`
 
 2. Check if it works e.g., execute an example script `python3 example_run.py`.
