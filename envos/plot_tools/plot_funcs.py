@@ -67,7 +67,10 @@ def plot_colormap(
 
     _z = z[zregion] if zregion is not None else z
     if lvs is None:
-        lvs = make_levels(_z, dlv, log=clog)
+        if dlv is not None:
+            lvs = make_levels(_z, dlv, log=clog)
+        else:
+            lvs = np.linspace(np.min(_z), np.max(_z), 11)
 
     img = plt.pcolormesh(
         xx,
@@ -210,7 +213,7 @@ def add_streams(
 #def add_trajectories(model, r0_au=None, theta0_deg=[30], save=False, teval_yr=None, streamlines=None, method="RK23", **options):
 def add_trajectories(model, streamlines=None, **options):
     if streamlines is None:
-        #r0 = model.ppar.cs * model.ppar.t if r0_au is None else r0_au 
+        #r0 = model.ppar.cs * model.ppar.t if r0_au is None else r0_au
         #start_points = [(r0, th0) for th0 in np.radians(theta0_deg)]
         #if teval_yr is None:
         #    teval = np.arange(10, 1e6, 10) * nc.year

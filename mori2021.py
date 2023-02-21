@@ -20,6 +20,7 @@ mpl_setting.set_rc(lw=1.2, bold=False, fontsize=12)
 
 def main(conf):
     #do_fiducial_run(conf)
+    do_rshock_test(conf)
     #t2=unit2, plot_obspv(conf)
     #do_debug_run(conf)
     #do_parameter_study(conf)
@@ -40,14 +41,18 @@ def main(conf):
 # Fiducial run
 #
 def do_fiducial_run(conf):
-    _conf = conf.replaced(fig_dir=f"run/fig_fid", n_thread=15, dr_to_r=0.02, nphot=1e7)
+    _conf = conf.replaced(fig_dir=f"run/fig_fid", n_thread=16,pixsize_au=5) #, dr_to_r=0.2, nphot=1e4)
+    #_conf = conf.replaced(fig_dir=f"run/fig_fid", n_thread=1, dr_to_r=0.2, nphot=1e4)
     synobs(
         _conf,
         filename=f"lobs_fid.pkl",
         calc_model=0,
+        calc_obs=0,
         plot_model_structure=1,
         #calc_obs=False,
+
     )
+    exit()
 
 def do_debug_run(conf):
     #label = f"{model}_M{M}_cr{CR}_i{i}"
@@ -82,8 +87,9 @@ def do_parameter_study(config):
     def _obs(config, label, refcube=None, **kwargs):
         _conf = config.replaced(
             run_dir=f"./run/run_" + label,
-            dr_to_r=0.05,
-            nphot=1e6,
+            n_thread=16,
+            #dr_to_r=0.05,
+            #nphot=1e6,
         )
         synobs(
             _conf,
@@ -93,7 +99,7 @@ def do_parameter_study(config):
             #calc_model=0,
             calc_model=0,
             calc_obs=0,
-            plot_model_structure=0,
+            plot_model_structure=1,
             refdata=refcube,
             **kwargs,
         )
@@ -313,6 +319,18 @@ def do_ring_test(conf):
             filename=f"lobs_rring{rring}.pkl",
         )
 
+#
+# Shariff Shock
+#
+def do_rshock_test(conf):
+    crau = conf.CR_au
+    def rhofunc_after_thermal(model):
+        return np.where(
+                (model.rr / envos.nc.au < 1.5 * crau) & (np.abs(model.tt - 0.5*np.pi) < 0.1),
+                model.rhogas,
+                0
+                )
+    synobs(conf.replaced(run_dir=f"run/run_rshock"), filename=f"lobs_rshock.pkl", rhofunc_after_thermal=rhofunc_after_thermal)
 
 #
 # PS survays
@@ -368,7 +386,7 @@ config_default = envos.Config(
     rau_in=10,
     rau_out=1000,
     theta_out=np.pi,
-    dr_to_r=0.01,
+    dr_to_r=0.02,
     aspect_ratio=1,
     nphi=91,
     nphot=1e7,
@@ -546,7 +564,8 @@ def synobs(
         img.trim(xlim=[-900,900])
         envos.plot_tools.plot_mom0_map(
             img,
-            pangle_deg=[conf.posang - 90 + pa_pv],
+            #pangle_deg=[conf.posang - 90 + pa_pv],
+            arrow_angle_deg=conf.posang - 90 + pa_pv,
             norm="max"
         )
 

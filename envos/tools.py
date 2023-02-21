@@ -42,6 +42,7 @@ def savefile(target, basename="file", mode="pickle", filepath=None):
         pandas.to_pickle(target, filepath)
         logger.info(f"Saved pickle file: {filepath}")
 
+
 #    elif mode == "fits":
 #        self.data.writeFits(fname=filepath, dpc=dpc)
 #        logger.info(f"Saved fits file: {filepath}")
@@ -49,6 +50,12 @@ def savefile(target, basename="file", mode="pickle", filepath=None):
     else:
         logger.error("Unknown mode")
         exit()
+
+def save_array(arrays, fname, mode="ascii", header='', fmt='%.15e'):
+    data = np.array([a.ravel() for a in arrays]).T
+    with open(fname, 'wb') as f:
+        np.savetxt(f, data,header=header, fmt=fmt)
+
 
 
 def clean_radmcdir():
@@ -115,6 +122,29 @@ def find_roots(x, y1, y2):
             if dy[i] * dy[i + 1] <= 0
         ]
     )
+
+def position_line(pangle_deg, L, dx=None, dy=None, offset=0):
+    pa = pangle_deg * nc.deg2rad
+    if (dx is None) or (dy is None):
+        dl = L * 0.01
+    else:
+        dl = ((np.sin(pa)/dx)**2 + (np.cos(pa)/dy)**2)**(-0.5)
+    posax = np.arange(-L/2, L/2+dl, dl)
+    pos_x = - posax * np.sin(pa) - offset * np.cos(pa)
+    pos_y = posax * np.cos(pa) - offset * np.sin(pa)
+    return np.stack([pos_x, pos_y], axis=-1)
+
+def get_position_line(pangle_deg, L, dx=None, dy=None, offset=0):
+    pa = pangle_deg * nc.deg2rad
+    if (dx is None) or (dy is None):
+        dl = L * 0.01
+    else:
+        dl = ((np.sin(pa)/dx)**2 + (np.cos(pa)/dy)**2)**(-0.5)
+    posax = np.arange(-L/2, L/2+dl, dl)
+    pos_x = - posax * np.sin(pa) - offset * np.cos(pa)
+    pos_y = posax * np.cos(pa) - offset * np.sin(pa)
+    return {"points": np.stack([pos_x, pos_y], axis=-1), "posax": posax}
+
 
 def take_midplane_average(model, value, dtheta=0.03, ntheta=1000, vabs=False):
     # rho_mid(r) = 1/(2rΔθ) int_-Δθ^Δθ ρ r dθ
