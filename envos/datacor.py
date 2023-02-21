@@ -18,6 +18,7 @@ def calc_datacor(
     norm2=False,
     interp_option={},
     get_images=False,
+    preprocess_func=None,
 ):
     ## Set axes
     axes_data = data1.get_axes()
@@ -29,7 +30,7 @@ def calc_datacor(
         newax = _ax_data[cond] if _ax_user is None else _ax_user
         axes_newgrid.append(newax)
 
-    grid = np.meshgrid(*axes_newgrid, indexing="ij") 
+    grid = np.meshgrid(*axes_newgrid, indexing="ij")
     newgrid = np.stack(grid, axis=-1)
     _interp_option = {} # {"bounds_error":False, "fill_value":0}
     _interp_option.update(interp_option)
@@ -37,6 +38,10 @@ def calc_datacor(
     ## Make data
     im1 = interpolate.interpn(data1.get_axes(), data1.get_I(), newgrid, **_interp_option)
     im2 = interpolate.interpn(data2.get_axes(), data2.get_I(), newgrid, **_interp_option)
+
+    if preprocess_func is not None:
+        im1 *= preprocess_func(im1, im2, axes_newgrid)
+        im2 *= preprocess_func(im1, im2, axes_newgrid)
 
     if norm1:
         im1 /= np.max(im1)
