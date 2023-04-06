@@ -303,6 +303,7 @@ class ModelGenerator:
         Tgas = radmc.get_gas_temperature()
         self.model.set_gas_temperature(Tgas)
 
+
     def get_model(self):
         return self.model
 

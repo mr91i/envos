@@ -245,6 +245,10 @@ class RadmcController:
         if self.model.vturb is not None:
             self.set_turbulence(self.model.vturb)
 
+        if self.model.heatrate is not None:
+            self.set_heatrate(self.model.heatrate)
+
+
     def _save_input_file(self, filename, *text_lines):
         filepath = os.path.join(self.radmc_dir, filename)
         mapped_lines = map(self._strfunc, text_lines)
@@ -359,6 +363,15 @@ class RadmcController:
             f"{vturb.size:d}",
             *vturb.ravel(order="F"),
         )
+
+    def set_heatrate(self, heatrate):
+        self._save_input_file(
+            f"heatsource.inp",
+            "1",
+            f"{heatrate.size:d}",
+            *heatrate.ravel(order="F"),
+        )
+
     def clean_radmc_dir(self):
         logger.info(f"Cleaning {self.radmc_dir} which now contains:")
         files = glob.glob(f"{self.radmc_dir}/*")

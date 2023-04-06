@@ -103,6 +103,7 @@ class CircumstellarModel(ModelBase):
     vt: np.ndarray = None
     vp: np.ndarray = None
     vturb: np.ndarray = None
+    heatrate: np.ndarray = None
     Tgas: np.ndarray = None
     Tdust: np.ndarray = None
     f_dg: float = None
@@ -141,6 +142,9 @@ class CircumstellarModel(ModelBase):
 
     def set_turb_velocity(self, vturb):
         self.vturb = vturb
+
+    def set_heatrate(self, heatrate):
+        self.heatrate = heatrate
 
     def set_gas_temperature(self, temperature):
         self.Tgas = temperature
@@ -293,6 +297,7 @@ class Disk(ModelBase):
         self.vr = np.zeros_like(self.rho)
         self.vt = np.zeros_like(self.rho)
         self.vp = OmegaK * self.R
+
 
 class PowerlawDisk(Disk):
     def __init__(self, grid, Ms, Rd, ind_S=-1, Td10=40, ind_T=-0.5, fracMd=0.1, meanmolw=2.3, tail="exp", ind_tail=None, Tmid=None):
