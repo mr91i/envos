@@ -7,10 +7,10 @@ This code executes synthetic observation by calculating physical model of young 
 I really welcome improvements and requests from users. 
 
 ## 2. Features
-- Density and velocity structures
+- Density and velocity structures are calculated by a balistic model of Ulrich (1976), or one can input own kinematic data.  
 - Temperature structure is calculated consistently with the density structure given by user.
 - Calculation of temperature structure and sysnthetic observation is done by RADMC-3D (Dullemond et al. 2012; website: [https://www.ita.uni-heidelberg.de/~dullemond/software/radmc-3d/](https://www.ita.uni-heidelberg.de/~dullemond/software/radmc-3d/); github: [https://github.com/dullemond/radmc3d-2.0](https://github.com/dullemond/radmc3d-2.0)), which is commonly used in astronomical studies.
-- All source codes are written in Python3 (ver. >= 3.6).
+- All source codes are written in Python3 (ver. >= 3.6). 
 
 ## 3. Requirements
 - Python packages
@@ -27,10 +27,11 @@ I really welcome improvements and requests from users.
 
 ## 4. Setup
 ### 4.1 Install *RADMC-3D* and *radmc3dPy*
-1. Download the installing source code from [github](https://github.com/dullemond/radmc3d-2.0).
+1. Download the installing source code from [github](https://github.com/dullemond/radmc3d-2.0):
 `git clone https://github.com/dullemond/radmc3d-2.0.git`
 
-2. Install RADMC-3D following [a HTML manual](https://www.ita.uni-heidelberg.de/~dullemond/software/radmc-3d/manual_radmc3d/index.html) or [a PDF version](https://www.ita.uni-heidelberg.de/~dullemond/software/radmc-3d/radmc3d.pdf).
+
+2. Install RADMC-3D following the [HTML manual](https://www.ita.uni-heidelberg.de/~dullemond/software/radmc-3d/manual_radmc3d/index.html) or [PDF version](https://www.ita.uni-heidelberg.de/~dullemond/software/radmc-3d/radmc3d.pdf).
     1. `cd radmc3d-2.0/src`
     2. Edit Makefile if you need
     3. Generating an executable file `radmc3d`
@@ -57,7 +58,7 @@ I really welcome improvements and requests from users.
 
 
 ### 4.2 Install *envos*
-1. Download `envos` from this github repository
+1. Download `envos` from this github repository to your preferred location: 
 `git clone https://github.com/mr91i/envos.git`
 
 2. Check if it works e.g., execute an example script `python3 example_run.py`.
@@ -116,82 +117,119 @@ Ratio of the cell size in the θ or φ direction to dr.
 
 
 ### 6.3 Model parameters
-- `T`, `CR_au`, `Ms_Msun`, `t_yr`, `Omega`, `jmid`, `Mdot_smpy`
-The kinetic structure of the UCM model is basically given by three parameters: 
-    the accretion rate \[Msun/yr\] `Mdot_smpy`, central stellar mass \[Msun\] `Ms_Msun`, and angular velocity of the parental cloud core, \[s^-1\] `Omega`. However, Mdot can be given by the temperature of the molecular cloud core [K] `T`, `Ms_Msun` can be given by the time from begining of the collapse\[yr\] `t_yr`, and `Omega` can be also given by the centrifugal radius\[au\] `CR_au` or the specific angular momentum of the equatorial plane `jmid` \[cm^2 s^-1\].
-- `meanmolw`
-Mean molecular weight。デフォルトは 2.3。
-- `cavangle_deg`
+Basically the kinetic structure of the UCM model is basically given by three parameters (see below for the definitions): `Mdot_smpy`, `Ms_Msun`, and `Omega`. However, `Mdot_smpy` can be given by `T`, `Ms_Msun` can be given by `t_yr`, and `Omega` can be given by `CR_au` or `jmid`.
+- {`Mdot_smpy`, `T`}, {`Ms_Msun`, `t_yr`}, {`Omega`, `CR_au`, `jmid`} : *float*  
+    - `Mdot_smpy`\[Msun/yr\] -- accretion rate
+    - `T`\[K\] -- temperature of the molecular cloud core
+    - `Ms_Msun` \[Msun\] -- central stellar mass
+    - `t_yr`\[yr\] -- time from begining of the collapse 
+    - `Omega`\[s^-1\] -- angular velocity of the parental cloud core   
+    - `CR_au`\[au\] -- the centrifugal radius
+    - `jmid`\[cm^2 s^-1\] -- specific angular momentum of the equatorial plane
+    
+- `meanmolw`: *float* = 2.3  
+Mean molecular weight.
+- `cavangle_deg`: *float* = 0.0  
 Polar angle \[deg\] within which the density is deprecated, mimicking outflow cavities.
-- `inenv`
-"UCM"かInnerEnvelopeインスタンス
-- `outenv`
-   “TSC”かOuterEnvelopeインスタンス
-- `disk`
-   “exptail”かDiskインスタンス
+- `inenv`: *str* or *InnerEnvelope* = "UCM"  
+The model used for the inner region of the envelope 
+- `outenv`: *str* or *OuterEnvelope* = None  
+The model used for the outer region of the envelope 
+- `disk`: *str* or *Disk* = None  
+The model used for the disk region 
 - `rot_ccw`
-回転方向を反転させるかどうか。デフォルトはFalse。
+If True, the rotation velocity becomes in the opposite direction
 
 ### 6.4 RADMC-3D parameters
-- `nphot`
-温度計算時に使われるphoton数
-- `f_dg`
+
+- `nphot`: *int* = 1e6  
+Number of photons used for thermal calculation
+
+- `f_dg`: *float* = 0.01 
 Dust-to-gas mass ratio
-- `opac`
-Name of opacity table. xxx in storage/dustkappa_xxx.inp.
-- `Lstar_Lsun`
-星の光度\[Lsun\]
-- `mfrac_H2`
-H2分子がガス中の質量を占める割合。デフォルトは0.74
-- `molname`
-使用する輝線テーブルの名前。storage/molecule_xxx.inpのxxx
-- `molabun`
-H2分子に対する注目する分子の存在度
-- `iline`
-テーブル内の何番目の遷移か。1始まり。
-- `scattering_mode_max`
-1以上でscatteringあり。詳しくはRADMC3Dのマニュアルを参照。
-- `mc_scat_maxtauabs`
-scatteringする光子の最大光学的深さ。詳しくはRADMC3Dのマニュアルを参照。
-- `tgas_eq_tdust`
-ガス温度とダスト温度を一緒にする。デフォルトでTrue。Falseは未対応。
 
-### 6.5 Observarion parameters
-- `dpc`: float
-Distance from observer to object.
-- `size_au`: float
-Length of one side of a square observation area, \[au\].
-When `size_au` is given, `sizex_au` and `sizex_au` are neglected.
-- `sizex_au`: float
-縦の観測範囲\[au\]
-- `sizey_au`
-横の観測範囲\[au\]
-- `pixsize_au`
-Pixel size \[au\]
-- `vfw_kms`
-Total velocity width, \[km/s\].
-- `dv_kms`
-Velocity resolution, \[km/s\]
-- `convmode`: str
+- `opac`: *str* 
+Name of the opacity table, in the form of `storage/dustkappa_xxx.inp`.
+
+- `Lstar_Lsun`: *float* = 1.0
+The luminosity of the star, in units of solar luminosities.
+
+- `mfrac_H2`: *float* = 0.74  
+The mass fraction of H2 molecules in the gas. [Asplund et al. (2021)](https://ui.adsabs.harvard.edu/abs/2009ARA%26A..47..481A/abstract) would be helpful to determine this value.
+
+- `molname`: *str*  
+The name of the molecular line table to be used, in the form of `storage/molecule_xxx.inp`.
+
+- `molabun`: *float*  
+The abundance of the molecule of interest relative to H2.
+
+- `iline`: *int*  
+The line number in the table, starting from 1.
+
+- `scattering_mode_max`: *int*   
+A value of 1 or higher indicates that scattering is included. Refer to the RADMC3D manual for more details.
+
+- `mc_scat_maxtauabs`: *int*  
+The maximum optical depth of the photons that are scattered. Refer to the RADMC3D manual for more details.
+
+- `tgas_eq_tdust`: *int* or *bool*   
+Whether to set the gas temperature and dust temperature to be the same. The default is `True`. Setting it to `False` is not currently supported.
+
+## 6.5 Observation parameters
+
+- `dpc`: *float*  
+Distance from the observer to the object, in pc.
+
+- `size_au`: *float*  
+Length of one side of the square observation area, in au.
+If `size_au` is given, `sizex_au` and `sizey_au` will be ignored.
+
+- `sizex_au`: *float*  
+The vertical extent of the observation area, in au.
+
+- `sizey_au`: *float*  
+The horizontal extent of the observation area, in au.
+
+- `pixsize_au`: *float*  
+Pixel size, in astronomical units.
+
+- `vfw_kms`: *float*  
+Total velocity width, in kilometers per second.
+
+- `dv_kms`: *float*  
+Velocity resolution, in kilometers per second.
+
+- `convmode`: *str*  
     - "normal": a standard convolution function in *astropy*
-    - "fft": a convolution function in *astropy*, using fast foulier transform. This is faster than `normal` but requires bigger memory.
-    - "scipy": a convolution function in *scipy*, slightly faster and cheeper than `fft`.
-- `beam_maj_au`
-ビームの長半径\[au\]
-- `beam_min_au`
-ビームの短半径\[au\]
-- `vreso_kms`
-Full velocity width of convolution \[km/s\]
-- `beam_pa_deg`
-ビームの位置角\[deg\]
-- `incl`
-Angle \[deg\] between polar axis and line of sight (incl=0: face-on, incl=90: edge-on)
-- `phi`
-経度\[deg\]
-- `posang`
-カメラの位置角\[deg\]
+    - "fft": a convolution function in *astropy*, using fast fourier transform. This is faster than `normal` but requires more memory.
+    - "scipy": a convolution function in *scipy*, slightly faster and less memory-intensive than `fft`.
 
+- `beam_maj_au`: *float*  
+The major axis of the beam, in astronomical units.
+
+- `beam_min_au`: *float*  
+The minor axis of the beam, in astronomical units.
+
+- `vreso_kms`: *float*  
+Full velocity width of convolution, in kilometers per second.
+
+- `beam_pa_deg`: *float*  
+The position angle of the beam, in degrees.
+
+- `incl`: *float*  
+Angle, in degrees, between the polar axis and the line of sight (`incl`=0: face-on, `incl`=90: edge-on)
+
+- `phi`: *float*  
+The longitude, in degrees.
+
+- `posang`: *float*  
+The position angle of the camera, in degrees.
+
+
+<!--
 ## 7. Functions/Classes
+-->
+
 
 
 

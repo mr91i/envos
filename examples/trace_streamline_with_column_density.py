@@ -24,6 +24,7 @@ def main():
         f_dg=0.01,
         opac="MRN20",
         Lstar_Lsun=1.0,
+        nphot=100,
     )
 
     # Printing a Config class shows all arguments set in the instance,
@@ -62,23 +63,23 @@ def main():
 
 
     # Calculate the column density along r-direction and z-direction
-    # After that, model will have colr and colz in cgs units  
+    # After that, model will have colr and colz in cgs units
     model.calc_column_density()
 
     # Before plotting, set the common potions for using trajectories
-    # Note that streams option shows the streamlines based only on the velocity field 
+    # Note that streams option shows the streamlines based only on the velocity field
     # but the trajectories option shows the path from which we set the initial positions.
     theta0 = [80, 70, 60, 50, 40]
     option = {
-        "r0_au": model.ppar.cs * model.ppar.t / envos.nc.au, 
-        "theta0_deg":theta0, 
+        "r0_au": model.ppar.cs * model.ppar.t / envos.nc.au,
+        "theta0_deg":theta0,
     }
 
-    # calc_streamline and trajectories_option has the same names of the arguments. 
-    # Sorry for the confusiing names... I will change sooner or later.  
-    # Only when save option is turned on, trajectory data is output 
+    # calc_streamline and trajectories_option has the same names of the arguments.
+    # Sorry for the confusiing names... I will change sooner or later.
+    # Only when save option is turned on, trajectory data is output
     envos.streamline.calc_streamline(
-        model, save=True, label="direct", 
+        model, save=True, label="direct",
         names=["colr", "colz"], units=["g cm^-2","g cm^-2"], **option
     )
 
@@ -87,22 +88,28 @@ def main():
         trajectories_option=option
     )
     envos.plot_tools.plot_Tgas_map(
-        model, streams=True, trajectories=True, 
+        model, streams=True, trajectories=True,
         trajectories_option=option
-    )     
+    )
     # One can use plot_tools.plot_variable_meridional_map
     # for an arbitrary variable that is contained in model class
-    # In this case, the str "colr" are passed to the function.     
+    # In this case, the str "colr" are passed to the function.
+
     envos.plot_tools.plot_variable_meridional_map(
-        model, "colr", 
-        clabel=r"Column Desnity along $r$-Direction [g cm$^{-2}$]", 
+        model, "colr",
+        clabel=r"Column Desnity along $r$-Direction [g cm$^{-2}$]",
         streams=True, trajectories=True, trajectories_option=option
     )
     envos.plot_tools.plot_variable_meridional_map(
-        model, "colz", 
-        clabel=r"Column Desnity along $z$-Direction [g cm$^{-2}$]", 
+        model, "colz",
+        clabel=r"Column Desnity along $z$-Direction [g cm$^{-2}$]",
         streams=True, trajectories=True, trajectories_option=option
     )
+
+    # One can save the physical value with text data by using save_arrays(arrays, filename).
+    # `arrays` is str of a variable name, or str list of variable names.
+    # model.save_arrays("rhogas", "rhogas.txt")
+    model.save_arrays(["rhogas","Tgas","colr","colz"], "data.txt")
 
     exit()
 

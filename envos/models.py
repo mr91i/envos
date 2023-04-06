@@ -28,7 +28,30 @@ class ModelBase:
         self.vz = self.vr * np.cos(self.tt) - self.vt * np.sin(self.tt)
 
     def save(self, basename="file", mode="pickle", filepath=None):
+        """
+        Any Model object can be saved by using .save function.
+        basename is the filename witout extension
+        mode can be choosen in "pickle",
+
+        """
         tools.savefile(self, basename=basename, mode=mode, filepath=filepath)
+
+    def save_arrays(self, varnames, filename):
+        if isinstance(varnames,str):
+            varnames = [varnames]
+        varhdr = ["r[cm]", "theta[rad]", "phi[rad]"]
+        varlist = [self.rr, self.tt, self.pp]
+        for vn in varnames:
+            if not hasattr(self, vn):
+                print(f"Error: The variable name `{vn}` is not found in this instance.")
+                print( "       Please choose variable name within ")
+                print(", ".join([k for k in vars(self).keys() if np.shape(self.rr) == np.shape(getattr(self, k)) ]))
+                raise KeyError
+            v = getattr(self, vn)
+            if np.shape(self.rr) == np.shape(v):
+                varhdr.append(vn)
+                varlist.append(v)
+        tools.save_array(varlist, filename, header=" ".join(varhdr))
 
     def save_pickle(self, filename, filepath=None):
         if filepath is None:

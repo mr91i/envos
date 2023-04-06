@@ -36,205 +36,376 @@ ImagePlotter(PlotterBase, ObsPlotterBase)
 """
 
 
-def plot_mom0_map(
-    data,
-    out="mom0map.pdf",
-    xlim=(-700, 700),
-    ylim=(-700, 700),
+#def plot_mom0_map(
+#    data,
+#    out="mom0map.pdf",
+#    xlim=(-700, 700),
+#    ylim=(-700, 700),
+#    clim=(None, None),
+#    nlv=10,
+#    norm=None,
+#    pangle_deg=None,
+#    poffset_au=None,
+#    discrete=False,
+#    save=True,
+#    Iunit=None,
+#):
+#    def position_line(length, pangle_deg, poffset_au=0):
+#        line = np.linspace(-length / 2, length / 2, 10)
+#        pangle_rad = (pangle_deg + 90) * np.pi / 180
+#        pos_x = line * np.cos(pangle_rad) - poffset_au * np.sin(pangle_rad)
+#        pos_y = line * np.sin(pangle_rad) + poffset_au * np.sin(pangle_rad)
+#        return pos_x, pos_y
+#
+#    if data.dtype == "Cube":
+#        image = data.get_mom0_map()
+#    elif data.dtype == "Image":
+#        image = data.copy()
+#    else:
+#        raise Exception("Data type error")
+#
+#    if norm is not None:
+#        image.norm_I(norm)
+#
+#    lvs = np.linspace(
+#        clim[0] if clim[0] is not None else np.min(image.get_I()),
+#        clim[1] if clim[1] is not None else np.max(image.get_I()),
+#        nlv + 1
+#    )
+#    if discrete:
+#        _cmap = make_listed_cmap("magma", nlv-1, extend="neither")
+#        _norm = mc.BoundaryNorm(lvs, nlv-1, clip=False)
+#    else:
+#        _cmap = plt.get_cmap("magma")
+#        _norm = mc.Normalize(vmin=lvs[0], vmax=lvs[-1])
+#
+#    xx, yy = np.meshgrid(data.xau, data.yau, indexing="ij")
+#
+#    img = plt.pcolormesh(
+#        xx,
+#        yy,
+#        image.get_I(),
+#        cmap=_cmap, #make_listed_cmap("magma", len(lvs) - 1, extend="neither"),
+#        norm=_norm, #mc.BoundaryNorm(lvs, len(lvs) - 1, clip=False),
+#        shading="nearest",
+#        rasterized=True,
+#    )
+#
+#    "*** Setting color bar ***"
+#    cbar = plt.colorbar(img, pad=0.02)
+#    Iunit = Iunit if Iunit is not None else image.Iu()
+#    cbar.set_label(r"Integrated Intensity $I$" + rf" [{Iunit}]")
+#
+#    nticks = nlv + 1
+#    cbar.set_ticks( np.linspace(lvs[0], lvs[-1], nticks) )
+#    cbar.ax.minorticks_off()
+#    plt.gca().tick_params("both", direction="inout")
+#
+#    if pangle_deg is not None:
+#        for _pangle_deg in pangle_deg:
+#            x, y = position_line(1400, _pangle_deg)
+#            plt.gca().annotate(
+#                "",
+#                xy=[x[-1], y[-1]],
+#                xytext=[x[0], y[0]],
+#                va="center",
+#                arrowprops=dict(arrowstyle="->", color="#aaaaaa", lw=1),
+#                zorder=3
+#            )
+#        if poffset_au is not None:
+#            pline = position_line(data.xau, pangle_deg, poffset_au=poffset_au)
+#            plt.plot(pline[0], pline[1], c="w", lw=1, ls=":")
+#
+#    if hasattr(data, "obreso") and \
+#        (data.obreso is not None) and \
+#        data.obreso.beam_maj_au:
+#        draw_beamsize(
+#            plt.gca(),
+#            "mom0",
+#            data.obreso.beam_maj_au,
+#            data.obreso.beam_min_au,
+#            data.obreso.beam_pa_deg,
+#        )
+#
+#    plt.xlim(xlim[0], xlim[1])
+#    plt.ylim(ylim[0], ylim[1])
+#    plt.xlabel(r"RA Offset [au]")
+#    plt.ylabel(r"Dec Offset [au]")
+#
+#    draw_center_line()
+#    savefig(out)
+
+#------------------------------------------------------------------------------#
+def _plot_image(
+    x, y, z,
+    xlim=(None, None),
+    ylim=(None, None),
     clim=(None, None),
-    nlv=10,
-    norm=None,
-    pangle_deg=None,
-    poffset_au=None,
     discrete=False,
-    save=True,
-    Iunit=None,
+    nlv=11,
+    sigma=None,
+    cname="magma",
+    xlabel=None, #"RA Offset [au]",
+    ylabel=None, #"Dec Offset [au]",
+    clabel=None,
+    contour=False,
+    contopt={},
+    refimage=None,
 ):
-    def position_line(length, pangle_deg, poffset_au=0):
-        line = np.linspace(-length / 2, length / 2, 10)
-        pangle_rad = (pangle_deg + 90) * np.pi / 180
-        pos_x = line * np.cos(pangle_rad) - poffset_au * np.sin(pangle_rad)
-        pos_y = line * np.sin(pangle_rad) + poffset_au * np.sin(pangle_rad)
-        return pos_x, pos_y
-
-    if data.dtype == "Cube":
-        image = data.get_mom0_map()
-    elif data.dtype == "Image":
-        image = data.copy()
+    "*** Setting color levels and contour levels ***"
+    cmin = clim[0] if clim[0] is not None else np.min(z)
+    cmax = clim[1] if clim[1] is not None else np.max(z)
+    if sigma is not None:
+        lvs = np.arange(cmin, cmax+sigma, sigma)
     else:
-        raise Exception("Data type error")
+        lvs = np.linspace(cmin, cmax, nlv + 1)
 
-    if norm is not None:
-        image.norm_I(norm)
+    cbar_ticks = np.linspace(lvs[0], lvs[-1], nlv + 1)
 
-    lvs = np.linspace(
-        clim[0] if clim[0] is not None else np.min(image.get_I()),
-        clim[1] if clim[1] is not None else np.max(image.get_I()),
-        nlv + 1
-    )
+    "*** Setting color levels ***"
     if discrete:
-        _cmap = make_listed_cmap("magma", nlv-1, extend="neither")
+        _cmap = make_listed_cmap(cname, nlv-1, extend="neither")
         _norm = mc.BoundaryNorm(lvs, nlv-1, clip=False)
     else:
-        _cmap = plt.get_cmap("magma")
+        _cmap = plt.get_cmap(cname)
         _norm = mc.Normalize(vmin=lvs[0], vmax=lvs[-1])
-    print(data)
-    print(data.xau.shape)
-    print(data.yau.shape)
-    print(image.get_I().shape)
 
-    xx, yy = np.meshgrid(data.xau, data.yau, indexing="ij")
-
+    "*** Plotting color map using pcolormesh ***"
+    xx, yy = np.meshgrid(x, y, indexing="ij")
     img = plt.pcolormesh(
-        xx,
-        yy,
-        image.get_I(),
-        cmap=_cmap, #make_listed_cmap("magma", len(lvs) - 1, extend="neither"),
-        norm=_norm, #mc.BoundaryNorm(lvs, len(lvs) - 1, clip=False),
-        shading="nearest",
-        rasterized=True,
+        xx, yy, z, cmap=_cmap, norm=_norm,
+        shading="nearest", rasterized=True,
     )
+
+    if contour:
+        _contopt = {
+            "levels": lvs,
+            "colors":"w",
+            "linewidths":0.8,
+            "zorder":2
+        }
+        _contopt.update(contopt)
+        plt.contour(xx, yy, z, **_contopt)
+
+    if refimage is not None:
+        print(refimage)
+        plt.contour(
+            refimage.xau, refimage.yau, refimage.get_I().T,
+            levels=_contopt["levels"],
+            colors="skyblue",
+            linewidths=0.5,
+        #    zorder=1,
+        )
 
     "*** Setting color bar ***"
     cbar = plt.colorbar(img, pad=0.02)
-    Iunit = Iunit if Iunit is not None else image.Iu()
-    cbar.set_label(r"Integrated Intensity $I$" + rf" [{Iunit}]")
-
-    nticks = nlv + 1
-    cbar.set_ticks( np.linspace(lvs[0], lvs[-1], nticks) )
+    if clabel is not None:
+        cbar.set_label(clabel)
+    cbar.set_ticks(cbar_ticks)
     cbar.ax.minorticks_off()
     plt.gca().tick_params("both", direction="inout")
 
-    if pangle_deg is not None:
-        for _pangle_deg in pangle_deg:
-            x, y = position_line(1400, _pangle_deg)
-            plt.gca().annotate(
-                "",
-                xy=[x[-1], y[-1]],
-                xytext=[x[0], y[0]],
-                va="center",
-                arrowprops=dict(arrowstyle="->", color="#aaaaaa", lw=1),
-                zorder=3
-            )
-        if poffset_au is not None:
-            pline = position_line(data.xau, pangle_deg, poffset_au=poffset_au)
-            plt.plot(pline[0], pline[1], c="w", lw=1, ls=":")
-
-    if hasattr(data, "obreso") and \
-        (data.obreso is not None) and \
-        data.obreso.beam_maj_au:
-        draw_beamsize(
-            plt.gca(),
-            "mom0",
-            data.obreso.beam_maj_au,
-            data.obreso.beam_min_au,
-            data.obreso.beam_pa_deg,
-        )
-
     plt.xlim(xlim[0], xlim[1])
     plt.ylim(ylim[0], ylim[1])
-    plt.xlabel(r"RA Offset [au]")
-    plt.ylabel(r"Dec Offset [au]")
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+
+
+def plot_mom0_map(*args, **kwargs):
+    plot_image(*args, **kwargs)
+
+def plot_image(
+    _image,
+    out="image.pdf",
+    xlim=(-700, 700),
+    ylim=(-700, 700),
+    clim=(None, None),
+    xlabel="RA Offset [au]",
+    ylabel="Dec Offset [au]",
+    clabel=None,
+    nlv=10,
+    discrete=False,
+    norm=None,
+    brtemp=False,
+    sigma=None,
+    cname="magma",
+    obreso=None,
+    contour=False,
+    contopt={},
+    arrow_angle_deg=None,
+    arrow_length_au=None,
+    arrow_offset_au=0,
+    #arrow_args=None,
+    #pangles_deg=None,
+    #poffset_au=None,
+    refimage=None,
+    save=True,
+    Iunit=None,
+):
+    if _image.dtype != "Image":
+        raise Exception("Data type error: dtype = {_image.dtype}")
+    im = _image.copy()
+    refim = refimage.copy() if refimage is not None else None
+
+    if norm is not None:
+        im.norm_I(norm)
+        if refim:
+            refim.norm_I(norm)
+
+    if brtemp:
+        im.convto_Tb()
+        clabel = "Brightness Temperature [K]"
+        if refim:
+            refim.convto_Tb()
+
+    if clabel is None:
+        Iunit = Iunit if Iunit is not None else im.Iu()
+        clabel = r"Integrated Intensity $I$" + rf" [{Iunit}]"
+
+    pl = _plot_image(
+        im.xau, im.yau, im.get_I(),
+        xlim=xlim,
+        ylim=ylim,
+        clim=clim,
+        discrete=discrete,
+        nlv=nlv,
+        sigma=sigma,
+        cname=cname,
+        xlabel=xlabel, #"RA Offset [au]",
+        ylabel=ylabel, #"Dec Offset [au]",
+        clabel=clabel,
+        contour=contour,
+        contopt=contopt,
+        refimage=refim,
+    )
+
+    if arrow_angle_deg is not None:
+        if arrow_length_au is None:
+           arrow_length_au = abs(xlim[1] - xlim[0])
+        draw_arrows(arrow_angle_deg, arrow_length_au, arrow_offset_au)#pangles_deg, length, poffset_au)
+
+    if (obreso is not None) and data.obreso.beam_maj_au:
+        draw_beamsize(
+            plt.gca(), "mom0",
+            obreso.beam_maj_au,
+            obreso.beam_min_au,
+            obreso.beam_pa_deg,
+        )
 
     draw_center_line()
-    savefig(out)
+    if save:
+        savefig(out)
 
+
+def draw_arrows(pangles_deg, L, offset=0):
+    if np.isscalar(pangles_deg):
+        pangles_deg = [pangles_deg]
+    for _pangle_deg in pangles_deg:
+        xy = tools.position_line(_pangle_deg, L, offset=offset)
+        plt.gca().annotate(
+            "",
+            xy=xy[-1],
+            xytext=xy[0],
+            va="center",
+            arrowprops=dict(arrowstyle="->", color="#aaaaaa", lw=1, shrinkA=0, shrinkB=0),
+            #arrowprops=dict(color="#aaaaaa", width=0.3, headwidth=3, headlength=3, shrink=0),
+            zorder=3
+        )
+
+        if offset != 0:
+            x, y = tools.position_line(_pangle_deg, L).T
+            plt.plot(x, y, color="#aaaaaa", lw=1, ls=":")
 #------------------------------------------------------------------------------#
 
-def plot_image(image,
-    n_lv=11,
-    out="image.pdf",
-    normalize=False,
-    xlim=(None, None), #(-700, 700),
-    ylim=(None, None), #(-700, 700),
-    Iunit="Tb",
-    freq0=None,
-    refimage=None,
-    sigma=None,
-    n_clv=100,
-    zmax=None,
-):
-    if Iunit is None:
-        Ipp = image.Ipp
-        clabel = r"$I [Jy/pixel]$"
-    elif (Iunit == "Tb") and (freq0 is not None):
-        Ipp = image.convert_Jyppix_to_brightness_temperature(image.data, freq0=freq0)
-        if refimage is not None:
-            Ippref = refimage.convert_Jyppix_to_brightness_temperature(refimage.data, freq0=freq0)
-        clabel = r"$T_b [{\rm K}]$"
-    elif Iunit == "norm":
-        Ipp /= np.max(Ipp)
-        clabel = r"$I ~/ ~I_{\rm max}$"
-    else:
-        raise Exception("Failed to input data")
-
-    if zmax is None:
-        zmax = max([x for x in [np.max(Ipp), np.max(Ippref)] if x is not None])
-
-    if sigma is not None:
-        clvs = np.linspace(0, zmax, n_clv)
-        contlvs = np.arange(0, zmax, sigma)
-    else:
-        clvs = np.linspace(np.min(Ipp), zmax, n_clv)
-        contlvs = np.linspace(np.min(Ipp), zmax, n_lv)
-
-    if refimage is not None:
-        refcontlvs = contlvs
-
-    img = plt.pcolormesh(
-        image.xau,
-        image.yau,
-        Ipp,
-        cmap=make_listed_cmap("magma", len(clvs) - 1, extend="neither"),
-        norm=mc.BoundaryNorm(clvs, len(clvs) - 1, clip=False),
-        shading="nearest",
-        rasterized=True,
-        zorder=0,
-    )
-    plt.contour(
-        image.xau,
-        image.yau,
-        Ipp,
-        levels=contlvs,
-        colors="w",
-        linewidths=0.8,
-        zorder=2,
-    )
-
-
-    plt.xlim(xlim[0], xlim[1])
-    plt.ylim(ylim[0], ylim[1])
-    plt.xlabel(r"$\Delta$RA [au]")
-    plt.ylabel(r"$\Delta$Dec [au]")
-    cbar = plt.colorbar(img, pad=0.02)
-    cbar.set_label(clabel)
-
-    ax = plt.gca()
-    draw_center_line()
-    ax.tick_params("both", direction="inout")
-
-    if (image.obreso is not None) and image.obreso.beam_maj_au:
-        draw_beamsize(
-            ax,
-            "mom0",
-            image.obreso.beam_maj_au,
-            image.obreso.beam_min_au,
-            image.obreso.beam_pa_deg,
-        )
-
-    if refimage is not None:
-        plt.contour(
-            refimage.xau,
-            refimage.yau,
-            Ippref.T,
-            levels=refcontlvs,
-            colors="skyblue",
-            linewidths=0.5,
-            zorder=1,
-        )
-
-    savefig(out)
-
+#def plot_image(image,
+#    n_lv=11,
+#    out="image.pdf",
+#    normalize=False,
+#    xlim=(None, None), #(-700, 700),
+#    ylim=(None, None), #(-700, 700),
+#    Iunit="Tb",
+#    freq0=None,
+#    refimage=None,
+#    sigma=None,
+#    n_clv=100,
+#    zmax=None,
+#):
+#    Ippref = None
+#    if Iunit is None:
+#        Ipp = image.Ipp
+#        clabel = r"$I [Jy/pixel]$"
+#    elif (Iunit == "Tb") and (freq0 is not None):
+#        Ipp = image.convert_Jyppix_to_brightness_temperature(image.data, freq0=freq0)
+#        if refimage is not None:
+#            Ippref = refimage.convert_Jyppix_to_brightness_temperature(refimage.data, freq0=freq0)
+#        clabel = r"$T_b [{\rm K}]$"
+#    elif Iunit == "norm":
+#        Ipp /= np.max(Ipp)
+#        clabel = r"$I ~/ ~I_{\rm max}$"
+#    else:
+#        raise Exception("Failed to input data")
+#
+#    if zmax is None:
+#        zmax = max([x for x in [np.max(Ipp), np.max(Ippref)] if x is not None])
+#
+#    if sigma is not None:
+#        clvs = np.linspace(0, zmax, n_clv)
+#        contlvs = np.arange(0, zmax, sigma)
+#    else:
+#        clvs = np.linspace(np.min(Ipp), zmax, n_clv)
+#        contlvs = np.linspace(np.min(Ipp), zmax, n_lv)
+#
+#    if refimage is not None:
+#        refcontlvs = contlvs
+#
+#    xx, yy = np.meshgrid(image.xau, image.yau, indexing="ij")
+#    img = plt.pcolormesh(
+#        xx, yy, Ipp,
+#        cmap=make_listed_cmap("magma", len(clvs) - 1, extend="neither"),
+#        norm=mc.BoundaryNorm(clvs, len(clvs) - 1, clip=False),
+#        shading="nearest",
+#        rasterized=True,
+#        zorder=0,
+#    )
+#    plt.contour(
+#        xx, yy, Ipp,
+#        levels=contlvs,
+#        colors="w",
+#        linewidths=0.8,
+#        zorder=2,
+#    )
+#
+#    plt.xlim(xlim[0], xlim[1])
+#    plt.ylim(ylim[0], ylim[1])
+#    plt.xlabel(r"$\Delta$RA [au]")
+#    plt.ylabel(r"$\Delta$Dec [au]")
+#    cbar = plt.colorbar(img, pad=0.02)
+#    cbar.set_label(clabel)
+#
+#    ax = plt.gca()
+#    draw_center_line()
+#    ax.tick_params("both", direction="inout")
+#
+#    if (image.obreso is not None) and image.obreso.beam_maj_au:
+#        draw_beamsize(
+#            ax,
+#            "mom0",
+#            image.obreso.beam_maj_au,
+#            image.obreso.beam_min_au,
+#            image.obreso.beam_pa_deg,
+#        )
+#
+#    if refimage is not None:
+#        plt.contour(
+#            xx, yy, Ippref,
+#            levels=refcontlvs,
+#            colors="skyblue",
+#            linewidths=0.5,
+#            zorder=1,
+#        )
+#
+#    savefig(out)
+#
 
 #------------------------------------------------------------------------------#
 

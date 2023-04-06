@@ -25,13 +25,13 @@ logger = log.logger
 ## Not use easyplot
 ## - it make the code complicated, though useful
 def set_plot_format(
-    xlim=None, 
-    ylim=None, 
-    xlb=None, 
-    ylb=None, 
-    legend=False, 
-    xlog=False, 
-    ylog=False, 
+    xlim=None,
+    ylim=None,
+    xlb=None,
+    ylb=None,
+    legend=False,
+    xlog=False,
+    ylog=False,
     loglog=False
 ):
     if xlim is not None:
@@ -51,7 +51,7 @@ def set_plot_format(
 
 ## New generation plotting format
 ## - make a plotting format independent of variables
-## 
+##
 def plot_variable_meridional_map(
     model,
     variable_name,
@@ -78,10 +78,10 @@ def plot_variable_meridional_map(
     plot_colormap(
         model.R[..., 0] / nc.au,
         model.z[..., 0] / nc.au,
-        var_toridal_average, 
+        var_toridal_average,
         #zregion=(modepl.R[...,0] < xlim * nc.au) & (model.z[...,0] < xlim * nc.au),
         zregion= (model.R[...,0] < xlim * nc.au) & (model.z[...,0] < xlim * nc.au) & (model.rr[...,0] > rinlim * nc.au),
-        clabel=clabel, 
+        clabel=clabel,
         clog=clog,
         dlv=dlv,
         aspect=aspect,
@@ -90,24 +90,24 @@ def plot_variable_meridional_map(
     )
 
     if trajectories:
-        _trj_option = {"r0_au": xlim, "theta0_deg": 30}  
+        _trj_option = {"r0_au": xlim, "theta0_deg": 30}
         _trj_option.update(trajectories_option)
         add_trajectories(model, **_trj_option)
 
     if streams:
         add_streams(
-            model, xlim, r0=np.sqrt(2)*xlim, 
+            model, xlim, r0=np.sqrt(2)*xlim,
             use_mu0=hasattr(model, "mu0"),
             cavity_region=(model.rhogas[...,0]==0)
         )
 
     set_plot_format(
-        xlim=(0, xlim), 
-        ylim=(0, xlim), 
-        xlb=r"$R$ [au]", 
+        xlim=(0, xlim),
+        ylim=(0, xlim),
+        xlb=r"$R$ [au]",
         ylb=r"$z$ [au]"
     )
- 
+
     if save:
         name = variable_name if save_name is None else save_name
         savefig(name + "." + figext)
@@ -221,7 +221,7 @@ def plot_density_map(
         # cformat="%.3g"
     )
     if trajectories:
-        trj_option = {"r0_au": xlim, "theta0_deg": 30}  
+        trj_option = {"r0_au": xlim, "theta0_deg": 30}
         trj_option.update(trajectories_option)
         add_trajectories(m, **trj_option)
 
