@@ -20,11 +20,9 @@ from .. import log
 from .. import streamline
 from .. import tools
 
-# from myplot import mpl_setting, color
-
 logger = log.logger # set_logger(__name__)
-matplotlib.use("Agg")
-# os.makedirs(gpath.fig_dir, exist_ok=True)
+
+
 color_def = [
     "#3498db",
     "#e74c3c",
@@ -59,7 +57,7 @@ def plot_colormap(
     clabel=None,
     clog=False,
     lvs=None,
-    dlv=0.25,
+    dlv=None,
     aspect="equal",
     cname="viridis",
     extend="both",
@@ -94,6 +92,9 @@ def make_levels(x, dlv, log=False, minfrac=1e-8):
     _x = _x[np.isfinite(_x)]
     if len(_x) == 0 or len(_x) == 1:
         return None
+    if dlv is None:
+        dlv = (np.max(_x) - np.min(_x)) * 0.1
+
     maxlv = np.ceil(np.max(_x) / dlv) * dlv
     minlv = np.floor(np.min(_x) / dlv) * dlv
     nlv = int(round( (maxlv - minlv) / dlv ))
@@ -619,6 +620,6 @@ def get_quadrant(x, y):
 def savefig(filename):
     gpath.make_dirs(fig=gpath.fig_dir)
     filepath = os.path.join(gpath.fig_dir, filename)
-    plt.savefig(filepath)
+    plt.savefig(filepath) # if backend error occurs, please add matplotlib.use('Agg') somewhere
     print("saved ", filepath)
-    plt.clf()
+    plt.clf() 
