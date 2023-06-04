@@ -309,7 +309,7 @@ class PowerlawDisk(Disk):
         self.tail = tail
         self.ind_tail = ind_tail
         Mdisk = fracMd * Ms
-        Sigma = self.get_Sigma(Mdisk, Rd, ind_S)
+        self.Sigma = self.get_Sigma(Mdisk, Rd, ind_S)
         if Tmid is None:
             self.Td = Td10 * (self.R/10/au)**ind_T
         else:
@@ -317,7 +317,7 @@ class PowerlawDisk(Disk):
             if np.shape(self.Td) != np.shape(self.R):
                 raise Exception
         cs_disk = np.sqrt(kB * self.Td / (meanmolw * amu))
-        self.calc_kinematic_structure_from_Sigma(Sigma, Ms, cs_disk)
+        self.calc_kinematic_structure_from_Sigma(self.Sigma, Ms, cs_disk)
         # self.set_cylindrical_velocity()
 
     def get_Sigma(self, Mdisk, Rd, ind_S):
