@@ -2,8 +2,6 @@ import numpy as np
 from . import nconst as nc
 from .log import logger
 
-#logger = set_logger(__name__)
-
 
 class Grid:
     def __init__(
@@ -23,20 +21,13 @@ class Grid:
         logr=True,
         ringhost=False,
     ):
-
-        if (
-            (ri_ax is not None) and
-            (ti_ax is not None) and
-            (pi_ax is not None)
-        ):
+        if (ri_ax is not None) and (ti_ax is not None) and (pi_ax is not None):
             self.ri_ax = ri_ax
             self.ti_ax = ti_ax
             self.pi_ax = pi_ax
 
         elif (
-            (rau_lim is not None) and
-            (theta_lim is not None) and
-            (phi_lim is not None)
+            (rau_lim is not None) and (theta_lim is not None) and (phi_lim is not None)
         ):
             self.calc_interface_coord(
                 rau_lim=rau_lim,
@@ -55,9 +46,10 @@ class Grid:
 
         if ringhost:
             print(self.ri_ax)
-            self.ri_ax= np.insert(self.ri_ax, 0, np.linspace(1.001*4*nc.Rsun, self.ri_ax[0], 4)[:-1] )
+            self.ri_ax = np.insert(
+                self.ri_ax, 0, np.linspace(1.001 * 4 * nc.Rsun, self.ri_ax[0], 4)[:-1]
+            )
             print(self.ri_ax)
-
 
         self.set_cellcenter_axes()
         self.set_meshgrid()
@@ -90,35 +82,35 @@ class Grid:
         logr=True,
     ):
         thax_ver = 1
-        ismirror = True if abs(theta_lim[1] - np.pi/2) < 1e-8 else False
+        ismirror = True if abs(theta_lim[1] - np.pi / 2) < 1e-8 else False
 
         if dr_to_r is not None:
             nr = int(np.log(rau_lim[1] / rau_lim[0]) / dr_to_r)
-            ntheta_float = (theta_lim[1] - theta_lim[0]) / ( dr_to_r * aspect_ratio)
+            ntheta_float = (theta_lim[1] - theta_lim[0]) / (dr_to_r * aspect_ratio)
             if ismirror:
                 ntheta = int(round(ntheta_float))
             else:
-                ntheta = int(round(ntheta_float/2)) * 2
-            #ntheta = ntheta_upper if ismirror else ntheta_upper
+                ntheta = int(round(ntheta_float / 2)) * 2
+            # ntheta = ntheta_upper if ismirror else ntheta_upper
 
         if logr:
-            self.ri_ax = np.geomspace(*rau_lim, nr+1) * nc.au
+            self.ri_ax = np.geomspace(*rau_lim, nr + 1) * nc.au
         else:
-            self.ri_ax = np.linspace(*rau_lim, nr+1) * nc.au
+            self.ri_ax = np.linspace(*rau_lim, nr + 1) * nc.au
 
         if thax_ver == 1:
             self.ti_ax = np.linspace(*theta_lim, ntheta + 1)
 
         elif thax_ver == 2:
-            dtheta = (theta_lim[1] - theta_lim[0])/ntheta
+            dtheta = (theta_lim[1] - theta_lim[0]) / ntheta
             eps = 0.001
-            ti_ax = np.linspace(theta_lim[0], theta_lim[1] - dtheta*eps, ntheta + 1)
-            self.ti_ax = np.concatenate([ti_ax, [ theta_lim[1] ]])
+            ti_ax = np.linspace(theta_lim[0], theta_lim[1] - dtheta * eps, ntheta + 1)
+            self.ti_ax = np.concatenate([ti_ax, [theta_lim[1]]])
             ntheta += 1
 
         elif thax_ver == 3:
             print(theta_lim)
-            self.ti_ax = compressed_x2(theta_lim[0], theta_lim[1], 0.95, ntheta+1)
+            self.ti_ax = compressed_x2(theta_lim[0], theta_lim[1], 0.95, ntheta + 1)
             print(self.ti_ax)
             self.ti_ax[-1] = theta_lim[1]
             ti_ax = np.linspace(*theta_lim, ntheta + 1)
@@ -131,13 +123,15 @@ class Grid:
         ti = np.rad2deg(self.ti_ax)
         pi = np.rad2deg(self.pi_ax)
         logger.info(f"Grid:")
-        logger.info(f"    r  = [{ri[0]:.2f}:{ri[-1]:.2f}] au")
-        logger.info(f"    Nr = {len(ri)-1}")
-        logger.info(f"    θ  = [{ti[0]:.2f}:{ti[-1]:.2f}] ")
-        logger.info(f"    Nθ = {len(ti)-1}")
-        logger.info(f"    φ  = [{pi[0]:.2f}:{pi[-1]:.2f}] ")
-        logger.info(f"    Nφ = {len(pi)-1}")
-        logger.info("")
+        logger.info(
+            f"    r  = [{ri[0]:.2f}:{ri[-1]:.2f}] au".ljust(32) + " Nr = {len(ri)-1}"
+        )
+        logger.info(
+            f"    θ  = [{ti[0]:.2f}:{ti[-1]:.2f}] ".ljust(32) + " Nθ = {len(ti)-1}"
+        )
+        logger.info(
+            f"    φ  = [{pi[0]:.2f}:{pi[-1]:.2f}] ".ljust(32) + " Nφ = {len(pi)-1}"
+        )
 
 
 def get_interface_coord(
@@ -151,22 +145,21 @@ def get_interface_coord(
     aspect_ratio=1.0,
     logr=True,
 ):
-
     if dr_to_r is not None:
         nr = int(np.log(rau_lim[1] / rau_lim[0]) / dr_to_r)
         ntheta_float = (theta_lim[1] - theta_lim[0]) / dr_to_r / aspect_ratio
         ntheta_upper = int(round(ntheta_float))
-        ntheta = ntheta_upper * 2 if theta_lim > np.pi/2 + 1e-8 else ntheta_upper
+        ntheta = ntheta_upper * 2 if theta_lim > np.pi / 2 + 1e-8 else ntheta_upper
 
     if logr:
         ri_ax = np.geomspace(*rau_lim, nr + 1) * nc.au
     else:
         ri_ax = np.linspace(*rau_lim, nr + 1) * nc.au
 
-    dtheta = (theta_lim[1] - theta_lim[0])/ntheta
+    dtheta = (theta_lim[1] - theta_lim[0]) / ntheta
     eps = 1e-5
-    ti_ax = np.linspace(theta_lim[0], theta_lim[1] - dtheta*eps, ntheta + 1)
-    ti_ax = np.concatenate([ti_ax, [ theta_lim[1] ]])
+    ti_ax = np.linspace(theta_lim[0], theta_lim[1] - dtheta * eps, ntheta + 1)
+    ti_ax = np.concatenate([ti_ax, [theta_lim[1]]])
     ntheta += 1
 
     pi_ax = np.linspace(*phi_lim, nphi + 1)
@@ -176,23 +169,22 @@ def get_interface_coord(
 
 def compressed_x2(xmin, xmax, xrat_root, nfaces):
     x2rat = np.abs(xrat_root)
-    xmid = 0.5*np.pi
-    #x = np.arange(nfaces)/(nfaces-1)
-    x = np.linspace(xmin, xmax, nfaces)/np.pi
+    xmid = 0.5 * np.pi
+    x = np.linspace(xmin, xmax, nfaces) / np.pi
+
     def func(x):
-        if x<=0.5: #
-            ratn = x2rat**(0.5*nfaces)
-            rnx = x2rat**(x*nfaces)
-            lw = (rnx-ratn)/(1.0-ratn)
-            rw = 1.0-lw
-            return xmin*lw + xmid*rw
+        if x <= 0.5:  #
+            ratn = x2rat ** (0.5 * nfaces)
+            rnx = x2rat ** (x * nfaces)
+            lw = (rnx - ratn) / (1.0 - ratn)
+            rw = 1.0 - lw
+            return xmin * lw + xmid * rw
 
         else:
-            ratn = (1.0/x2rat)**(0.5*nfaces)
-            rnx = (1.0/x2rat)**((x-0.5)*nfaces)
-            lw = (rnx-ratn)/(1.0-ratn)
-            rw = 1.0-lw
-            return xmid*lw + xmax*rw
+            ratn = (1.0 / x2rat) ** (0.5 * nfaces)
+            rnx = (1.0 / x2rat) ** ((x - 0.5) * nfaces)
+            lw = (rnx - ratn) / (1.0 - ratn)
+            rw = 1.0 - lw
+            return xmid * lw + xmax * rw
 
     return np.vectorize(func)(x)
-

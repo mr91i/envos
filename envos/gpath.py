@@ -1,9 +1,5 @@
-#import os
 from pathlib import Path
 
-
-#def joinpath(basepath, relpath):
-#    return os.path.abspath(os.path.join(basepath, relpath))
 
 def set_homedir(path, update=True):
     global home_dir
@@ -37,9 +33,9 @@ def set_logfile(path):
 
 def update_all_dirs_dependent_on_homedir(home_dir):
     global storage_dir, run_dir, radmc_dir, fig_dir, logfile
-    storage_dir = home_dir/"radmc_storage"
+    storage_dir = home_dir / "radmc_storage"
     make_dirs(storage=storage_dir)
-    run_dir = home_dir/"run"
+    run_dir = home_dir / "run"
     make_dirs(run=run_dir)
     update_all_dirs_dependent_on_rundir(run_dir)
 
@@ -52,10 +48,9 @@ def update_all_dirs_dependent_on_rundir(run_dir):
     make_dirs(fig=fig_dir)
     logfile = run_dir / "log.dat"
 
-    from .log import change_rundir # update_file_handler_for_all_loggers
-    #update_file_handler_for_all_loggers()
-    change_rundir(run_dir)
+    from .log import change_rundir
 
+    change_rundir(run_dir)
 
 
 def make_dirs(radmc=None, run=None, storage=None, fig=None):
@@ -63,23 +58,24 @@ def make_dirs(radmc=None, run=None, storage=None, fig=None):
 
     if storage is not None:
         storage_dir = Path(storage)
-        storage_dir.mkdir(exist_ok=True,parents=True)
+        storage_dir.mkdir(exist_ok=True, parents=True)
 
     if run is not None:
         run_dir = Path(run)
-        run_dir.mkdir(exist_ok=True,parents=True)
+        run_dir.mkdir(exist_ok=True, parents=True)
 
     if radmc is not None:
         radmc_dir = Path(radmc)
-        radmc_dir.mkdir(exist_ok=True,parents=True)
+        radmc_dir.mkdir(exist_ok=True, parents=True)
 
     if fig is not None:
         fig_dir = Path(fig)
-        fig_dir.mkdir(exist_ok=True,parents=True)
+        fig_dir.mkdir(exist_ok=True, parents=True)
 
 
 def remove_radmcdir():
     import shutil
+
     shutil.rmtree(radmc_dir)
 
 

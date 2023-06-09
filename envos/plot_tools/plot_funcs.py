@@ -20,7 +20,7 @@ from .. import log
 from .. import streamline
 from .. import tools
 
-logger = log.logger # set_logger(__name__)
+logger = log.logger  # set_logger(__name__)
 
 
 color_def = [
@@ -44,15 +44,18 @@ eps = 1e-3
 plotting tools
 """
 
+
 def interp_grid(X):
-    dX = np.diff(X, axis=1)/2.
-    X = np.hstack((X[:, [0]] - dX[:, [0]],
-                   X[:, :-1] + dX,
-                   X[:, [-1]] + dX[:, [-1]]))
+    dX = np.diff(X, axis=1) / 2.0
+    X = np.hstack((X[:, [0]] - dX[:, [0]], X[:, :-1] + dX, X[:, [-1]] + dX[:, [-1]]))
     return X
 
+
 def plot_colormap(
-    xx, yy, z, *,
+    xx,
+    yy,
+    z,
+    *,
     zregion=None,
     clabel=None,
     clog=False,
@@ -61,8 +64,8 @@ def plot_colormap(
     aspect="equal",
     cname="viridis",
     extend="both",
-    cformat=None):
-
+    cformat=None,
+):
     _z = z[zregion] if zregion is not None else z
     if lvs is None:
         if dlv is not None:
@@ -80,8 +83,8 @@ def plot_colormap(
     if lvs is not None:
         img.set_cmap(make_listed_cmap(cname, len(lvs), extend=extend))
         img.set_norm(mc.BoundaryNorm(lvs, len(lvs), clip=0))
-    fmt = cformat if cformat is not None else ( "%.1e" if clog else None )
-     # mt.LogFormatterSciNotation(labelOnlyBase=False, minor_thresholds=(10, 0.5))
+    fmt = cformat if cformat is not None else ("%.1e" if clog else None)
+    # mt.LogFormatterSciNotation(labelOnlyBase=False, minor_thresholds=(10, 0.5))
     cbar = plt.colorbar(img, format=fmt, extend=extend, pad=0.02)
     if clabel is not None:
         cbar.set_label(clabel)
@@ -89,6 +92,7 @@ def plot_colormap(
     if aspect == "equal":
         plt.gca().set_aspect("equal", adjustable="box")
     return img
+
 
 def make_levels(x, dlv, log=False, minfrac=1e-8):
     _x = np.log10(x[x > np.max(x) * minfrac]) if log else x
@@ -100,16 +104,25 @@ def make_levels(x, dlv, log=False, minfrac=1e-8):
 
     maxlv = np.ceil(np.max(_x) / dlv) * dlv
     minlv = np.floor(np.min(_x) / dlv) * dlv
-    nlv = int(round( (maxlv - minlv) / dlv ))
-    logger.debug("[make_levels] max is ", np.max(_x), " min is ", np.min(_x), ", dlv is ", dlv, ", so nlv is ", nlv)
+    nlv = int(round((maxlv - minlv) / dlv))
+    logger.debug(
+        "[make_levels] max is ",
+        np.max(_x),
+        " min is ",
+        np.min(_x),
+        ", dlv is ",
+        dlv,
+        ", so nlv is ",
+        nlv,
+    )
     b = np.array([*range(nlv + 1)]) * dlv + minlv
     if len(b) > 1:
-        return 10 ** b if log else b
+        return 10**b if log else b
     else:
         return None
 
 
-def add_colorbar(label=None, fmt=None, extend="both", pad=0.02, minticks=False):
+def add_colorbar(img, label=None, fmt=None, extend="both", pad=0.02, minticks=False):
     cbar = plt.colorbar(img, format=fmt, extend="both", pad=pad)
     cbar.set_label(label)
     if minticks:
@@ -140,11 +153,17 @@ def make_listed_cmap(cmap_name, ncolors, extend="both"):
 
 
 def add_streams(
-    model, rlim, r0=None, use_mu0=False, equal_theta0=False, equal_mu0=True,
-    cavity_region=None, style_incavity={}
+    model,
+    rlim,
+    r0=None,
+    use_mu0=False,
+    equal_theta0=False,
+    equal_mu0=True,
+    cavity_region=None,
+    style_incavity={},
 ):
     r0 = r0 or rlim
-    if model.tc_ax[-1] > np.pi/2 :
+    if model.tc_ax[-1] > np.pi / 2:
         xau = np.linspace(0, r0, 1000)
         yau = np.linspace(-r0, r0, 2000)
         xx, yy = np.meshgrid(xau, yau)
@@ -156,7 +175,7 @@ def add_streams(
         xx, yy = np.meshgrid(xau, yau)
         linedens = 5
 
-    newgrid = np.stack([np.sqrt(xx ** 2 + yy ** 2), np.arctan2(xx, yy)], axis=-1)
+    newgrid = np.stack([np.sqrt(xx**2 + yy**2), np.arctan2(xx, yy)], axis=-1)
 
     vR = interpolate.interpn(
         (model.rc_ax / nc.au, model.tc_ax),
@@ -172,7 +191,6 @@ def add_streams(
         bounds_error=False,
         fill_value=None,
     )
-
 
     if use_mu0:
         r0arg = np.argmin(np.abs(r0 * nc.au - model.rc_ax))
@@ -193,7 +211,12 @@ def add_streams(
         theta0 = np.radians(np.linspace(0, 90, 19))
 
     start_points = r0 * np.array([np.sin(theta0), np.cos(theta0)]).T
-    opt = {"density": linedens, "linewidth": 0.5, "color": "w", "arrowsize": 0.7} # "broken_streamlines":True}
+    opt = {
+        "density": linedens,
+        "linewidth": 0.5,
+        "color": "w",
+        "arrowsize": 0.7,
+    }  # "broken_streamlines":True}
 
     if cavity_region is not None:
         cavr = interpolate.interpn(
@@ -204,27 +227,41 @@ def add_streams(
             fill_value=None,
         )
         cavr = cavr > 0.8
-        opt = {"density": linedens, "linewidth": 0.5, "arrowsize": 0.7} # "broken_streamlines":True}
+        opt = {
+            "density": linedens,
+            "linewidth": 0.5,
+            "arrowsize": 0.7,
+        }  # "broken_streamlines":True}
         norm = mc.BoundaryNorm(boundaries=[0, 0.5, 1], ncolors=128)
-        plt.streamplot(xau, yau, vR, vz, color=cavr, norm=norm, cmap=plt.get_cmap("gist_gray_r"), start_points=start_points, **opt)
+        plt.streamplot(
+            xau,
+            yau,
+            vR,
+            vz,
+            color=cavr,
+            norm=norm,
+            cmap=plt.get_cmap("gist_gray_r"),
+            start_points=start_points,
+            **opt,
+        )
     else:
         plt.streamplot(xau, yau, vR, vz, start_points=start_points, **opt)
 
 
-#def add_trajectories(model, r0_au=None, theta0_deg=[30], save=False, teval_yr=None, streamlines=None, method="RK23", **options):
+# def add_trajectories(model, r0_au=None, theta0_deg=[30], save=False, teval_yr=None, streamlines=None, method="RK23", **options):
 def add_trajectories(model, streamlines=None, **options):
     if streamlines is None:
-        #r0 = model.ppar.cs * model.ppar.t if r0_au is None else r0_au
-        #start_points = [(r0, th0) for th0 in np.radians(theta0_deg)]
-        #if teval_yr is None:
+        # r0 = model.ppar.cs * model.ppar.t if r0_au is None else r0_au
+        # start_points = [(r0, th0) for th0 in np.radians(theta0_deg)]
+        # if teval_yr is None:
         #    teval = np.arange(10, 1e6, 10) * nc.year
-        #else:
+        # else:
         #    teval = teval_yr * nc.year
 
         streamlines = streamline.calc_streamline(
             model,
-            #pos0=start_points,
-            #t_eval=teval,
+            # pos0=start_points,
+            # t_eval=teval,
             **options,
         )
 
@@ -290,7 +327,6 @@ def draw_beamsize(
     vreso_kms=None,
     with_box=False,
 ):
-
     if mode == "pv":
         if pangle_deg is None:
             beamx = 0.5 * (beam_maj_au + beam_min_au)
@@ -345,6 +381,9 @@ def draw_beamsize(
 
 
 def add_peaks(
+    Ipv,
+    xau,
+    vkms,
     LocalPeak_Pax=False,
     LocalPeak_Vax=False,
     LocalPeak_2D=False,
@@ -390,36 +429,36 @@ def add_mass_estimate_plot(
 ):
     def calc_M(xau, vkms, fac=1):
         # calc xau*nc.au * (vkms*nc.kms)**2 / (nc.G*nc.Msun)
-        return 0.001127 * xau * vkms ** 2 * fac
+        return 0.001127 * xau * vkms**2 * fac
 
     if quadrant is not None:
         xx, vv = np.meshgrid(xau, vkms, indexing="ij")
         if quadrant == 1:
             cond = (xx > 0) & (vv > 0)
-            #print(Ipv.shape, xx.shape,  ((xx > 0) & (vv > 0)).shape )
-    #        _Ipv = Ipv[(xx > 0) & (vv > 0)]
-            #print( Ipv[ (xx > 0) & (vv > 0) ].shape )
-    #        _xau = xau[xau>0]
-    #        _vkms = vkms[vkms>0]
+            # print(Ipv.shape, xx.shape,  ((xx > 0) & (vv > 0)).shape )
+        #        _Ipv = Ipv[(xx > 0) & (vv > 0)]
+        # print( Ipv[ (xx > 0) & (vv > 0) ].shape )
+        #        _xau = xau[xau>0]
+        #        _vkms = vkms[vkms>0]
         elif quadrant == 2:
             cond = (xx < 0) & (vv > 0)
-    #        _Ipv = Ipv[(xx > 0) & (vv < 0)]
-    #        _xau = xau[xau>0]
-    #        _vkms = vkms[vkms<0]
+        #        _Ipv = Ipv[(xx > 0) & (vv < 0)]
+        #        _xau = xau[xau>0]
+        #        _vkms = vkms[vkms<0]
         elif quadrant == 3:
             cond = (xx < 0) & (vv < 0)
-    #        _Ipv = Ipv[(xx < 0) & (vv > 0)]
-    #        _xau = xau[xau<0]
-    #        _vkms = vkms[vkms>0]
+        #        _Ipv = Ipv[(xx < 0) & (vv > 0)]
+        #        _xau = xau[xau<0]
+        #        _vkms = vkms[vkms>0]
         elif quadrant == 4:
             cond = (xx > 0) & (vv < 0)
-    #        _Ipv = Ipv[(xx < 0) & (vv < 0)]
-    #        _xau = xau[xau<0]
-    #        _vkms = vkms[vkms<0]
+        #        _Ipv = Ipv[(xx < 0) & (vv < 0)]
+        #        _xau = xau[xau<0]
+        #        _vkms = vkms[vkms<0]
         _xau = xau
         _vkms = vkms
         _Ipv = np.where(cond, Ipv, 0)
-        #_Ipv = Ipv.reshape(len(_xau), len(_vkms) )
+        # _Ipv = Ipv.reshape(len(_xau), len(_vkms) )
     else:
         _Ipv = Ipv
         _xau = xau
@@ -427,16 +466,18 @@ def add_mass_estimate_plot(
 
     if mass_ip:
         # M_ipeak
-        #print(_xau, _vkms, _Ipv)
+        # print(_xau, _vkms, _Ipv)
         xx, yy = np.meshgrid(_xau, _vkms, indexing="ij")
-        #print(np.max(_Ipv[yy>0]))
-        #print(np.max(_Ipv[yy<0]))
-        #exit()
-        #x_vmax, v_vmax = get_coord_vmax(_xau, _vkms, _Ipv, f_crit)
+        # print(np.max(_Ipv[yy>0]))
+        # print(np.max(_Ipv[yy<0]))
+        # exit()
+        # x_vmax, v_vmax = get_coord_vmax(_xau, _vkms, _Ipv, f_crit)
         res = get_coord_ipeak(_xau, _vkms, _Ipv, mode="quadrant")
         if res is not None:
             xau_peak, vkms_peak = res
-            draw_cross_pointer(xau_peak, vkms_peak, color_def[1], lw=1.5, s=18, ls=":", zorder=5)
+            draw_cross_pointer(
+                xau_peak, vkms_peak, color_def[1], lw=1.5, s=18, ls=":", zorder=5
+            )
             M_CR = calc_M(abs(xau_peak), vkms_peak, fac=1)
         else:
             xau_peak = 0.0
@@ -455,7 +496,9 @@ def add_mass_estimate_plot(
         f_crit_list = [f_crit] if f_crit is not None else f_crit_list
         txt_Mvp_list = []
         for f_crit in f_crit_list:
-            x_vmax, v_vmax = get_coord_vmax2(_xau, _vkms, _Ipv, Icrit = f_crit * np.max(Ipv))
+            x_vmax, v_vmax = get_coord_vmax2(
+                _xau, _vkms, _Ipv, Icrit=f_crit * np.max(Ipv)
+            )
             M_CB = calc_M(abs(x_vmax), v_vmax / np.sin(np.deg2rad(incl)), fac=1 / 2)
             draw_cross_pointer(
                 x_vmax, v_vmax, color_def[0], lw=1.5, s=18, ls=":", fill=True, zorder=5
@@ -484,7 +527,7 @@ def add_mass_estimate_plot(
         return txt
 
 
-def get_coord_ipeak(xau, vkms, Ipv, mode="quadrant"): # --> (xau, vkms) or None
+def get_coord_ipeak(xau, vkms, Ipv, mode="quadrant"):  # --> (xau, vkms) or None
     peaks = peak_local_max(Ipv, threshold_rel=0.7)
     if len(peaks) == 0:
         # imaxpeak, jmaxpeak = np.unravel_index(np.argmax(Ipv), Ipv.shape)
@@ -492,11 +535,11 @@ def get_coord_ipeak(xau, vkms, Ipv, mode="quadrant"): # --> (xau, vkms) or None
         # return xau[imaxpeak], vkms[jmaxpeak]
         return None
 
-    if mode=="quadrant":
+    if mode == "quadrant":
         xx, vv = np.meshgrid(xau, vkms, indexing="ij")
         print("get_coord_vmax for get quadrant")
-        x_vmax, v_vmax = get_coord_vmax2(xau, vkms, Ipv, 0.7*np.max(Ipv) )
-        print("Vmax (x,V) = ",x_vmax, v_vmax)
+        x_vmax, v_vmax = get_coord_vmax2(xau, vkms, Ipv, 0.7 * np.max(Ipv))
+        print("Vmax (x,V) = ", x_vmax, v_vmax)
         quadrant = get_quadrant(x_vmax, v_vmax)
         print("quadrant is ", quadrant)
         if quadrant == 1:
@@ -508,9 +551,8 @@ def get_coord_ipeak(xau, vkms, Ipv, mode="quadrant"): # --> (xau, vkms) or None
         elif quadrant == 4:
             cond = (xx > 0) & (vv < 0)
         _Ipv = np.where(cond, Ipv, 0)
-    elif mode =="max":
+    elif mode == "max":
         _Ipv = Ipv
-
 
     ipeak, jpeak = np.unravel_index(np.argmax(_Ipv), _Ipv.shape)
     xau_peak = xau[ipeak]
@@ -518,7 +560,7 @@ def get_coord_ipeak(xau, vkms, Ipv, mode="quadrant"): # --> (xau, vkms) or None
     fun = interpolate.RectBivariateSpline(xau, vkms, Ipv)
     dx = xau[1] - xau[0]
     dv = vkms[1] - vkms[0]
-    #return (xau_peak, vkms_peak)
+    # return (xau_peak, vkms_peak)
 
     res = optimize.minimize(
         lambda x: 1 / fun(x[0], x[1])[0, 0],
@@ -529,66 +571,69 @@ def get_coord_ipeak(xau, vkms, Ipv, mode="quadrant"): # --> (xau, vkms) or None
         ],
     )
     return res.x[0], res.x[1]
+
+
 def get_coord_vmax2(xau, vkms, Ipv, Icrit, quadrant=None):
-#    _Ipv = np.where( Ipv == Ipv, Ipv, 0)
-#    _Ipv = np.where( Ipv >= 0.0, Ipv, 0)
+    #    _Ipv = np.where( Ipv == Ipv, Ipv, 0)
+    #    _Ipv = np.where( Ipv >= 0.0, Ipv, 0)
     fun = interpolate.RectBivariateSpline(xau, vkms, Ipv)
 
     x = np.linspace(xau[0], xau[-1], 1000)
     v = np.linspace(vkms[0], vkms[-1], 1000)
 
-   # x_fun = optimize.minimize_scalar(lambda x: fun(x,v) )
-    x_vmax = [ optimize.minimize_scalar(lambda x: - fun(x, _v)[0,0] ).x for _v in v]
+    # x_fun = optimize.minimize_scalar(lambda x: fun(x,v) )
+    x_vmax = [optimize.minimize_scalar(lambda x: -fun(x, _v)[0, 0]).x for _v in v]
 
- #   print(v, x_vmax)
-    #exit()
+    #   print(v, x_vmax)
+    # exit()
 
-#    x_vmax = np.apply_along_axis(lambda Ip: get_maximum_position(xau, Ip), 0, _Ipv)
-    #x_vmax = np.apply_along_axis(lambda Ip: get_maximum_position(xau, Ip), 0, _Ipv)
-    #I_vmax = np.apply_along_axis(np.max, 0, _Ipv)
-    I_vmax = np.array([fun(_x, _v)[0,0] for _x, _v in zip(x_vmax, v)])
-    #print(I_vmax)
-    #mask = I_vmax >  0.0
-#    plt.plot(x_vmax, v)
-    #plt.plot(x_vmax, vkms)
-    #print(np.array([vkms, x_vmax, I_vmax]).T , Icrit)
-    #print(np.array([vkms[mask], x_vmax[mask], I_vmax[mask]]).T , Icrit)
-    #v_crit = tools.find_roots(vkms[mask], I_vmax[mask], Icrit)
+    #    x_vmax = np.apply_along_axis(lambda Ip: get_maximum_position(xau, Ip), 0, _Ipv)
+    # x_vmax = np.apply_along_axis(lambda Ip: get_maximum_position(xau, Ip), 0, _Ipv)
+    # I_vmax = np.apply_along_axis(np.max, 0, _Ipv)
+    I_vmax = np.array([fun(_x, _v)[0, 0] for _x, _v in zip(x_vmax, v)])
+    # print(I_vmax)
+    # mask = I_vmax >  0.0
+    #    plt.plot(x_vmax, v)
+    # plt.plot(x_vmax, vkms)
+    # print(np.array([vkms, x_vmax, I_vmax]).T , Icrit)
+    # print(np.array([vkms[mask], x_vmax[mask], I_vmax[mask]]).T , Icrit)
+    # v_crit = tools.find_roots(vkms[mask], I_vmax[mask], Icrit)
     v_crit = tools.find_roots(v, I_vmax, Icrit)
 
-    #print(v_crit)
-    #exit()
+    # print(v_crit)
+    # exit()
     if len(v_crit) == 0:
         v_crit = vkms[0]
     else:
-        i = np.argmax( np.abs(v_crit) )
-        v_crit = v_crit[i] # v_crit[-1]
+        i = np.argmax(np.abs(v_crit))
+        v_crit = v_crit[i]  # v_crit[-1]
     x_crit = tools.find_roots(x_vmax, v, v_crit)[-1]
     return x_crit, v_crit
 
+
 def get_coord_vmax(xau, vkms, Ipv, Icrit, quadrant=None):
-#    _Ipv = np.where( Ipv == Ipv, Ipv, 0)
-    _Ipv = np.where( Ipv >= 0.0, Ipv, 0)
+    #    _Ipv = np.where( Ipv == Ipv, Ipv, 0)
+    _Ipv = np.where(Ipv >= 0.0, Ipv, 0)
     fun = interpolate.RectBivariateSpline(xau, vkms, Ipv)
 
     x_vmax = np.apply_along_axis(lambda Ip: get_maximum_position(xau, Ip), 0, _Ipv)
-    #x_vmax = np.apply_along_axis(lambda Ip: get_maximum_position(xau, Ip), 0, _Ipv)
-    #I_vmax = np.apply_along_axis(np.max, 0, _Ipv)
-    I_vmax = np.array([fun(_x, _v)[0,0] for _x, _v in zip(x_vmax, vkms)])
-    #print(I_vmax)
+    # x_vmax = np.apply_along_axis(lambda Ip: get_maximum_position(xau, Ip), 0, _Ipv)
+    # I_vmax = np.apply_along_axis(np.max, 0, _Ipv)
+    I_vmax = np.array([fun(_x, _v)[0, 0] for _x, _v in zip(x_vmax, vkms)])
+    # print(I_vmax)
 
-    mask = I_vmax >  0.0
+    mask = I_vmax > 0.0
     plt.plot(x_vmax[mask], vkms[mask])
-    #plt.plot(x_vmax, vkms)
-    #print(np.array([vkms, x_vmax, I_vmax]).T , Icrit)
-    #print(np.array([vkms[mask], x_vmax[mask], I_vmax[mask]]).T , Icrit)
+    # plt.plot(x_vmax, vkms)
+    # print(np.array([vkms, x_vmax, I_vmax]).T , Icrit)
+    # print(np.array([vkms[mask], x_vmax[mask], I_vmax[mask]]).T , Icrit)
     v_crit = tools.find_roots(vkms[mask], I_vmax[mask], Icrit)
     if len(v_crit) == 0:
         v_crit = vkms[0]
     else:
         v_crit = v_crit[-1]
     x_crit = tools.find_roots(x_vmax, vkms, v_crit)[-1]
-    #print(x_crit, v_crit)
+    # print(x_crit, v_crit)
     return x_crit, v_crit
 
 
@@ -617,12 +662,16 @@ def get_localpeak_positions(x, y, min_distance=3, threshold_abs=None):
     ]
     return np.array(maxis)
 
+
 def get_quadrant(x, y):
-    return int( (np.rad2deg( np.arctan2(y, x) ) ) % 360 // 90 + 1 )
+    return int((np.rad2deg(np.arctan2(y, x))) % 360 // 90 + 1)
+
 
 def savefig(filename):
     gpath.make_dirs(fig=gpath.fig_dir)
     filepath = os.path.join(gpath.fig_dir, filename)
-    plt.savefig(filepath) # if backend error occurs, please add matplotlib.use('Agg') somewhere
+    plt.savefig(
+        filepath
+    )  # if backend error occurs, please add matplotlib.use('Agg') somewhere
     print("saved ", filepath)
-    plt.clf() 
+    plt.clf()

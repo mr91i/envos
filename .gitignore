@@ -23,6 +23,7 @@ fig_*
 nohup.out
 
 __pycache__
+__oldfiles__
 run/
 envos.egg-info/
 build/

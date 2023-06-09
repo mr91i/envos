@@ -27,12 +27,10 @@ import numpy as np
 
 
 def solve(a, b, c, d):
-
     if a == 0 and b == 0:  # Case for handling Liner Equation
         return np.array([(-d * 1.0) / c])  # Returning linear root as numpy array.
 
     elif a == 0:  # Case for handling Quadratic Equations
-
         D = c * c - 4.0 * b * d  # Helper Temporary Variable
         if D >= 0:
             D = math.sqrt(D)
@@ -57,8 +55,7 @@ def solve(a, b, c, d):
         return np.array([x, x, x])  # Returning Equal Roots as numpy array.
 
     elif h <= 0:  # All 3 roots are Real
-
-        i = math.sqrt(((g ** 2.0) / 4.0) - h)  # Helper Temporary Variable
+        i = math.sqrt(((g**2.0) / 4.0) - h)  # Helper Temporary Variable
         j = i ** (1 / 3.0)  # Helper Temporary Variable
         k = math.acos(-(g / (2 * i)))  # Helper Temporary Variable
         L = j * -1  # Helper Temporary Variable
@@ -95,18 +92,18 @@ def solve(a, b, c, d):
 
 # Helper function to return float value of f.
 def findF(a, b, c):
-    return ((3.0 * c / a) - ((b ** 2.0) / (a ** 2.0))) / 3.0
+    return ((3.0 * c / a) - ((b**2.0) / (a**2.0))) / 3.0
 
 
 # Helper function to return float value of g.
 def findG(a, b, c, d):
     return (
-        ((2.0 * (b ** 3.0)) / (a ** 3.0))
-        - ((9.0 * b * c) / (a ** 2.0))
+        ((2.0 * (b**3.0)) / (a**3.0))
+        - ((9.0 * b * c) / (a**2.0))
         + (27.0 * d / a)
     ) / 27.0
 
 
 # Helper function to return float value of h.
 def findH(g, f):
-    return (g ** 2.0) / 4.0 + (f ** 3.0) / 27.0
+    return (g**2.0) / 4.0 + (f**3.0) / 27.0

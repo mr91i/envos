@@ -16,7 +16,7 @@ class kappa:
         self.table = np.array([self.lam_micron, self.kappa_abs, self.kappa_sca]).T
 
     def kappa_abs_func(self):
-        return self.kappa0_micron * self.lam_micron ** self.beta
+        return self.kappa0_micron * self.lam_micron**self.beta
 
     def kappa_sca_func(self):
         return np.full_like(self.lam_micron, 0.0)

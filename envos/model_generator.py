@@ -12,11 +12,8 @@ from .grid import Grid
 from .physical_params import PhysicalParameters
 from . import tools
 
-# logger = set_logger(__name__)
-
 
 class ModelGenerator:
-    # def __init__(self, filepath=None, grid=None, ppar=None):
     def __init__(self, config=None, readfile=None):
         self.grid = None
         self.ppar = None
@@ -103,7 +100,6 @@ class ModelGenerator:
         meanmolw: float = 2.3,
         cavangle_deg: float = 0,
     ):
-
         self.ppar = PhysicalParameters(
             T=T,
             CR_au=CR_au,
@@ -118,9 +114,9 @@ class ModelGenerator:
         )
 
     def set_model(self, inenv=None, outenv=None, disk=None):
-        #self.inenv = inenv
-        #self.outenv = outenv
-        #self.disk = disk
+        # self.inenv = inenv
+        # self.outenv = outenv
+        # self.disk = disk
         self.set_inenv(inenv)
         self.set_outenv(outenv)
         self.set_disk(disk)
@@ -132,16 +128,11 @@ class ModelGenerator:
         self.model.set_gas_velocity(vr, vt, vp)
 
     def calc_kinematic_structure(self, smoothing_TSC=True):
-
         ### Set grid
-        # if grid is not None:
-        #    self.grid = grid
         if self.grid is None:
             raise Exception("grid is not set.")
 
         ### Set physical parameters
-        # if ppar is not None:
-        #    self.ppar = ppar
         if self.ppar is None:
             raise Exception("ppar is not set.")
 
@@ -151,12 +142,6 @@ class ModelGenerator:
         logger.info(f"    inner-envelope: %s", self.inenv if self.inenv else None)
         logger.info(f"    outer-envelope: %s", self.outenv if self.outenv else None)
         logger.info(f"    disk: %s\n", self.disk if self.disk else None)
-
-        """
-        self.set_inenv(self.inenv)
-        self.set_outenv(self.outenv)
-        self.set_disk(self.disk)
-        """
 
         ### Make kmodel
         zeros = np.zeros_like(self.grid.rr)
@@ -198,15 +183,13 @@ class ModelGenerator:
             logger.info("Setting disk")
             cond = rho < self.disk.rho
             self.disk_region = cond
-            #rho[cond] = self.disk.rho[cond]
+            # rho[cond] = self.disk.rho[cond]
             rho += self.disk.rho
             vr[cond] = self.disk.vr[cond]
             vt[cond] = self.disk.vt[cond]
             vp[cond] = self.disk.vp[cond]
 
         logger.info("Calculated kinematic structure")
-        # if grid is not None:
-        # self.model.set_grid(self.grid)
         self.model.set_gas_density(rho)
         self.model.set_gas_velocity(vr, vt, vp)
         self.model.set_dust_density(f_dg=self.f_dg)
@@ -264,21 +247,16 @@ class ModelGenerator:
 
         elif disk == "powerlaw":
             config = {
-                "fracMd":0.1,
-                "ind_S":-1.0,
-                "Td10":40,
-                "ind_T":-0.5,
-                "meanmolw":self.ppar.meanmolw
+                "fracMd": 0.1,
+                "ind_S": -1.0,
+                "Td10": 40,
+                "ind_T": -0.5,
+                "meanmolw": self.ppar.meanmolw,
             }
             if self.config.disk_config is not None:
                 config.update(self.config.disk_config)
             print(config)
-            self.disk = PowerlawDisk(
-                self.grid,
-                self.ppar.Ms,
-                self.ppar.CR,
-                **config
-            )
+            self.disk = PowerlawDisk(self.grid, self.ppar.Ms, self.ppar.CR, **config)
         else:
             raise Exception("Unknown disk type")
 
@@ -293,25 +271,20 @@ class ModelGenerator:
         radmc.run_mctherm()
 
         rho = radmc.get_gas_density()
-        #if not np.allclose(rho, self.model.rhogas, rtol=1e-07, atol=1e-20):
         if not np.allclose(self.model.rhogas, rho, rtol=1e-07, atol=1e-20):
             logger.error(
                 "Input value mismatches with that read by radmc3d: gas density\n"
             )
-            #raise Exception
+            # raise Exception
 
         Tgas = radmc.get_gas_temperature()
         self.model.set_gas_temperature(Tgas)
 
-
     def get_model(self):
         return self.model
 
-
     def save(self):
         tools.savefile(self, basename="mg")
-
-
 
 
 def read_model(path):

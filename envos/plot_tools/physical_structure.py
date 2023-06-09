@@ -19,8 +19,10 @@ from .. import tools
 figext = "pdf"
 
 from cycler import cycler
+
 cyclestyle = cycler(ls=["-", "--", ":", "-."])
 logger = log.logger
+
 
 ## Not use easyplot
 ## - it make the code complicated, though useful
@@ -32,7 +34,7 @@ def set_plot_format(
     legend=False,
     xlog=False,
     ylog=False,
-    loglog=False
+    loglog=False,
 ):
     if xlim is not None:
         plt.xlim(*xlim)
@@ -48,6 +50,7 @@ def set_plot_format(
         plt.xscale("log")
     if ylog or loglog:
         plt.yscale("log")
+
 
 ## New generation plotting format
 ## - make a plotting format independent of variables
@@ -70,8 +73,8 @@ def plot_variable_meridional_map(
     extend="min",
     **kwargs,
 ):
-    if xlim > np.max(model.rr[...,0]) / nc.au:
-        xlim = np.max(model.rr[...,0]) / nc.au
+    if xlim > np.max(model.rr[..., 0]) / nc.au:
+        xlim = np.max(model.rr[..., 0]) / nc.au
 
     var_toridal_average = np.average(getattr(model, variable_name), axis=2)
 
@@ -79,8 +82,10 @@ def plot_variable_meridional_map(
         model.R[..., 0] / nc.au,
         model.z[..., 0] / nc.au,
         var_toridal_average,
-        #zregion=(modepl.R[...,0] < xlim * nc.au) & (model.z[...,0] < xlim * nc.au),
-        zregion= (model.R[...,0] < xlim * nc.au) & (model.z[...,0] < xlim * nc.au) & (model.rr[...,0] > rinlim * nc.au),
+        # zregion=(modepl.R[...,0] < xlim * nc.au) & (model.z[...,0] < xlim * nc.au),
+        zregion=(model.R[..., 0] < xlim * nc.au)
+        & (model.z[..., 0] < xlim * nc.au)
+        & (model.rr[..., 0] > rinlim * nc.au),
         clabel=clabel,
         clog=clog,
         dlv=dlv,
@@ -96,28 +101,23 @@ def plot_variable_meridional_map(
 
     if streams:
         add_streams(
-            model, xlim, r0=np.sqrt(2)*xlim,
+            model,
+            xlim,
+            r0=np.sqrt(2) * xlim,
             use_mu0=hasattr(model, "mu0"),
-            cavity_region=(model.rhogas[...,0]==0)
+            cavity_region=(model.rhogas[..., 0] == 0),
         )
 
-    set_plot_format(
-        xlim=(0, xlim),
-        ylim=(0, xlim),
-        xlb=r"$R$ [au]",
-        ylb=r"$z$ [au]"
-    )
+    set_plot_format(xlim=(0, xlim), ylim=(0, xlim), xlb=r"$R$ [au]", ylb=r"$z$ [au]")
 
     if save:
         name = variable_name if save_name is None else save_name
         savefig(name + "." + figext)
     return
 
+
 # example of gas density
-def plot_rhogas_map(
-    model,
-    **kwargs
-):
+def plot_rhogas_map(model, **kwargs):
     _kwargs = {
         "clabel": rf"Gas Density [g cm$^{{-3}}$]",
         "clog": True,
@@ -125,13 +125,11 @@ def plot_rhogas_map(
         "dlv": 0.2,
     }
     _kwargs.update(kwargs)
-    plot_variable_meridional_map(model,"rhogas",**_kwargs)
+    plot_variable_meridional_map(model, "rhogas", **_kwargs)
+
 
 # example of gas temperature
-def plot_Tgas_map(
-    model,
-    **kwargs
-):
+def plot_Tgas_map(model, **kwargs):
     _kwargs = {
         "clabel": r"Gas Temperature [K]",
         "rinlim": 20,
@@ -140,9 +138,7 @@ def plot_Tgas_map(
         "extend": "neither",
     }
     _kwargs.update(kwargs)
-    plot_variable_meridional_map(model,"Tgas",**_kwargs)
-
-
+    plot_variable_meridional_map(model, "Tgas", **_kwargs)
 
 
 ##################################################################################################
@@ -150,6 +146,7 @@ def plot_Tgas_map(
 #                                          L E G A C Y                                           #
 #                                                                                                #
 ##################################################################################################
+
 
 @dataclasses.dataclass
 class PlotInfo:
@@ -162,6 +159,7 @@ class PlotInfo:
     ylog: bool = False
     loglog: bool = False
     legend: bool = False
+
 
 def easyplot(func):
     def wrapper(*args, **kwargs):
@@ -189,11 +187,13 @@ def easyplot(func):
 
     return wrapper
 
+
 ########################
+
 
 @easyplot
 def plot_density_map(
-    m, # model
+    m,  # model
     xlim=500,
     r0=None,
     streams=False,
@@ -201,18 +201,18 @@ def plot_density_map(
     trajectories_option={},
     dloglv=0.25,
 ):
-    if xlim > np.max(m.rr[...,0]) / nc.au:
-        xlim = np.max(m.rr[...,0]) / nc.au
+    if xlim > np.max(m.rr[..., 0]) / nc.au:
+        xlim = np.max(m.rr[..., 0]) / nc.au
 
     rho = np.average(m.rhogas, axis=2)
-    #ex = np.floor( np.log10( np.abs( np.max(rho) ) ) )
-    logger.debug(f"Maximum density is {np.max(rho)}, minimum density is {np.min(rho)}" )
+    # ex = np.floor( np.log10( np.abs( np.max(rho) ) ) )
+    logger.debug(f"Maximum density is {np.max(rho)}, minimum density is {np.min(rho)}")
     plot_colormap(
         m.R[..., 0] / nc.au,
         m.z[..., 0] / nc.au,
-        rho, # / 10**ex,
-        zregion= (m.R[...,0] < xlim * nc.au) & (m.z[...,0] < xlim * nc.au),
-        #clabel=rf"Gas Density [10$^{{{ex:.0f}}}$ g cm$^{{-3}}$]",
+        rho,  # / 10**ex,
+        zregion=(m.R[..., 0] < xlim * nc.au) & (m.z[..., 0] < xlim * nc.au),
+        # clabel=rf"Gas Density [10$^{{{ex:.0f}}}$ g cm$^{{-3}}$]",
         clabel=rf"Gas Density [g cm$^{{-3}}$]",
         clog=True,
         dlv=0.2,
@@ -226,14 +226,20 @@ def plot_density_map(
         add_trajectories(m, **trj_option)
 
     if streams:
-        add_streams(m, xlim, r0=r0, use_mu0=hasattr(m, "mu0"),
-        cavity_region=(m.rhogas[...,0]==0))
+        add_streams(
+            m,
+            xlim,
+            r0=r0,
+            use_mu0=hasattr(m, "mu0"),
+            cavity_region=(m.rhogas[..., 0] == 0),
+        )
 
     return PlotInfo("density", r"$R$ [au]", r"$z$ [au]", (0, xlim), (0, xlim))
 
+
 @easyplot
 def plot_temperature_map(
-    m, # model
+    m,  # model
     xlim=500,
     r0=None,
     streams=False,  # True,
@@ -241,47 +247,57 @@ def plot_temperature_map(
     trajectories_option={},
     rinlim=20,
 ):
-    if xlim > np.max(m.rr[...,0]) / nc.au:
-        xlim = np.max(m.rr[...,0]) / nc.au
-    #lvs = np.arange(
+    if xlim > np.max(m.rr[..., 0]) / nc.au:
+        xlim = np.max(m.rr[..., 0]) / nc.au
+    # lvs = np.arange(
     #    10 * np.floor(1 / 10 * np.min(m.Tgas)),
     #    np.max(m.Tgas[m.rr > rinlim * nc.au])/10 + 1e-10,
     #    10
-    #)
-    #logger.debug("Level is", lvs, np.average(m.Tgas, axis=2) )
+    # )
+    # logger.debug("Level is", lvs, np.average(m.Tgas, axis=2) )
     plot_colormap(
         m.R[..., 0] / nc.au,
         m.z[..., 0] / nc.au,
         np.average(m.Tgas, axis=2),
-        zregion= (m.R[...,0] < xlim * nc.au) & (m.z[...,0] < xlim * nc.au) & (m.rr[...,0] > rinlim * nc.au),
-        #zregion= (m.rr[...,0] < xlim * nc.au),
+        zregion=(m.R[..., 0] < xlim * nc.au)
+        & (m.z[..., 0] < xlim * nc.au)
+        & (m.rr[..., 0] > rinlim * nc.au),
+        # zregion= (m.rr[...,0] < xlim * nc.au),
         clabel=r"Gas Temperature [K]",
         clog=False,
         aspect="equal",
         cname="inferno",
         dlv=10,
-        #lvs = lvs,
-        extend="neither"
+        # lvs = lvs,
+        extend="neither",
     )
     if trajectories:
         add_trajectories(m, **trajectories_option)
     if streams:
-        add_streams(m, xlim, r0=r0, use_mu0=hasattr(m, "mu0"),cavity_region=(m.rhogas[...,0]==0))
+        add_streams(
+            m,
+            xlim,
+            r0=r0,
+            use_mu0=hasattr(m, "mu0"),
+            cavity_region=(m.rhogas[..., 0] == 0),
+        )
 
     return PlotInfo("gtemp", r"$R$ [au]", r"$z$ [au]", (0, xlim), (0, xlim))
+
 
 #
 #   Midplane plofiles
 #
 
+
 @easyplot
 def plot_midplane_density_profile(model, mode="average", **kwargs):
     if mode == "average":
         rhomid = model.get_midplane_profile("rhogas")
-    elif mode =="slice":
+    elif mode == "slice":
         index_mid = np.argmin(np.abs(model.tc_ax - np.pi / 2))
-        rhomid = model.rhogas[:,index_mid,:]
-    plt.plot(model.rc_ax/nc.au, rhomid, **kwargs)
+        rhomid = model.rhogas[:, index_mid, :]
+    plt.plot(model.rc_ax / nc.au, rhomid, **kwargs)
     return PlotInfo(
         "dens_prof",
         "Distance from Star [au]",
@@ -289,13 +305,16 @@ def plot_midplane_density_profile(model, mode="average", **kwargs):
         loglog=True,
     )
 
+
 @easyplot
-def plot_midplane_temperature_profile(model, mode="average", refs_Tmid=[], refs_args=[], legend=False, **kwargs):
+def plot_midplane_temperature_profile(
+    model, mode="average", refs_Tmid=[], refs_args=[], legend=False, **kwargs
+):
     if mode == "average":
         Tmid = model.get_midplane_profile("Tgas")
-    elif mode =="slice":
+    elif mode == "slice":
         index_mid = np.argmin(np.abs(model.tc_ax - np.pi / 2))
-        Tmid = model.Tgas[:,index_mid,:]
+        Tmid = model.Tgas[:, index_mid, :]
     plt.plot(model.rc_ax / nc.au, Tmid, zorder=2, **kwargs)
 
     for Tm, args in zip(refs_Tmid, refs_args):
@@ -309,8 +328,11 @@ def plot_midplane_temperature_profile(model, mode="average", refs_Tmid=[], refs_
         legend=legend,
     )
 
+
 @easyplot
-def plot_midplane_velocity_profile(model, rlim=400, ylim=(-0.5, 4), mode="average", icycle=0):
+def plot_midplane_velocity_profile(
+    model, rlim=400, ylim=(-0.5, 4), mode="average", icycle=0
+):
     index_mid = np.argmin(np.abs(model.tc_ax - np.pi / 2))
     cav = np.where(model.rhogas != 0, 1, 0)[:, index_mid, 0]
     rau = model.rc_ax / nc.au
@@ -318,11 +340,11 @@ def plot_midplane_velocity_profile(model, rlim=400, ylim=(-0.5, 4), mode="averag
         vrmid = model.get_midplane_profile("vr")
         vtmid = model.get_midplane_profile("vt", vabs=True)
         vpmid = model.get_midplane_profile("vp")
-    elif mode =="slice":
-        vrmid = model.vr[:,index_mid,:]
-        vtmid = model.vt[:,index_mid,:]
-        vpmid = model.vp[:,index_mid,:]
-    _lss = cyclestyle.by_key()['ls']
+    elif mode == "slice":
+        vrmid = model.vr[:, index_mid, :]
+        vtmid = model.vt[:, index_mid, :]
+        vpmid = model.vp[:, index_mid, :]
+    _lss = cyclestyle.by_key()["ls"]
     plt.plot(
         rau,
         -vrmid * cav / 1e5,
@@ -333,24 +355,19 @@ def plot_midplane_velocity_profile(model, rlim=400, ylim=(-0.5, 4), mode="averag
         rau,
         np.abs(vtmid) * cav / 1e5,
         label=r"$v_{\theta}$",
-        ls=_lss[icycle+1],
+        ls=_lss[icycle + 1],
     )
     plt.plot(
         rau,
         np.abs(vpmid) * cav / 1e5,
         label=r"$v_{\phi}$",
-        ls=_lss[icycle+2],
+        ls=_lss[icycle + 2],
     )
 
     plt.legend()
     return PlotInfo(
-        "v_prof",
-        "Distance from Star [au]",
-        "Velocity [km s$^{-1}$]",
-        (0, rlim),
-        ylim
+        "v_prof", "Distance from Star [au]", "Velocity [km s$^{-1}$]", (0, rlim), ylim
     )
-
 
 
 def plot_midplane_angular_velocity_profile(model, rlim=400, ylim=(-0.5, 4)):
@@ -370,9 +387,12 @@ def plot_midplane_angular_velocity_profile(model, rlim=400, ylim=(-0.5, 4)):
     savefig("Omega_prof.pdf")
 
 
-
 def plot_midplane_density_velocity_profile(
-    model, xlim=(50, 1000), ylim_rho=(1e-18, 1e-15), ylim_vel=(-0.01, 2.5), mode="average"
+    model,
+    xlim=(50, 1000),
+    ylim_rho=(1e-18, 1e-15),
+    ylim_vel=(-0.01, 2.5),
+    mode="average",
 ):
     plot_midplane_density_profile(model, mode=mode, nosave=True, c="dimgray")
     plt.xlim(*xlim)
@@ -385,7 +405,9 @@ def plot_midplane_density_velocity_profile(
 
     ax2 = plt.twinx()
     plt.plot(np.nan, ls="-", c="dimgray", label=r"$\rho$")
-    plot_midplane_velocity_profile(model, rlim=400, ylim=(-0.5, 4), mode=mode, nosave=True, icycle=1)
+    plot_midplane_velocity_profile(
+        model, rlim=400, ylim=(-0.5, 4), mode=mode, nosave=True, icycle=1
+    )
     plt.xscale("log")
     plt.xlim(*xlim)
     plt.ylim(ylim_vel)
@@ -393,6 +415,7 @@ def plot_midplane_density_velocity_profile(
     plt.legend(handlelength=2, fontsize=16)
     plt.minorticks_on()
     savefig("v_dens_prof.pdf")
+
 
 def plot_midplane_velocity_map(model, rlim=400, mode="average"):
     rax = model.rc_ax
@@ -404,11 +427,11 @@ def plot_midplane_velocity_map(model, rlim=400, mode="average"):
     R, z = rr * [np.sin(tt), np.cos(tt)]
     x, y = R * np.sin(tt) * [np.cos(pp), np.sin(pp)]
     cav = np.where(model.rhogas != 0, 1, 0)
-    vls = (x / R * model.vp + y / R * model.vR)*cav
+    vls = (x / R * model.vp + y / R * model.vR) * cav
 
-    xau_mid = tools.take_midplane_average(model, x)/nc.au
-    yau_mid = tools.take_midplane_average(model, y)/nc.au
-    Vkms_mid = tools.take_midplane_average(model, vls)/1e5
+    xau_mid = tools.take_midplane_average(model, x) / nc.au
+    yau_mid = tools.take_midplane_average(model, y) / nc.au
+    Vkms_mid = tools.take_midplane_average(model, vls) / 1e5
 
     Vmax = np.max(Vkms_mid)
     lvs_half = np.arange(0.1, Vmax + 0.2, 0.2)
@@ -425,24 +448,29 @@ def plot_midplane_velocity_map(model, rlim=400, mode="average"):
 
     rhomid = tools.take_midplane_average(model, model.rhogas)
     Tmid = tools.take_midplane_average(model, model.Tgas)
-    emis = rhomid*Tmid if not axsym else np.tile(rhomid * Tmid, 91)
-    emis_av = np.array([ np.average(emis, axis=1) ] * x.shape[2]).T
+    emis = rhomid * Tmid if not axsym else np.tile(rhomid * Tmid, 91)
+    emis_av = np.array([np.average(emis, axis=1)] * x.shape[2]).T
 
     z = (100 * emis_av / np.max(emis_av)).ravel()
-    cond = np.where(z > 0.1 , True, False)
-    lvs = np.array([2**(-6), 2**(-5),  2**(-4), 2**(-3), 2**(-2), 2**(-1), 0.99999])* 100
-    lss = ["solid"]*(len(lvs) -1) + ["dashed"]
+    cond = np.where(z > 0.1, True, False)
+    lvs = (
+        np.array(
+            [2 ** (-6), 2 ** (-5), 2 ** (-4), 2 ** (-3), 2 ** (-2), 2 ** (-1), 0.99999]
+        )
+        * 100
+    )
+    lss = ["solid"] * (len(lvs) - 1) + ["dashed"]
     cont = plt.tricontour(
         xau_mid.ravel()[cond],
         yau_mid.ravel()[cond],
         z[cond],
         levels=lvs,
         cmap=plt.get_cmap("Greys"),
-        extend="both", # "neither",
-        linewidths=[0.7]*(len(lvs) -1) + [1.1],
+        extend="both",  # "neither",
+        linewidths=[0.7] * (len(lvs) - 1) + [1.1],
         alpha=0.9,
         linestyles=lss,
-        norm=mc.LogNorm(vmin=np.min(lvs))
+        norm=mc.LogNorm(vmin=np.min(lvs)),
     )
 
     try:
@@ -464,8 +492,6 @@ def plot_midplane_velocity_map(model, rlim=400, mode="average"):
     cont.clabel(fmt=f"%1.0f%%", fontsize=7, inline_spacing=20)
     plt.draw()
     savefig("v_los.pdf")
-
-
 
 
 def plot_opacity():

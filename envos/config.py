@@ -2,13 +2,16 @@ import numpy as np
 import textwrap
 from pathlib import Path
 from dataclasses import dataclass, asdict, replace
-from .log import logger
+
+# from . import log
+from .log import logger, set_logfile
 from envos import gpath
+
 
 @dataclass
 class Config:
     """
-    The Config class contains parameters for the simulation run. 
+    The Config class contains parameters for the simulation run.
     When one needs to change a parameter,
     one can directly change it in the configure instance.
 
@@ -17,9 +20,9 @@ class Config:
     General Parameters
     ------------------
     storage_dir : str, default=None
-        Path for storing the results. 
+        Path for storing the results.
     run_dir : str, default=None
-        Path where the run files are stored. 
+        Path where the run files are stored.
     fig_dir : str, default=None
         Path where the figures are stored.
     radmc_dir : str, default=None
@@ -42,7 +45,7 @@ class Config:
     pi_ax : list, default=None
         List of φ coordinates of cell interfaces.
     rau_in : float, default=10
-        Inner r-boundary in au. 
+        Inner r-boundary in au.
     rau_out : float, default=1000
         Outer r-boundary in au.
     theta_in : float, default=0
@@ -73,7 +76,7 @@ class Config:
     T : float, default=None
         Temperature, in K.
     CR_au : float, default=None
-        Centrifugal radius, in au. 
+        Centrifugal radius, in au.
     Ms_Msun : float, default=None
         Stellar mass, in Solar mass.
     t_yr : float, default=None
@@ -95,7 +98,7 @@ class Config:
     outenv : str, default=None
         Outer envelope model. Options are "TMC", None (=extrapolate inner envelope).
     disk : str, default=None
-        Disk model. Options are "exptail" (exponential-tail disk). 
+        Disk model. Options are "exptail" (exponential-tail disk).
         The detail configuration can be set by `disk_config`
     rot_ccw : bool, default=False
         If True, the rotation is counterclockwise.
@@ -155,8 +158,8 @@ class Config:
         Convolution mode. Options are "normal", "fft", "scipy", "null".
         "normal": use astropy.convolve.
         "fft": use astropy.convolve_fft.
-        "scipy":use scipy.signal.convolve. Probably fastest.   
-        "null": do nothing. 
+        "scipy":use scipy.signal.convolve. Probably fastest.
+        "null": do nothing.
     beam_maj_au : float, default=50
         Major axis of the beam in au.
     beam_min_au : float, default=50
@@ -215,7 +218,7 @@ class Config:
     cavangle_deg: float = 0
     inenv: str = "UCM"  # {"UCM", "Simple"}
     outenv: str = None
-    disk: str = None # {"exptail"}
+    disk: str = None  # {"exptail"}
     rot_ccw: bool = False
     # usr_density_func: Callable = None
     disk_config: dict = None
@@ -237,7 +240,7 @@ class Config:
     # mol_rlim: float = 1000.0
     lineobs_option: str = ""
     modified_random_walk: int = 0
-    nonlte: int=0
+    nonlte: int = 0
 
     # Observarion input
     dpc: float = 100
@@ -285,7 +288,6 @@ class Config:
         return txt
 
     def __post_init__(self):
-
         if self.storage_dir is not None:
             gpath.storage_dir = Path(self.storage_dir)
 
@@ -301,7 +303,7 @@ class Config:
         if self.logfile is not None:
             print("set logfile")
             gpath.logfile = Path(self.logfile)
-            log.set_logfile("on")
+            set_logfile("on")
 
     def replaced(self, **changes):
         return replace(self, **changes)
