@@ -8,14 +8,13 @@ def main():
     # to ModelGenerator or ObsSimulator.
     # The following is an example of setting parameters for the calculation.
     config = envos.Config(
-<<<<<<< HEAD
         run_dir="./run", # directory to save the results
         n_thread=1, # number of threads used in OpenMP parallelization
         rau_in=10, # inner radius of the computational domain 
         rau_out=1000, # outer radius of the computational domain
         dr_to_r=0.1, # dr/r
         aspect_ratio=1, # rdtheta/dr
-        nphi=100, # number of grid points in phi direction 
+        nphi=50, # number of grid points in phi direction 
         CR_au=100, # centrifugal radius 
         Ms_Msun=0.3, # mass of the central star
         T=10, # temperature of the cloud core
@@ -38,36 +37,6 @@ def main():
         incl=90, # angle between the disk rotation axis and the direction to the observer
         posang=0, # position angle of the disk rotation axis
         dpc=100, # distance to the source in pc
-=======
-        run_dir="./run",
-        n_thread=10,
-        rau_in=10,
-        rau_out=1000,
-        dr_to_r=0.05,
-        aspect_ratio=1,
-        CR_au=100,
-        Ms_Msun=0.3,
-        T=10,
-        cavangle_deg=45,
-        f_dg=0.01,
-        opac="MRN20",
-        Lstar_Lsun=1.0,
-        molname="c3h2",
-        molabun=1e-20,
-        iline=69,
-        size_au=2000,
-        pixsize_au=25,
-        vfw_kms=6,
-        dv_kms=0.01,
-        beam_maj_au=50,
-        beam_min_au=50,
-        vreso_kms=0.2,
-        beam_pa_deg=0,
-        convmode="scipy",
-        incl=90,
-        posang=0,
-        dpc=100,
->>>>>>> 65ccb23a3cd7c0f08b80871f2290a685e19acf8c
     )
 
     # Printing a Config class shows all arguments set in the instance,
@@ -98,10 +67,10 @@ def main():
     # Learn what variables are available, and check if the calculation is done collectly.
     print(model)
 
-    # To visualize the physical model, one can use "envos.plot_tools"
+    # To visualize the model physical structure, one can use "envos.plot_tools"
     # which provide functions to plot results. 
-    envos.plot_tools.plot_density_map(model, streams=True)
-    envos.plot_tools.plot_temperature_map(model, streams=True)
+    envos.plot_tools.plot_rhogas_map(model, streams=True)
+    envos.plot_tools.plot_Tgas_map(model, streams=True)
 
     # ObsSimulator executes the calculation of synthetic observation.
     # ObsSimulator can also get recieve a `Config` object.
@@ -136,7 +105,6 @@ def main():
     envos.plot_tools.plot_mom0_map(
         img,
         arrow_angle_deg=90,
-        norm="max"
     )
 
     # To get a PV diagram, one can use get_pv_map() method.
