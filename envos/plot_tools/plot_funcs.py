@@ -7,10 +7,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.colors as mc
 
-try:
-    from skimage.feature import peak_local_max
-except:
-    pass
+from skimage.feature import peak_local_max
 
 from .. import gpath
 from .. import nconst as nc

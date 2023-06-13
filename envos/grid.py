@@ -120,13 +120,13 @@ class Grid:
         pi = np.rad2deg(self.pi_ax)
         logger.info("Grid:")
         logger.info(
-            f"    r  = [{ri[0]:.2f}:{ri[-1]:.2f}] au".ljust(32) + " Nr = {len(ri)-1}"
+            f"    r  = [{ri[0]:.2f}:{ri[-1]:.2f}] au".ljust(32) + f" Nr = {len(ri)-1}"
         )
         logger.info(
-            f"    θ  = [{ti[0]:.2f}:{ti[-1]:.2f}] ".ljust(32) + " Nθ = {len(ti)-1}"
+            f"    θ  = [{ti[0]:.2f}:{ti[-1]:.2f}] deg".ljust(32) + f" Nθ = {len(ti)-1}"
         )
         logger.info(
-            f"    φ  = [{pi[0]:.2f}:{pi[-1]:.2f}] ".ljust(32) + " Nφ = {len(pi)-1}"
+            f"    φ  = [{pi[0]:.2f}:{pi[-1]:.2f}] deg".ljust(32) + f" Nφ = {len(pi)-1}"
         )
 
 

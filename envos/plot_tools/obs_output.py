@@ -279,7 +279,6 @@ def plot_pvdiagram(
     smooth_contour=False,
     out="pvdiagrams.pdf",
 ):
-    print(pv)
     pv = pv.copy()
     if norm:
         pv.norm_I(norm)
@@ -305,7 +304,7 @@ def plot_pvdiagram(
         _cmap = plt.get_cmap("cividis")
         _norm = mc.Normalize(vmin=lvs[0], vmax=lvs[-1])
 
-    print("pvdshape:", xx.shape, yy.shape, Ipv.shape)
+#    print("pvdshape:", xx.shape, yy.shape, Ipv.shape)
 
     img = plt.pcolormesh(
         xx,
@@ -357,9 +356,8 @@ def plot_pvdiagram(
     cbar.set_label(r"Intensity $I_{V}$" + rf" [{Iunit}]")
     ticks = np.linspace(lvs[0], lvs[-1], n_lv + 1)
     cbar.set_ticks(ticks)
-    # cbar.set_ticklabels(ticks)
     cbar.ax.minorticks_off()
-    cbar.ax.yaxis.set_major_formatter(mt.FormatStrFormatter("%.2f"))
+    cbar.ax.yaxis.set_major_formatter(mt.FormatStrFormatter("%.2g"))
     ax = plt.gca()
     pfun.draw_center_line()
     # ax.minorticks_on()
