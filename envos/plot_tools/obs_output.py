@@ -7,7 +7,7 @@ import matplotlib.colors as mc
 #from .plot_funcs import *
 from . import plot_funcs as pfun
 from .. import tools
-from .. import gpath    
+from .. import gpath
 
 """
 -- Plan for new structure
@@ -114,8 +114,8 @@ def plot_image(
     xlim=(-700, 700),
     ylim=(-700, 700),
     clim=(None, None),
-    xlabel="RA Offset [au]",
-    ylabel="Dec Offset [au]",
+    xlabel=r"RA Offset $X$ [au]",
+    ylabel=r"Dec Offset $Y$ [au]",
     clabel=None,
     nlv=10,
     discrete=False,
@@ -235,7 +235,12 @@ def plot_lineprofile(cube, xau_range=None, yau_range=None, unit=None, freq0=None
         elif unit == "Tb":
             Ippv = cube.convert_Jyppix_to_brightness_temperature(cube.Ippv, freq0=freq0)
 
-        lp = np.average(np.average(Ippv[imin:imax, jmin:jmax, :], axis=0), axis=0)
+        #lp = integrate.simps(
+        #    integrate.simps(Ippv[imin:imax,jmin:jmax,:], cube.xau[imin:imax], axis=0), cube.yau[jmin:jmax], axis=0
+        #)
+        lp = np.average(
+            np.average(Ippv[imin:imax,jmin:jmax,:], axis=0), axis=0
+        )
 
     plt.plot(cube.vkms, lp)
     plt.xlabel("Velocity [km/s]")
@@ -251,7 +256,7 @@ def plot_lineprofile(cube, xau_range=None, yau_range=None, unit=None, freq0=None
 
 
 def plot_pvdiagram(
-    pv,
+    _pv,
     n_lv=10,
     Ms_Msun=None,
     rCR_au=None,
@@ -279,8 +284,8 @@ def plot_pvdiagram(
     smooth_contour=False,
     out="pvdiagrams.pdf",
 ):
-    pv = pv.copy()
-    if norm:
+    pv = _pv.copy()
+    if norm is not None:
         pv.norm_I(norm)
     Ipv = pv.Ipv
     xau = pv.xau
@@ -293,8 +298,6 @@ def plot_pvdiagram(
         clim[1] if clim[1] is not None else np.max(Ipv),
         nlv_c + 1,
     )
-    # nlvs = len(lvs)
-
     xx, yy = np.meshgrid(xau, vkms, indexing="ij")
 
     if discrete:
@@ -304,7 +307,6 @@ def plot_pvdiagram(
         _cmap = plt.get_cmap("cividis")
         _norm = mc.Normalize(vmin=lvs[0], vmax=lvs[-1])
 
-#    print("pvdshape:", xx.shape, yy.shape, Ipv.shape)
 
     img = plt.pcolormesh(
         xx,
@@ -318,7 +320,7 @@ def plot_pvdiagram(
     )
     plt.xlim(*xlim)
     plt.ylim(*ylim)
-    plt.xlabel(r"Offset from Center $x$ [au]")
+    plt.xlabel(r"Offset from Center $x^\prime$ [au]")
     plt.ylabel(r"Line-of-sight Velocity $V$ [km s$^{-1}$]")
 
     if loglog:
@@ -326,13 +328,7 @@ def plot_pvdiagram(
         plt.ylim(0.2, 3)
         plt.xscale("log")
         plt.yscale("log")
-        # plt.gca().yaxis.set_minor_locator(mt.LogLocator())
-        # cbar.ax.minorticks_off()
-        # plt.gca().yaxis.set_minor_formatter(mt.LogFormatterSciNotation(labelOnlyBase=False, minor_thresholds=(2, 0.4) ))
-        # plt.gca().yaxis.set_minor_locator(mt.LogLocator(subs=[1,2,5])) #set the ticks position
-        plt.gca().yaxis.set_minor_formatter(
-            mt.FormatStrFormatter("%g")
-        )  # add the custom ticks
+        plt.gca().yaxis.set_minor_formatter(mt.FormatStrFormatter("%g"))  #add the custom ticks
 
         x = np.geomspace(10, 1000)
         func1 = lambda x: 0.036 * (x / 1e4) ** (-1)
@@ -351,7 +347,6 @@ def plot_pvdiagram(
 
     cbar = plt.colorbar(img, pad=0.02)
 
-    # cbar.set_label(r"$I_{V}$"+" ~/ ~" + "$I_{V,\rm max}$")
     Iunit = Iunit if Iunit is not None else pv.Iu()
     cbar.set_label(r"Intensity $I_{V}$" + rf" [{Iunit}]")
     ticks = np.linspace(lvs[0], lvs[-1], n_lv + 1)
@@ -360,8 +355,6 @@ def plot_pvdiagram(
     cbar.ax.yaxis.set_major_formatter(mt.FormatStrFormatter("%.2g"))
     ax = plt.gca()
     pfun.draw_center_line()
-    # ax.minorticks_on()
-    # ax.tick_params("both", direction="inout")
     ax.tick_params(direction="inout")
 
     if contour:
@@ -371,26 +364,23 @@ def plot_pvdiagram(
             _xx, _yy, _Ipv = xx, yy, Ipv
 
         contlvs = np.array([0.3, 0.5, 0.7, 0.9])
-        c = "k"  # , "dimgray"
+        c = "k" #, "dimgray"
         img = plt.contour(
-            _xx,
-            _yy,
-            _Ipv,
-            contlvs * (lvs[-1] - lvs[0]) + lvs[0],
-            colors=c,  # make_listed_cmap("cividis", n_lv, extend="neither"),
-            norm=mc.Normalize(
-                vmin=0, vmax=np.max(Ipv)
-            ),  # mc.BoundaryNorm(lvs, n_lv, clip=False),
+            _xx, _yy, _Ipv,
+            contlvs*(lvs[-1] - lvs[0]) + lvs[0],
+            colors=c, # make_listed_cmap("cividis", n_lv, extend="neither"),
+            norm=mc.Normalize(vmin=0, vmax=np.max(Ipv)),  # mc.BoundaryNorm(lvs, n_lv, clip=False),
             corner_mask=False,
             linewidths=1.3,
             linestyles="-",
             alpha=0.6,
             zorder=4,
         )
-        x_ipeak, v_ipeak = pfun.get_coord_ipeak(xau, vkms, Ipv, mode="max")
-        plt.scatter(
-            x_ipeak, v_ipeak, s=15, alpha=0.9, linewidth=1, c=c, ec=None, zorder=4
-        )
+
+        peaks = get_subgrid_peaks(xau, vkms, Ipv, num_peak_level=1, rtol=0.01)
+        for peak in peaks[0]:
+            #plt.scatter(coord_peak[0], coord_peak[1], s=15, alpha=0.9, linewidth=1, c=c, ec=None, zorder=4)
+            plt.scatter(peak.x1, peak.x2, s=15, alpha=0.9, linewidth=1, c=c, ec=None, zorder=4)
 
     if refpv:
         if smooth_contour:
@@ -399,23 +389,24 @@ def plot_pvdiagram(
             _xx, _yy = np.meshgrid(refpv.xau, refpv.vkms, indexing="ij")
             _Ipv = refpv.Ipv
         contlvs = np.array([0.3, 0.5, 0.7, 0.9])
-        x_ipeak, v_ipeak = pfun.get_coord_ipeak(refpv.xau, refpv.vkms, refpv.Ipv, mode="max")
-        # x_vmax, v_vmax = pfun.get_coord_vmax(refpv.xau, refpv.vkms, refpv.Ipv, f_crit)
-        c = "#90D0FF"  # "lightsalmon"#"mistyrose"
+        # x_vmax, v_vmax = get_coord_vmax(refpv.xau, refpv.vkms, refpv.Ipv, f_crit)
+        c="#90D0FF" #"lightsalmon"#"mistyrose"
+#        print(_xx.shape, _yy.shape, _Ipv.shape)
         plt.contour(
-            _xx,
-            _yy,
-            _Ipv.clip(1e-10),
-            contlvs * (lvs[-1] - lvs[0]) + lvs[0],
+            _xx, _yy, _Ipv.clip(1e-10),
+            contlvs*(lvs[-1] - lvs[0]) + lvs[0],
             colors=c,
             linewidths=0.8,
             linestyles="-",
-            alpha=0.9,
-            norm=mc.Normalize(vmin=0, vmax=np.max(_Ipv)),
+            alpha=.9,
+            #norm=mc.Normalize(vmin=0, vmax=np.max(_Ipv)),
+            norm=mc.Normalize(vmin=0, vmax=np.max(Ipv)),
             corner_mask=False,
             zorder=5,
         )
-        plt.scatter(x_ipeak, v_ipeak, s=12, alpha=1.0, linewidth=1, c=c, fc=c, zorder=5)
+        peaks = get_subgrid_peaks(refpv.xau, refpv.vkms, refpv.Ipv, num_peak_level=1, rtol=0.01)
+        for peak in peaks[0]:
+            plt.scatter(peak.x1, peak.x2, s=12, alpha=0.9, linewidth=1, c=c, fc=c, ec=None, zorder=5)
 
     if mass_estimate:
         pfun.add_mass_estimate_plot(

@@ -80,6 +80,8 @@ def clean_radmcdir():
 
 #######
 
+def get_phi(x,y):
+    return np.arctan2(y, x) % (2*np.pi)
 
 def freq_to_vkms_array(freq, freq0):
     return nc.c / 1e5 * (freq0 - freq) / freq0

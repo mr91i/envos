@@ -11,10 +11,10 @@ from envos import gpath
 @dataclass
 class Config:
     """
-    The Config class contains parameters for the simulation run, 
+    The Config class contains parameters for the simulation run,
     which controll the behavior of the simulation:
     >>> config = Config(run_dir="./run", nr=100, ntheta=100, ...)
-    
+
     One can also get an instance in which some parameters are changed, by using the `replaced` method.
     >>> config = Config()
     >>> config.replaced(Ms_Msun=0.5, run_dir="./run_Ms0.5")
@@ -24,7 +24,7 @@ class Config:
     To see what parameters are available, use the `print` method:
     >>> print(config)
 
-    
+
 
     Parameters
     ----------
@@ -44,10 +44,10 @@ class Config:
     logfile : str, default=None
         Path where the log file is stored.
     level_stdout : str, default=None
-        The logging level for the standard output, 
+        The logging level for the standard output,
         can be "DEBUG", "INFO", "WARNING", "ERROR", or "CRITICAL".
     level_logfile : str, default=None
-        The logging level for the log file, 
+        The logging level for the log file,
         can be "DEBUG", "INFO", "WARNING", "ERROR", or "CRITICAL".
     n_thread : int, default=1
         Number of threads used for the simulation.
@@ -71,11 +71,11 @@ class Config:
 
     2. Arguments for specifying the grid parameters:
     rau_in : float, default=10
-        Inner r-boundary in au. 
+        Inner r-boundary in au.
     rau_out : float, default=1000
-        Outer r-boundary in au. 
+        Outer r-boundary in au.
     theta_in : float, default=0
-        Inner θ-boundary in radians (from z-axis). 
+        Inner θ-boundary in radians (from z-axis).
     theta_out : float, default=np.pi / 2
         Outer θ-boundary in radians (from z-axis).
     phi_in : float, default=0
@@ -105,9 +105,9 @@ class Config:
     T : float, default=None
         Temperature of the cloud core, in K.
     CR_au : float, default=None
-        Centrifugal radius, in au. Rigid rotating cloud core is assumed. 
+        Centrifugal radius, in au. Rigid rotating cloud core is assumed.
     Ms_Msun : float, default=None
-        Stellar mass, in Solar mass. 
+        Stellar mass, in Solar mass.
     t_yr : float, default=None
         Time after the beginning of the collapse of the cloud core, in years.
     Omega : float, default=None
@@ -125,10 +125,10 @@ class Config:
         Cavity angle, in degrees.
     inenv : str, default="UCM"
         Inner envelope model. Options are "UCM", "Simple".
-        UCM is a ballistic infall model, 
+        UCM is a ballistic infall model,
             Ulrich, 1976, ApJ, 210, 377.
             Cassen & Moosman, 1981, Icarus, 48, 353.
-        Simple is a "flat" ballistic infall model, 
+        Simple is a "flat" ballistic infall model,
             Sakai, et al., 2014, Nature, 507, 78.
             Oya, et al., 2014, ApJ, 795, 152.
             Oya, et al, 2022, PASP, 134, 094301.
@@ -174,10 +174,10 @@ class Config:
     lineobs_option : str, default=""
         Line observation options used in RADMC-3D.
     modified_random_walk : int, default=0
-        Modified random walk method. 
+        Modified random walk method.
         Options are 0 (disabled) and 1 (enabled).
     nonlte : int, default=0
-        Non-LTE level population calculation. 
+        Non-LTE level population calculation.
         Options are 0 (LTE) and 1 (Non-LTE). **Not tested**
 
     Observation Parameters
@@ -260,7 +260,7 @@ class Config:
     cavangle_deg: float = 0
     inenv: str = "UCM"  # {"UCM", "Simple"}
     outenv: str = None # {"TSC"}
-    disk: str = None  # {"exptail"}
+    disk: str = None  # {"powerlaw"}
     rot_ccw: bool = False
     # usr_density_func: Callable = None
     disk_config: dict = None

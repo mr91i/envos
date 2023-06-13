@@ -70,11 +70,20 @@ class ModelBase:
         tools.setattr_from_pickle(self, filepath)
 
     def get_midplane_profile(self, vname, dtheta=0.03, ntheta=1000, vabs=False):
-        val = tools.take_midplane_average(
-            self, getattr(self, vname), dtheta=dtheta, ntheta=ntheta, vabs=vabs
-        )
+        if isinstance(vname, str):
+            val = getattr(self, vname)
+        elif isinstance(vname, np.ndarray):
+            val = vname
+        val = tools.take_midplane_average(self, val, dtheta=dtheta, ntheta=ntheta, vabs=vabs)
         val = tools.take_horizontal_average(val)
         return val
+
+    def get_gasmask(self):
+        gasmask = np.where(self.rhogas > 0, 1, 0)
+        return gasmask
+
+    def get_argmid(self):
+        return np.argmin(np.abs(self.tc_ax - 0.5 * np.pi ))
 
 
 #        dth = np.pi/2-self.tc_ax
@@ -334,7 +343,7 @@ class PowerlawDisk(Disk):
         self.tail = tail
         self.ind_tail = ind_tail
         Mdisk = fracMd * Ms
-        Sigma = self.get_Sigma(Mdisk, Rd, ind_S)
+        self.Sigma = self.get_Sigma(Mdisk, Rd, ind_S)
         if Tmid is None:
             self.Td = Td10 * (self.R / 10 / au) ** ind_T
         else:
@@ -344,7 +353,7 @@ class PowerlawDisk(Disk):
             if np.shape(self.Td) != np.shape(self.R):
                 raise Exception
         cs_disk = np.sqrt(kB * self.Td / (meanmolw * amu))
-        self.calc_kinematic_structure_from_Sigma(Sigma, Ms, cs_disk)
+        self.calc_kinematic_structure_from_Sigma(self.Sigma, Ms, cs_disk)
         # self.set_cylindrical_velocity()
 
     def get_Sigma(self, Mdisk, Rd, ind_S):
