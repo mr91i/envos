@@ -67,9 +67,20 @@ class ModelBase:
         tools.setattr_from_pickle(self, filepath)
 
     def get_midplane_profile(self, vname, dtheta=0.03, ntheta=1000, vabs=False):
-        val = tools.take_midplane_average(self, getattr(self, vname), dtheta=dtheta, ntheta=ntheta, vabs=vabs)
+        if isinstance(vname, str):
+            val = getattr(self, vname)
+        elif isinstance(vname, np.ndarray):
+            val = vname
+        val = tools.take_midplane_average(self, val, dtheta=dtheta, ntheta=ntheta, vabs=vabs)
         val = tools.take_horizontal_average(val)
         return val
+
+    def get_gasmask(self):
+        gasmask = np.where(self.rhogas > 0, 1, 0)
+        return gasmask
+
+    def get_argmid(self):
+        return np.argmin(np.abs(self.tc_ax - 0.5 * np.pi ))
 
 
 #        dth = np.pi/2-self.tc_ax
