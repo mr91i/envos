@@ -276,13 +276,22 @@ def shell(
             universal_newlines=True,
         )
 
+    if (error_keyword is not None): 
+        error_check = True
+        if isinstance(error_keyword, (tuple, list)):        
+            pattern = re.compile('|'.join(error_keyword))
+        else:
+            pattern = re.compile(error_keyword)
+    else:
+        error_check = False
+
     while True:
         _line = proc.stdout.readline().rstrip()  # .decode("utf-8").rstrip()
         print("line:", _line)
         if _line:
             if log:
                 logger.info(log_prefix + _line)
-            if (error_keyword is not None) and (error_keyword in _line):
+            if error_check and bool(pattern.search(_line)):
                 error_flag = 1
 
         # if output == '' and (process.poll() is not None):

@@ -378,7 +378,7 @@ class RadmcController:
         tools.shell(
             f"radmc3d mctherm setthreads {self.n_thread}",
             cwd=self.radmc_dir,
-            error_keyword="ERROR",
+            error_keyword=["ERROR", "STOP"],
             log_prefix="    ",
         )
 

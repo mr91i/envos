@@ -3,6 +3,7 @@ import dataclasses
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mt
 import matplotlib.colors as mc
+from scipy import interpolate
 from cycler import cycler
 from . import plot_funcs as pfun
 from .. import nconst as nc
@@ -131,7 +132,7 @@ def plot_midplane_radial_profile(
         #plt.plot(model.rc_ax/nc.au, line["y"], **line["opt"])
         plt.plot(**line)
 
-    set_plot_format(
+    pfun.set_plot_format(
         xlim=xlim,
         ylim=ylim,
         xlb=xlb,
@@ -144,49 +145,11 @@ def plot_midplane_radial_profile(
 
     if save:
         name = variable_name if save_name is None else save_name
-        savefig(name + "." + figext)
+        pfun.savefig(name + "." + figext)
 
     return
 
 
-def set_plot_format(
-    xlim=None,
-    ylim=None,
-    xlb=None,
-    ylb=None,
-    legend=False,
-    xlog=False,
-    ylog=False,
-    loglog=False,
-):
-    """
-    Set the plot format.
-
-    Args:
-        xlim: Tuple (xmin, xmax) defining the x-axis limits.
-        ylim: Tuple (ymin, ymax) defining the y-axis limits.
-        xlb: String defining the x-axis label.
-        ylb: String defining the y-axis label.
-        legend: Boolean indicating whether to show the legend.
-        xlog: Boolean indicating whether to use a logarithmic scale for the x-axis.
-        ylog: Boolean indicating whether to use a logarithmic scale for the y-axis.
-        loglog: Boolean indicating whether to use a logarithmic scale for both axes.
-    """
-
-    if xlim is not None:
-        plt.xlim(*xlim)
-    if ylim is not None:
-        plt.ylim(*ylim)
-    if xlb is not None:
-        plt.xlabel(xlb)
-    if ylb is not None:
-        plt.ylabel(ylb)
-    if legend:
-        plt.legend()
-    if xlog or (loglog and not ylog):
-        plt.xscale("log")
-    if ylog or (loglog and not xlog):
-        plt.yscale("log")
 
 
 #################################################################
@@ -292,7 +255,7 @@ def plot_velocity_midplane_profile(
     plt.plot(rau, np.abs(vtmid) * gm, label=r"$v_{\theta}$", ls=cycle_ls[icycle+1])
     plt.plot(rau, np.abs(vpmid) * gm, label=r"$v_{\phi}$", ls=cycle_ls[icycle+2])
 
-    set_plot_format(
+    pfun.set_plot_format(
         xlim=xlim,
         ylim=ylim,
         xlb=xlb,
@@ -304,7 +267,7 @@ def plot_velocity_midplane_profile(
     if save:
         save_name = "velocity_profile"
         name = variable_name if save_name is None else save_name
-        savefig(name + "." + figext)
+        pfun.savefig(name + "." + figext)
 
     return
 

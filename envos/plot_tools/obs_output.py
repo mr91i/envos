@@ -377,7 +377,7 @@ def plot_pvdiagram(
             zorder=4,
         )
 
-        peaks = get_subgrid_peaks(xau, vkms, Ipv, num_peak_level=1, rtol=0.01)
+        peaks = pfun.get_subgrid_peaks(xau, vkms, Ipv, num_peak_level=1, rtol=0.01)
         for peak in peaks[0]:
             #plt.scatter(coord_peak[0], coord_peak[1], s=15, alpha=0.9, linewidth=1, c=c, ec=None, zorder=4)
             plt.scatter(peak.x1, peak.x2, s=15, alpha=0.9, linewidth=1, c=c, ec=None, zorder=4)
@@ -404,7 +404,7 @@ def plot_pvdiagram(
             corner_mask=False,
             zorder=5,
         )
-        peaks = get_subgrid_peaks(refpv.xau, refpv.vkms, refpv.Ipv, num_peak_level=1, rtol=0.01)
+        peaks = pfun.get_subgrid_peaks(refpv.xau, refpv.vkms, refpv.Ipv, num_peak_level=1, rtol=0.01)
         for peak in peaks[0]:
             plt.scatter(peak.x1, peak.x2, s=12, alpha=0.9, linewidth=1, c=c, fc=c, ec=None, zorder=5)
 
