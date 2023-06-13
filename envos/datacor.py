@@ -1,8 +1,6 @@
-#!/usr/bin/env python
 import numpy as np
 from scipy import interpolate
 import itertools
-
 
 ## For any data
 def calc_datacor(
@@ -44,25 +42,30 @@ def calc_datacor(
         data2.get_axes(), data2.get_I(), newgrid, **_interp_option
     )
 
+    ## Preprocess
     if preprocess_func is not None:
         im1 *= preprocess_func(im1, im2, axes_newgrid)
         im2 *= preprocess_func(im1, im2, axes_newgrid)
 
+    ## Normalization
     if norm1:
         im1 /= np.max(im1)
 
     if norm2:
         im2 /= np.max(im2)
 
+    ## Threshold 
     if threshold1 is not None:
         im1 = np.where(im1 > threshold1, im1, floor)
 
     if threshold2 is not None:
         im2 = np.where(im2 > threshold2, im2, floor)
 
+    ## Check data shape
     if im1.shape != im2.shape:
         raise Exception("Wrong data shape")
 
+    ## Calculate data correlation
     if method == "ZNCC":
         res = calc_ZNCC_data(im1, im2)
     elif method == "SSD":
@@ -78,9 +81,6 @@ def calc_datacor(
         d2 = data2.copy()
         d2.set_I(im2)
         d2.set_axes(axes_newgrid)
-        # print(d1)
-        # print(d1)
-        # exit()
         return res, (d1, d2)
     else:
         return res

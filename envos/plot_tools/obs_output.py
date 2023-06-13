@@ -1,12 +1,13 @@
 import os
 import numpy as np
 from scipy import interpolate
-import matplotlib.patches
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mt
 import matplotlib.colors as mc
-from .plot_funcs import *
+#from .plot_funcs import *
+from . import plot_funcs as pfun
 from .. import tools
+from .. import gpath    
 
 """
 -- Plan for new structure
@@ -55,7 +56,7 @@ def _plot_image(
 
     "*** Setting color levels ***"
     if discrete:
-        _cmap = make_listed_cmap(cname, nlv - 1, extend="neither")
+        _cmap = pfun.make_listed_cmap(cname, nlv - 1, extend="neither")
         _norm = mc.BoundaryNorm(lvs, nlv - 1, clip=False)
     else:
         _cmap = plt.get_cmap(cname)
@@ -155,7 +156,7 @@ def plot_image(
         Iunit = Iunit if Iunit is not None else im.Iu()
         clabel = r"Integrated Intensity $I$" + rf" [{Iunit}]"
 
-    pl = _plot_image(
+    _plot_image(
         im.xau,
         im.yau,
         im.get_I(),
@@ -181,8 +182,8 @@ def plot_image(
             arrow_angle_deg, arrow_length_au, arrow_offset_au
         )  # pangles_deg, length, poffset_au)
 
-    if (obreso is not None) and data.obreso.beam_maj_au:
-        draw_beamsize(
+    if (obreso is not None) and im.obreso.beam_maj_au:
+        pfun.draw_beamsize(
             plt.gca(),
             "mom0",
             obreso.beam_maj_au,
@@ -190,9 +191,9 @@ def plot_image(
             obreso.beam_pa_deg,
         )
 
-    draw_center_line()
+    pfun.draw_center_line()
     if save:
-        savefig(out)
+        pfun.savefig(out)
 
 
 def draw_arrows(pangles_deg, L, offset=0):
@@ -293,12 +294,12 @@ def plot_pvdiagram(
         clim[1] if clim[1] is not None else np.max(Ipv),
         nlv_c + 1,
     )
-    nlvs = len(lvs)
+    # nlvs = len(lvs)
 
     xx, yy = np.meshgrid(xau, vkms, indexing="ij")
 
     if discrete:
-        _cmap = make_listed_cmap("cividis", nlv_c, extend="neither")
+        _cmap = pfun.make_listed_cmap("cividis", nlv_c, extend="neither")
         _norm = mc.BoundaryNorm(lvs, nlv_c, clip=False)
     else:
         _cmap = plt.get_cmap("cividis")
@@ -344,7 +345,7 @@ def plot_pvdiagram(
         if 0:
             xx, vv = np.meshgrid(xau, vkms, indexing="ij")
             vpeaks = np.array(
-                [get_maximum_position(vkms, Iv) for Iv in np.where(vv > 0, Ipv, 0)]
+                [pfun.get_maximum_position(vkms, Iv) for Iv in np.where(vv > 0, Ipv, 0)]
             )
             plt.scatter(xau[vpeaks > 0], vpeaks[vpeaks > 0], c="red", marker="o", s=4)
         show_beam = False
@@ -352,9 +353,7 @@ def plot_pvdiagram(
     cbar = plt.colorbar(img, pad=0.02)
 
     # cbar.set_label(r"$I_{V}$"+" ~/ ~" + "$I_{V,\rm max}$")
-    print(Iunit)
     Iunit = Iunit if Iunit is not None else pv.Iu()
-    print(Iunit)
     cbar.set_label(r"Intensity $I_{V}$" + rf" [{Iunit}]")
     ticks = np.linspace(lvs[0], lvs[-1], n_lv + 1)
     cbar.set_ticks(ticks)
@@ -362,13 +361,12 @@ def plot_pvdiagram(
     cbar.ax.minorticks_off()
     cbar.ax.yaxis.set_major_formatter(mt.FormatStrFormatter("%.2f"))
     ax = plt.gca()
-    draw_center_line()
+    pfun.draw_center_line()
     # ax.minorticks_on()
     # ax.tick_params("both", direction="inout")
     ax.tick_params(direction="inout")
 
     if contour:
-        print(xx.shape, yy.shape, Ipv.shape)
         if smooth_contour:
             _xx, _yy, _Ipv = smooth_image(xx, yy, Ipv)
         else:
@@ -391,7 +389,7 @@ def plot_pvdiagram(
             alpha=0.6,
             zorder=4,
         )
-        x_ipeak, v_ipeak = get_coord_ipeak(xau, vkms, Ipv, mode="max")
+        x_ipeak, v_ipeak = pfun.get_coord_ipeak(xau, vkms, Ipv, mode="max")
         plt.scatter(
             x_ipeak, v_ipeak, s=15, alpha=0.9, linewidth=1, c=c, ec=None, zorder=4
         )
@@ -403,10 +401,9 @@ def plot_pvdiagram(
             _xx, _yy = np.meshgrid(refpv.xau, refpv.vkms, indexing="ij")
             _Ipv = refpv.Ipv
         contlvs = np.array([0.3, 0.5, 0.7, 0.9])
-        x_ipeak, v_ipeak = get_coord_ipeak(refpv.xau, refpv.vkms, refpv.Ipv, mode="max")
-        # x_vmax, v_vmax = get_coord_vmax(refpv.xau, refpv.vkms, refpv.Ipv, f_crit)
+        x_ipeak, v_ipeak = pfun.get_coord_ipeak(refpv.xau, refpv.vkms, refpv.Ipv, mode="max")
+        # x_vmax, v_vmax = pfun.get_coord_vmax(refpv.xau, refpv.vkms, refpv.Ipv, f_crit)
         c = "#90D0FF"  # "lightsalmon"#"mistyrose"
-        print(_xx.shape, _yy.shape, _Ipv.shape)
         plt.contour(
             _xx,
             _yy,
@@ -423,7 +420,7 @@ def plot_pvdiagram(
         plt.scatter(x_ipeak, v_ipeak, s=12, alpha=1.0, linewidth=1, c=c, fc=c, zorder=5)
 
     if mass_estimate:
-        add_mass_estimate_plot(
+        pfun.add_mass_estimate_plot(
             xau,
             vkms,
             Ipv,
@@ -441,8 +438,9 @@ def plot_pvdiagram(
         and (pv.obreso is not None)
         and pv.obreso.beam_maj_au
         and not loglog
+        and show_beam
     ):
-        draw_beamsize(
+        pfun.draw_beamsize(
             plt.gca(),
             "pv",
             pv.obreso.beam_maj_au,
@@ -460,7 +458,7 @@ def plot_pvdiagram(
         # ax2.set_xlim([xas[0], xas[-1]])
         ax2.set_xlim(np.array(ax.get_xlim()) / pv.dpc)
 
-    savefig(out)
+    pfun.savefig(out)
 
 
 def smooth_image(xx, yy, image, axes="mg"):
@@ -471,3 +469,5 @@ def smooth_image(xx, yy, image, axes="mg"):
     newgrid = np.stack([_xx, _yy], axis=-1)
     _image = interpolate.interpn((_x, _y), image, newgrid, method="splinef2d")
     return _xx, _yy, _image
+
+

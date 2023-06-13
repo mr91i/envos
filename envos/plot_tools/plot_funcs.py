@@ -5,9 +5,7 @@ import matplotlib.patches
 from mpl_toolkits.axes_grid1.anchored_artists import AnchoredAuxTransformBox
 import matplotlib
 import matplotlib.pyplot as plt
-import matplotlib.ticker as mt
 import matplotlib.colors as mc
-import copy
 
 try:
     from skimage.feature import peak_local_max
@@ -578,7 +576,7 @@ def get_coord_vmax2(xau, vkms, Ipv, Icrit, quadrant=None):
     #    _Ipv = np.where( Ipv >= 0.0, Ipv, 0)
     fun = interpolate.RectBivariateSpline(xau, vkms, Ipv)
 
-    x = np.linspace(xau[0], xau[-1], 1000)
+#    x = np.linspace(xau[0], xau[-1], 1000)
     v = np.linspace(vkms[0], vkms[-1], 1000)
 
     # x_fun = optimize.minimize_scalar(lambda x: fun(x,v) )

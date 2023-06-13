@@ -1,25 +1,15 @@
-import os
 import numpy as np
 import dataclasses
-from scipy import integrate, optimize
-
-import matplotlib
-import matplotlib.patches
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mt
 import matplotlib.colors as mc
-from mpl_toolkits.axes_grid1.anchored_artists import AnchoredAuxTransformBox
-
-from .plot_funcs import *
+from cycler import cycler
+from . import plot_funcs as pfun
 from .. import nconst as nc
 from .. import log
-from .. import streamline
 from .. import tools
 
 figext = "pdf"
-
-from cycler import cycler
-
 cyclestyle = cycler(ls=["-", "--", ":", "-."])
 logger = log.logger
 
@@ -78,7 +68,7 @@ def plot_variable_meridional_map(
 
     var_toridal_average = np.average(getattr(model, variable_name), axis=2)
 
-    plot_colormap(
+    pfun.plot_colormap(
         model.R[..., 0] / nc.au,
         model.z[..., 0] / nc.au,
         var_toridal_average,
@@ -97,10 +87,10 @@ def plot_variable_meridional_map(
     if trajectories:
         _trj_option = {"r0_au": xlim, "theta0_deg": 30}
         _trj_option.update(trajectories_option)
-        add_trajectories(model, **_trj_option)
+        pfun.add_trajectories(model, **_trj_option)
 
     if streams:
-        add_streams(
+        pfun.add_streams(
             model,
             xlim,
             r0=np.sqrt(2) * xlim,
@@ -108,18 +98,18 @@ def plot_variable_meridional_map(
             cavity_region=(model.rhogas[..., 0] == 0),
         )
 
-    set_plot_format(xlim=(0, xlim), ylim=(0, xlim), xlb=r"$R$ [au]", ylb=r"$z$ [au]")
+    pfun.set_plot_format(xlim=(0, xlim), ylim=(0, xlim), xlb=r"$R$ [au]", ylb=r"$z$ [au]")
 
     if save:
         name = variable_name if save_name is None else save_name
-        savefig(name + "." + figext)
+        pfun.savefig(name + "." + figext)
     return
 
 
 # example of gas density
 def plot_rhogas_map(model, **kwargs):
     _kwargs = {
-        "clabel": rf"Gas Density [g cm$^{{-3}}$]",
+        "clabel": r"Gas Density [g cm$^{{-3}}$]",
         "clog": True,
         "cname": "viridis",
         "dlv": 0.2,
@@ -183,7 +173,7 @@ def easyplot(func):
 
         plt.draw()
         if save:
-            savefig(pi.name + "." + figext)
+            pfun.savefig(pi.name + "." + figext)
 
     return wrapper
 
@@ -207,13 +197,13 @@ def plot_density_map(
     rho = np.average(m.rhogas, axis=2)
     # ex = np.floor( np.log10( np.abs( np.max(rho) ) ) )
     logger.debug(f"Maximum density is {np.max(rho)}, minimum density is {np.min(rho)}")
-    plot_colormap(
+    pfun.plot_colormap(
         m.R[..., 0] / nc.au,
         m.z[..., 0] / nc.au,
         rho,  # / 10**ex,
         zregion=(m.R[..., 0] < xlim * nc.au) & (m.z[..., 0] < xlim * nc.au),
         # clabel=rf"Gas Density [10$^{{{ex:.0f}}}$ g cm$^{{-3}}$]",
-        clabel=rf"Gas Density [g cm$^{{-3}}$]",
+        clabel=r"Gas Density [g cm$^{{-3}}$]",
         clog=True,
         dlv=0.2,
         aspect="equal",
@@ -223,10 +213,10 @@ def plot_density_map(
     if trajectories:
         trj_option = {"r0_au": xlim, "theta0_deg": 30}
         trj_option.update(trajectories_option)
-        add_trajectories(m, **trj_option)
+        pfun.add_trajectories(m, **trj_option)
 
     if streams:
-        add_streams(
+        pfun.add_streams(
             m,
             xlim,
             r0=r0,
@@ -255,7 +245,7 @@ def plot_temperature_map(
     #    10
     # )
     # logger.debug("Level is", lvs, np.average(m.Tgas, axis=2) )
-    plot_colormap(
+    pfun.plot_colormap(
         m.R[..., 0] / nc.au,
         m.z[..., 0] / nc.au,
         np.average(m.Tgas, axis=2),
@@ -272,9 +262,9 @@ def plot_temperature_map(
         extend="neither",
     )
     if trajectories:
-        add_trajectories(m, **trajectories_option)
+        pfun.add_trajectories(m, **trajectories_option)
     if streams:
-        add_streams(
+        pfun.add_streams(
             m,
             xlim,
             r0=r0,
@@ -384,7 +374,7 @@ def plot_midplane_angular_velocity_profile(model, rlim=400, ylim=(-0.5, 4)):
     plt.xlabel("Distance from Star [au]")
     plt.ylabel("Angular Velocity [s$^{-1}$]")
     plt.legend()
-    savefig("Omega_prof.pdf")
+    pfun.savefig("Omega_prof.pdf")
 
 
 def plot_midplane_density_velocity_profile(
@@ -401,9 +391,9 @@ def plot_midplane_density_velocity_profile(
     plt.yscale("log")
     plt.xlabel("Distance from Star [au]")
     plt.ylabel("Gas Density [g cm$^{-3}$]")
-    # savefig("v_dens_prof.pdf")
+    # pfun.savefig("v_dens_prof.pdf")
 
-    ax2 = plt.twinx()
+    plt.twinx()
     plt.plot(np.nan, ls="-", c="dimgray", label=r"$\rho$")
     plot_midplane_velocity_profile(
         model, rlim=400, ylim=(-0.5, 4), mode=mode, nosave=True, icycle=1
@@ -414,7 +404,7 @@ def plot_midplane_density_velocity_profile(
     plt.ylabel("Velocity [km s$^{-1}$]")
     plt.legend(handlelength=2, fontsize=16)
     plt.minorticks_on()
-    savefig("v_dens_prof.pdf")
+    pfun.savefig("v_dens_prof.pdf")
 
 
 def plot_midplane_velocity_map(model, rlim=400, mode="average"):
@@ -489,9 +479,9 @@ def plot_midplane_velocity_map(model, rlim=400, mode="average"):
 
     cbar.set_label(r"Line-of-sight Velocity $V$ [km s$^{-1}$]")
     cbar.ax.minorticks_off()
-    cont.clabel(fmt=f"%1.0f%%", fontsize=7, inline_spacing=20)
+    cont.clabel(fmt="%1.0f%%", fontsize=7, inline_spacing=20)
     plt.draw()
-    savefig("v_los.pdf")
+    pfun.savefig("v_los.pdf")
 
 
 def plot_opacity():
@@ -510,4 +500,4 @@ def plot_opacity():
 
     plt.xlabel(r"Wavelength [$\mu$m]")
     plt.ylabel(r"Absorption Opacity [cm$^{2}$ g$^{-1}$]")
-    savefig("opac.pdf")
+    pfun.savefig("opac.pdf")

@@ -27,7 +27,7 @@ def calc_dependent_params(
         t = Ms / Mdot
     elif t_yr is not None:
         t = t_yr * nc.yr
-        M = Mdot * t
+        Ms_Msun = Mdot * t / nc.Msun
 
     if CR_au is not None:
         CR = CR_au * nc.au
@@ -97,7 +97,7 @@ class PhysicalParameters:
             t = Ms / Mdot
         elif t_yr is not None:
             t = t_yr * nc.yr
-            M = Mdot * t
+            Ms = Mdot * t
         self.Ms = Ms
         self.t = t
 

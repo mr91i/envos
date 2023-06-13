@@ -1,11 +1,9 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 import os
 import numpy as np
 import pandas as pd
 from scipy import interpolate, integrate
 from dataclasses import dataclass
-from typing import Callable, Any
+from typing import Any
 from . import tools, cubicsolver, tsc, column_density
 from .nconst import G, kB, amu, au, Msun
 from .gpath import run_dir

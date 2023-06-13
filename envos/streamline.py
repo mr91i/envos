@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from scipy import interpolate, integrate
 from .log import logger
 from . import nconst as nc
-from .gpath import run_dir
+# from .gpath import run_dir
 
 
 def calc_streamline(
@@ -39,7 +39,7 @@ def calc_streamline(
         ):
             pos0_list = [(_r0, _theta0) for _r0, _theta0 in zip(r0_au, theta0_deg)]
         else:
-            raise ValueError(f"Wrong type of r0 and theta0, {r0} {theta0}")
+            raise ValueError(f"Wrong type of r0 and theta0, {r0_au} {theta0_deg}")
     elif (pos0 is not None) and (np.shape(pos0) == (2,)):
         pos0_list = [pos0]
     elif (pos0 is not None) and (np.shape(pos0)[1] == 2):

@@ -1,6 +1,4 @@
-## Check Python version
 import sys
-
 py_version = sys.version_info
 
 if py_version[0] + py_version[1] * 0.1 < 3.3:

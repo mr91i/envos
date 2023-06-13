@@ -45,11 +45,10 @@ class Grid:
             return None
 
         if ringhost:
-            print(self.ri_ax)
+            logger.info("Adding 4 cells to the radial inner boundary as ghost cells")
             self.ri_ax = np.insert(
                 self.ri_ax, 0, np.linspace(1.001 * 4 * nc.Rsun, self.ri_ax[0], 4)[:-1]
             )
-            print(self.ri_ax)
 
         self.set_cellcenter_axes()
         self.set_meshgrid()
@@ -109,12 +108,9 @@ class Grid:
             ntheta += 1
 
         elif thax_ver == 3:
-            print(theta_lim)
             self.ti_ax = compressed_x2(theta_lim[0], theta_lim[1], 0.95, ntheta + 1)
-            print(self.ti_ax)
             self.ti_ax[-1] = theta_lim[1]
             ti_ax = np.linspace(*theta_lim, ntheta + 1)
-            print(ti_ax)
 
         self.pi_ax = np.linspace(*phi_lim, nphi + 1)
 
@@ -122,7 +118,7 @@ class Grid:
         ri = self.ri_ax / nc.au
         ti = np.rad2deg(self.ti_ax)
         pi = np.rad2deg(self.pi_ax)
-        logger.info(f"Grid:")
+        logger.info("Grid:")
         logger.info(
             f"    r  = [{ri[0]:.2f}:{ri[-1]:.2f}] au".ljust(32) + " Nr = {len(ri)-1}"
         )
@@ -173,7 +169,7 @@ def compressed_x2(xmin, xmax, xrat_root, nfaces):
     x = np.linspace(xmin, xmax, nfaces) / np.pi
 
     def func(x):
-        if x <= 0.5:  #
+        if x <= 0.5:
             ratn = x2rat ** (0.5 * nfaces)
             rnx = x2rat ** (x * nfaces)
             lw = (rnx - ratn) / (1.0 - ratn)

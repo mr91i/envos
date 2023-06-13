@@ -1,9 +1,8 @@
 import os
-import sys
 import numpy as np
 import pandas as pd
 from scipy import integrate, interpolate, optimize
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 
 from . import gpath
 from .log import logger
@@ -132,8 +131,8 @@ class TscSolver:
         )
 
         if not sol.success:
-            logging.error(sol)
-            raise Exception(f"Failed to solve TSC 0th-order equations.")
+            logger.error(sol)
+            raise Exception("Failed to solve TSC 0th-order equations.")
 
         if len(self.xin) != len(sol.t):
             raise Exception(

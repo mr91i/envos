@@ -4,15 +4,12 @@ import sys
 import shutil
 import numpy as np
 import pandas
-from dataclasses import dataclass, asdict
+from dataclasses import asdict
 from scipy import interpolate, integrate
 
 from .log import logger
 from . import gpath
 from . import nconst as nc
-
-# logger = set_logger(__name__)
-
 
 def read_pickle(filepath):
     logger.debug("Reading pickle data")
@@ -101,15 +98,9 @@ def make_array_center(xi):
 
 
 def make_array_interface(xc):
-    return np.concatenate(
-        [
-            [xc[0] - 0.5 * (xc[1] - xc[0])],
-            0.5 * (xc[0:-1] + xc[1:]),
-            [xc[-1] + 0.5 * (xc[-1] - xc[-2])],
-        ],
-        axis=0,
-    )
-
+    xi_s = xc[0] - 0.5 * (xc[1] - xc[0])
+    xi_e = xc[-1] + 0.5 * (xc[-1] - xc[-2])
+    return np.concatenate([[xi_s], 0.5 * (xc[0:-1] + xc[1:]), [xi_e]], axis=0)
 
 def x_cross_zero(x1, x2, y1, y2):
     return x1 + y1 * (x2 - x1) / (y1 - y2)
@@ -177,7 +168,6 @@ def show_used_memory():
 
 
 def compute_object_size(o, handlers={}):
-    import sys
     from itertools import chain
     from collections import deque
 
@@ -253,7 +243,6 @@ def shell(
     simple=False,
 ):
     error_flag = 0
-    msg = ""
 
     if dryrun:
         logger.info(f"(dryrun) {cmd}")
@@ -342,6 +331,7 @@ def filecopy(src, dst, error_already_exist=False):
         elif not os.path.exists(dpath_dst):
             msg = f"Destination directory not found: {dpath_dst}"
         logger.error(msg)
+        logger.error(err)
         raise
 
     except Exception as e:

@@ -1,13 +1,8 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-import matplotlib.pyplot as plt
 import numpy as np
+import matplotlib.pyplot as plt
+from scipy import interpolate, integrate
 import envos
 from . import log
-from scipy import interpolate, integrate
-
-# from myplot import ini
-
 
 def calc_column_density(model, direction, double_interp=True):
     if direction == "r":
@@ -72,8 +67,6 @@ def calc_column_density(model, direction, double_interp=True):
 
 
 def test_column_density(model):
-    print(model)
-    print(model.rhogas.shape)
     test_colr = 0
     test_colt = 0
     test_colz = 1
@@ -123,11 +116,8 @@ def column_density_z(R, z, model, interp_func, zlim):
     r = np.sqrt(_R**2 + _z_ax**2)
     t = np.arctan2(_R, _z_ax)
     points = np.stack([r, t], axis=-1)
-    # print(points)
     rho = interp_func(points)
-    # print(rho)
     colz = integrate.simpson(rho, _z_ax)
-    # print(colz)
     return colz
 
 

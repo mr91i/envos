@@ -10,32 +10,34 @@ debug_logger = 0
 
 def set_logger(name, htype="stream", filepath=None):
     """
-    This function will be called initially in every modules.
-    One can add file handlers after importing this module.
+    This function will be called when envos is imported.
+    By using this, one can add logger with its name manually.
     """
 
-    global loggers, logger_level, stream_level, file_level
+    global loggers
 
     if debug_logger:
         print("set logger: name = ", name)
 
-    ## generate a new logger, which belongs to logging
-
+    ## Return logger if it already exists in loggers dictionary
     if name in loggers:
         return loggers[name]
 
-    logger = logging.getLogger(name)
-    logger.propagate = False
-    loggers[name] = logger
+    ## Create logger if it does not exist in loggers dictionary
+    logger = logging.getLogger(name) # Create logger
+    logger.propagate = False # Prevent logging to propagate to the root logger
+    loggers[name] = logger # Add logger to loggers dictionary
 
     return logger
 
 
 def get_level(level_name):
+    """ Return logging level from level name. """
     return logging.getLevelName(level_name.upper())
 
 
 def add_stream_hdlr(logger, level=None):
+    """ Add stream handler to logger. """
     global stream_level, StandardFormatter
     level = level if level is not None else stream_level
     hdlr = logging.StreamHandler()

@@ -139,9 +139,9 @@ class ModelGenerator:
         ### Set models
         logger.info("Calculating kinematic structure")
         logger.info("Models:")
-        logger.info(f"    inner-envelope: %s", self.inenv if self.inenv else None)
-        logger.info(f"    outer-envelope: %s", self.outenv if self.outenv else None)
-        logger.info(f"    disk: %s\n", self.disk if self.disk else None)
+        logger.info("    inner-envelope: %s", self.inenv if self.inenv else None)
+        logger.info("    outer-envelope: %s", self.outenv if self.outenv else None)
+        logger.info("    disk: %s\n", self.disk if self.disk else None)
 
         ### Make kmodel
         zeros = np.zeros_like(self.grid.rr)
