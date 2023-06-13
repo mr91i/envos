@@ -1,7 +1,6 @@
 import numpy as np
 from . import nconst as nc
 from .log import logger
-#logger = set_logger(__name__)
 
 
 def calc_dependent_params(
@@ -14,33 +13,32 @@ def calc_dependent_params(
     Mdot_smpy: float = None,
     meanmolw: float = None,
 ):
-
     m0 = 0.975
     if T is not None:
         cs = np.sqrt(nc.kB * T / (meanmolw * nc.amu))
-        Mdot = cs ** 3 * m0 / nc.G
+        Mdot = cs**3 * m0 / nc.G
     elif Mdot_smpy is not None:
         Mdot = Mdot_smpy * nc.smpy
         cs = (Mdot * nc.G / m0) ** (1 / 3)
-        T = cs ** 2 * meanmolw * nc.amu / nc.kB
+        T = cs**2 * meanmolw * nc.amu / nc.kB
 
     if Ms_Msun is not None:
         Ms = Ms_Msun * nc.Msun
         t = Ms / Mdot
     elif t_yr is not None:
         t = t_yr * nc.yr
-        M = Mdot * t
+        Ms_Msun = Mdot * t / nc.Msun
 
     if CR_au is not None:
         CR = CR_au * nc.au
         jmid = np.sqrt(CR * nc.G * Ms)
         Omega = jmid / (0.5 * cs * m0 * t) ** 2
     elif jmid is not None:
-        CR = jmid ** 2 / (nc.G * Ms)
+        CR = jmid**2 / (nc.G * Ms)
         Omega = jmid / (0.5 * cs * m0 * t) ** 2
     elif Omega is not None:
         jmid = (0.5 * cs * m0 * t) ** 2 * Omega
-        CR = jmid ** 2 / (nc.G * Ms)
+        CR = jmid**2 / (nc.G * Ms)
 
     return {
         "T": T,
@@ -77,18 +75,18 @@ class PhysicalParameters:
         self.calc_jmid(self.cs, self.Ms, self.t, CR_au, jmid, Omega, rexp_au)
 
         self.cavangle = np.radians(cavangle_deg)
-        self.r_inlim_tsc = self.cs * self.Omega ** 2 * self.t ** 3
+        self.r_inlim_tsc = self.cs * self.Omega**2 * self.t**3
         self.log()
 
     def calc_Mdot(self, meanmolw, T=None, Mdot_smpy=None):
         m0 = 0.975
         if T is not None:
             cs = np.sqrt(nc.kB * T / (meanmolw * nc.amu))
-            Mdot = cs ** 3 * m0 / nc.G
+            Mdot = cs**3 * m0 / nc.G
         elif Mdot_smpy is not None:
             Mdot = Mdot_smpy * nc.smpy
             cs = (Mdot * nc.G / m0) ** (1 / 3)
-            T = cs ** 2 * meanmolw * nc.amu / nc.kB
+            T = cs**2 * meanmolw * nc.amu / nc.kB
         self.T = T
         self.cs = cs
         self.Mdot = Mdot
@@ -99,19 +97,19 @@ class PhysicalParameters:
             t = Ms / Mdot
         elif t_yr is not None:
             t = t_yr * nc.yr
-            M = Mdot * t
+            Ms = Mdot * t
         self.Ms = Ms
         self.t = t
 
     def calc_jmid(self, cs, Ms, t, CR_au=None, jmid=None, Omega=None, rexp_au=None):
         m0 = 0.975
         if jmid is not None:
-            CR = jmid ** 2 / (nc.G * Ms)
+            CR = jmid**2 / (nc.G * Ms)
             Omega = jmid / (0.5 * cs * m0 * t) ** 2
         elif (rexp_au is not None) and (Omega is not None):
             rexp = rexp_au * nc.au
             jmid = (rexp * m0 / 2) ** 2 * Omega
-            CR = jmid ** 2 / (nc.G * Ms)
+            CR = jmid**2 / (nc.G * Ms)
             self.rexp = rexp
             self.t = rexp / self.cs
         elif CR_au is not None:
@@ -120,7 +118,7 @@ class PhysicalParameters:
             Omega = jmid / (0.5 * cs * m0 * t) ** 2
         elif Omega is not None:
             jmid = (0.5 * cs * m0 * t) ** 2 * Omega
-            CR = jmid ** 2 / (nc.G * Ms)
+            CR = jmid**2 / (nc.G * Ms)
         self.CR = CR
         self.jmid = jmid
         self.Omega = Omega
@@ -142,8 +140,8 @@ class PhysicalParameters:
         self._logp("rexp", "au", self.rexp, nc.au)
         self._logp("cs*t", "au", self.cs * self.t, nc.au)
         self._logp("Omega*t", "", self.Omega * self.t)
-        self._logp("rinlim_tsc", "au", self.cs * self.Omega ** 2 * self.t ** 3, nc.au)
-        self._logp("rinlim_tsc", "cs*t", self.Omega ** 2 * self.t ** 2)
+        self._logp("rinlim_tsc", "au", self.cs * self.Omega**2 * self.t**3, nc.au)
+        self._logp("rinlim_tsc", "cs*t", self.Omega**2 * self.t**2)
         logger.info("")
 
     @staticmethod

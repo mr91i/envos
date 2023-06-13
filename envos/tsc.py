@@ -1,15 +1,12 @@
 import os
-import sys
 import numpy as np
 import pandas as pd
 from scipy import integrate, interpolate, optimize
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 
 from . import gpath
 from .log import logger
 from . import nconst as nc
-
-# logger = set_logger(__name__)
 
 FILENAME = "tscsol.pkl"
 
@@ -78,7 +75,7 @@ class TscSolver:
         def f(x, y):  # y = [ dPhi, Phi]
             dPhi = y[1]
             ddPhi = (
-                -2 * y[1] / x - 2 * np.exp(y[0]) / x ** 2 + 2 * (1 + x ** 2) / x ** 2
+                -2 * y[1] / x - 2 * np.exp(y[0]) / x**2 + 2 * (1 + x**2) / x**2
             )
             return dPhi, ddPhi
 
@@ -112,12 +109,12 @@ class TscSolver:
         def jacfunc(y, v):
             V0, al0 = v
             s = y - V0
-            f1y1 = -(2 / y) * (s ** 2 - al0 * y * s + 1) / (y ** 2 - 1) ** 2
-            f1y2 = s ** 2 / (s ** 2 - 1)
-            f2y1 = 2 * al0 * s ** 2 * (al0 - 2 + 2 * V0 / y) / (s ** 2 - 1) ** 2 + (
-                4 * al0 - 4 * al0 * V0 / y - al0 ** 2
-            ) / (s ** 2 - 1)
-            f2y2 = s * (2 * al0 - 2 + 2 * V0 / y) / (s ** 2 - 1)
+            f1y1 = -(2 / y) * (s**2 - al0 * y * s + 1) / (y**2 - 1) ** 2
+            f1y2 = s**2 / (s**2 - 1)
+            f2y1 = 2 * al0 * s**2 * (al0 - 2 + 2 * V0 / y) / (s**2 - 1) ** 2 + (
+                4 * al0 - 4 * al0 * V0 / y - al0**2
+            ) / (s**2 - 1)
+            f2y2 = s * (2 * al0 - 2 + 2 * V0 / y) / (s**2 - 1)
             return np.array([[f1y1, f1y2], [f2y1, f2y2]])
 
         eps = 2 * self.eps
@@ -134,8 +131,8 @@ class TscSolver:
         )
 
         if not sol.success:
-            logging.error(sol)
-            raise Exception(f"Failed to solve TSC 0th-order equations.")
+            logger.error(sol)
+            raise Exception("Failed to solve TSC 0th-order equations.")
 
         if len(self.xin) != len(sol.t):
             raise Exception(
@@ -143,9 +140,9 @@ class TscSolver:
             )
 
         self.V_0 = np.hstack((np.full_like(self.xout, -1e-50), sol.y[0]))
-        self.al_0 = np.hstack((2 / self.xout ** 2, sol.y[1]))
+        self.al_0 = np.hstack((2 / self.xout**2, sol.y[1]))
 
-        self.m_0 = self.x ** 2 * self.al_0 * (self.x - self.V_0)
+        self.m_0 = self.x**2 * self.al_0 * (self.x - self.V_0)
         self.f_al0 = make_function(self.x, self.al_0)
         self.f_V0 = make_function(self.x, self.V_0)
         self.da0dy = self.f_dal0dy(self.x)
@@ -153,7 +150,7 @@ class TscSolver:
         logger.info(f"m0 is {self.m_0[-1]}")
 
     def f_m0(self, y):
-        return y ** 2 * self.f_al0(y) * (y - self.f_V0(y))
+        return y**2 * self.f_al0(y) * (y - self.f_V0(y))
 
     def f_dal0dy(self, y):
         al_0 = self.f_al0(y)
@@ -161,7 +158,7 @@ class TscSolver:
         return np.where(
             (y - V_0) ** 2 != 1,
             al_0 * (al_0 - 2 / y * (y - V_0)) * (y - V_0) / ((y - V_0) ** 2 - 1),
-            -2 / y ** 2,
+            -2 / y**2,
         )
 
     def f_dV0dy(self, y):
@@ -180,18 +177,18 @@ class TscSolver:
             V_0 = self.f_V0(x)  # if x < 1 else 0
             dal0dx = self.f_dal0dy(x)  # if x < 1 else -4/x**3
             dV0dx = self.f_dV0dy(x)  # if x < 1 else 0
-            Psi = -(x ** 2) / 3 - Q / x ** 3 - x ** 2 * P
-            dPsidx = -2 / 3 * x + 3 * Q / x ** 4 - 2 * x * P
-            m = x ** 2 * al_0 * (x - V_0)
+            Psi = -(x**2) / 3 - Q / x**3 - x**2 * P
+            dPsidx = -2 / 3 * x + 3 * Q / x**4 - 2 * x * P
+            m = x**2 * al_0 * (x - V_0)
             A = (
-                al / x ** 2 * (2 * x * V_0 + x ** 2 * dV0dx)
-                + V / x ** 2 * (x ** 2 * dal0dx + 2 * x * al_0)
+                al / x**2 * (2 * x * V_0 + x**2 * dV0dx)
+                + V / x**2 * (x**2 * dal0dx + 2 * x * al_0)
                 - 6 * al_0 * W / x
             )
             B = (
-                -al / al_0 ** 2 * dal0dx
+                -al / al_0**2 * dal0dx
                 + (2 + dV0dx) * V
-                + (dPsidx + 2 / 3 * (m / 2) ** 4 / x ** 3)
+                + (dPsidx + 2 / 3 * (m / 2) ** 4 / x**3)
             )
             dal = 1 / ((x - V_0) ** 2 - 1) * ((x - V_0) * A + al_0 * B)
             dV = 1 / ((x - V_0) ** 2 - 1) * ((x - V_0) * B + 1 / al_0 * A)
@@ -199,32 +196,32 @@ class TscSolver:
                 1
                 / x
                 / (x - V_0)
-                * ((2 * x + V_0) * W + al / al_0 + (Psi + (m / 2) ** 4 / (3 * x ** 2)))
+                * ((2 * x + V_0) * W + al / al_0 + (Psi + (m / 2) ** 4 / (3 * x**2)))
             )
-            dQ = 0.2 * x ** 4 * al
+            dQ = 0.2 * x**4 * al
             dP = -0.2 * al / x
             return np.array([dal, dV, dW, dQ, dP])
 
         def f_QuadraPolar_out(x, vals):
             al, V, W, Q, P = vals
-            fac = 1 / (x ** 2 - 1)
-            dal = -12 / x ** 2 * W
-            dal += 2 / x ** 2 * (x * al + 2 * V + 3 * Q / x ** 4 - 2 * x * P)
+            fac = 1 / (x**2 - 1)
+            dal = -12 / x**2 * W
+            dal += 2 / x**2 * (x * al + 2 * V + 3 * Q / x**4 - 2 * x * P)
             dal *= fac
-            dV = x * (x * al + 2 * V + 3 * Q / x ** 4 - 2 * x * P)
+            dV = x * (x * al + 2 * V + 3 * Q / x**4 - 2 * x * P)
             dV += -6 / x * W
             dV *= fac
-            dW = 2 / x * W + 0.5 * al - Q / x ** 5 - P
-            dQ = 0.2 * x ** 4 * al
+            dW = 2 / x * W + 0.5 * al - Q / x**5 - P
+            dQ = 0.2 * x**4 * al
             dP = -0.2 * al / x
             return dal, dV, dW, dQ, dP
 
         def fjac_QuadraPolar_out(x, vals):
-            fac = 1 / (x ** 2 - 1)
-            df1 = fac * np.array([2 / x, 4 / x ** 2, -12 / x ** 2, 6 / x ** 6, -4 / x])
-            df2 = fac * np.array([x ** 2, 2 * x, -6 / x, 3 / x ** 3, -2 / x ** 2])
-            df3 = np.array([0.5, 0, 2 / x, -1 / x ** 5, -1])
-            df4 = np.array([0.2 * x ** 4, 0, 0, 0, 0])
+            fac = 1 / (x**2 - 1)
+            df1 = fac * np.array([2 / x, 4 / x**2, -12 / x**2, 6 / x**6, -4 / x])
+            df2 = fac * np.array([x**2, 2 * x, -6 / x, 3 / x**3, -2 / x**2])
+            df3 = np.array([0.5, 0, 2 / x, -1 / x**5, -1])
+            df4 = np.array([0.2 * x**4, 0, 0, 0, 0])
             df5 = np.array([-0.2 / x, 0, 0, 0, 0])
             return np.array([df1, df2, df3, df4, df5])
 
@@ -315,23 +312,23 @@ class TscSolver:
     def solve_Monopolar(self):
         def f_MonoPolar(x, vals):
             al, V, M = vals
-            al_0 = self.f_al0(x) if x < 1 else 2 / x ** 2
+            al_0 = self.f_al0(x) if x < 1 else 2 / x**2
             V_0 = self.f_V0(x) if x < 1 else 0
-            dal0dx = self.f_dal0dy(x) if x < 1 else -4 / x ** 3
+            dal0dx = self.f_dal0dy(x) if x < 1 else -4 / x**3
             dV0dx = self.f_dV0dy(x) if x < 1 else 0
-            dPhidx = x / 6 + M / x ** 2
-            m = x ** 2 * al_0 * (x - V_0)
-            A = al / x ** 2 * (2 * x * V_0 + x ** 2 * dV0dx) + V / x ** 2 * (
-                2 * x * al_0 + x ** 2 * dal0dx
+            dPhidx = x / 6 + M / x**2
+            m = x**2 * al_0 * (x - V_0)
+            A = al / x**2 * (2 * x * V_0 + x**2 * dV0dx) + V / x**2 * (
+                2 * x * al_0 + x**2 * dal0dx
             )
             B = (
-                -al / al_0 ** 2 * dal0dx
+                -al / al_0**2 * dal0dx
                 + (2 + dV0dx) * V
-                + (dPhidx - 2 / 3 * (m / 2) ** 4 / x ** 3)
+                + (dPhidx - 2 / 3 * (m / 2) ** 4 / x**3)
             )
             dal = ((x - V_0) * A + al_0 * B) / ((x - V_0) ** 2 - 1)
             dV = ((x - V_0) * B + A / al_0) / ((x - V_0) ** 2 - 1)
-            dM = (al - 0.5) * x ** 2
+            dM = (al - 0.5) * x**2
             return dal, dV, dM
 
         y0 = (1 / 2, 0, 0)
@@ -389,16 +386,16 @@ class TscSolver:
 def calc_rho(theta, tau, Omega, DeltaQ, al0, alM, alQ, da0dy):
     P2 = 1 - 3 / 2 * np.sin(theta) ** 2
     # _rho = al0 + tau**2 * (alM + alQ*P2 - DeltaQ * P2 * da0dy)
-    _rho = al0 + tau ** 2 * (alM + alQ * P2)
+    _rho = al0 + tau**2 * (alM + alQ * P2)
     # _rho = al0 #+ tau**2 * (alM + alQ*P2 - DeltaQ * P2 * da0dy)
-    return Omega ** 2 / (4 * nc.pi * nc.G * tau ** 2) * _rho
+    return Omega**2 / (4 * nc.pi * nc.G * tau**2) * _rho
 
 
 def calc_velocity(x, theta, tau, cs, DeltaQ, V0, VM, VQ, WQ, m0, dV0dy):
     P2 = 1 - 3 / 2 * np.sin(theta) ** 2
-    _vr = V0 + tau ** 2 * (VM + VQ * P2)
-    _vth = tau ** 2 * WQ * (-3 * np.sin(theta) * np.cos(theta))
-    _vph = tau / (4 * x) * m0 ** 2 * np.sin(theta)
+    _vr = V0 + tau**2 * (VM + VQ * P2)
+    _vth = tau**2 * WQ * (-3 * np.sin(theta) * np.cos(theta))
+    _vph = tau / (4 * x) * m0**2 * np.sin(theta)
     return cs * _vr, cs * _vth, cs * _vph
 
 
@@ -489,7 +486,7 @@ def read_table(filename=FILENAME, path=None):
     try:
         path = path or os.path.join(gpath.storage_dir, filename)
         return pd.read_pickle(path)
-    except:
+    except Exception:
         return None
 
 

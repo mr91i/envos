@@ -5,17 +5,15 @@ import glob
 import shutil
 import numpy as np
 import pandas as pd
-import radmc3dPy
 import radmc3dPy.analyze as rmca
 from . import tools
 from . import nconst as nc
 from . import gpath
 from .log import logger
 
-#logger = set_logger(__name__)
+""" 
+    Classes
 
-"""
- Classes
 """
 
 
@@ -28,7 +26,6 @@ class RadmcController:
         storage_dir: str = None,
         #
     ):
-
         if config is not None:
             self.config = config
             run_dir = run_dir or config.run_dir
@@ -106,7 +103,6 @@ class RadmcController:
             raise Exception("Unknown model.")
 
     def set_mctherm_inpfiles(self):
-
         logger.info("Setting input files used in radmc3d")
         md = self.model
         nrc = len(md.rc_ax)
@@ -129,7 +125,7 @@ class RadmcController:
             *np.geomspace(25, 1e4, 30, endpoint=True),
         ]
         nlam = len(lam)
-        Tstar = self.Rstar_Rsun ** (-0.5) * self.Lstar_Lsun ** 0.25 * nc.Tsun
+        Tstar = self.Rstar_Rsun ** (-0.5) * self.Lstar_Lsun**0.25 * nc.Tsun
 
         """
         Setting Radmc Parameters
@@ -190,27 +186,17 @@ class RadmcController:
             # "camera_spher_cavity_relres":0.01,
             # "camera_diagnostics_subpix": 1,
             "lines_mode": 3 if self.nonlte else 1,
-            "istar_sphere": 1
+            "istar_sphere": 1,
         }
-
 
         self._save_input_file(
             "radmc3d.inp", *[f"{k} = {v}" for k, v in param_dict.items()]
         )
 
-
         #    if self.temp_mode == "mctherm":
         # remove gas_temperature.inp and dust_temperature.inp
         remove_file("gas_temperature.inp")
         remove_file("dust_temperature.dat")
-
-    #    elif self.temp_mode == "const":
-    #        self._set_constant_temperature(self.T_const)
-    #
-    #       elif self.temp_mode == "user":
-    #          self._set_userdefined_temperature(self.T_func)
-    #     else:
-    #        raise Exception(f"Unknown temp_mode: {self.temp_mode}")
 
     def set_lineobs_inpfiles(
         self,
@@ -235,7 +221,7 @@ class RadmcController:
         self._save_input_file(
             "lines.inp",
             "2",
-            "1", # len(speclines),
+            "1",  # len(speclines),
             "\n".join(speclines),
         )
 
@@ -247,7 +233,6 @@ class RadmcController:
 
         if self.model.heatrate is not None:
             self.set_heatrate(self.model.heatrate)
-
 
     def _save_input_file(self, filename, *text_lines):
         filepath = os.path.join(self.radmc_dir, filename)
@@ -308,7 +293,7 @@ class RadmcController:
         """
         Set gas & dust temperature
         """
-        ntot = len(temp.ravel()) # temp.size  # len(temp.ravel())
+        ntot = len(temp.ravel())  # temp.size  # len(temp.ravel())
         self._save_input_file(
             "gas_temperature.inp",
             "1",
@@ -333,20 +318,18 @@ class RadmcController:
 
     def set_numberdens_collpartners(self, nh2, opratio=0.75):
         self._save_input_file(
-            f"numberdens_o-h2.inp",
+            "numberdens_o-h2.inp",
             "1",
             f"{nh2.size:d}",
-            *(nh2*opratio).ravel(order="F"),
+            *(nh2 * opratio).ravel(order="F"),
         )
 
         self._save_input_file(
-            f"numberdens_p-h2.inp",
+            "numberdens_p-h2.inp",
             "1",
             f"{nh2.size:d}",
-            *(nh2*(1-opratio)).ravel(order="F"),
+            *(nh2 * (1 - opratio)).ravel(order="F"),
         )
-
-
 
     def set_velocity(self, vr, vt, vp):
         _zipped_vel = zip(
@@ -358,7 +341,7 @@ class RadmcController:
 
     def set_turbulence(self, vturb):
         self._save_input_file(
-            f"microturbulence.inp",
+            "microturbulence.inp",
             "1",
             f"{vturb.size:d}",
             *vturb.ravel(order="F"),
@@ -366,7 +349,7 @@ class RadmcController:
 
     def set_heatrate(self, heatrate):
         self._save_input_file(
-            f"heatsource.inp",
+            "heatsource.inp",
             "1",
             f"{heatrate.size:d}",
             *heatrate.ravel(order="F"),
@@ -400,9 +383,9 @@ class RadmcController:
 
         cwd = os.getcwd()
         os.chdir(self.radmc_dir)
-# ddens=False, dtemp=False, gdens=False, gtemp=False, gvel=False,
-        #self.rmcdata = rmca.readData(ddens=True, dtemp=True, gdens=True, gtemp=True, gvel=True, ispec=self.molname)  # radmc3dData()
-        #self.rmcdata = rmca.readData(ddens=True, dtemp=True, gdens=True, gtemp=True, gvel=True, ispec=self.molname)  # radmc3dData()
+        # ddens=False, dtemp=False, gdens=False, gtemp=False, gvel=False,
+        # self.rmcdata = rmca.readData(ddens=True, dtemp=True, gdens=True, gtemp=True, gvel=True, ispec=self.molname)  # radmc3dData()
+        # self.rmcdata = rmca.readData(ddens=True, dtemp=True, gdens=True, gtemp=True, gvel=True, ispec=self.molname)  # radmc3dData()
         self.rmcdata = rmca.readData(ispec=self.molname)  # radmc3dData()
         """
         radmcdata keys
@@ -474,3 +457,35 @@ def remove_file(file_path):
 
 def del_mctherm_files(dpath):
     remove_file(f"{dpath}/radmc3d.out")
+
+## moved from create_radmc3d_input.py
+class kappa:
+    def __init__(self, kappa0_micron, beta):
+        self.N_lam = 100
+        self.kappa0_micron = kappa0_micron
+        self.beta = beta
+        self.lam_micron = np.geomspace(0.1, 1e5, self.N_lam)
+        self.kappa_abs = self.kappa_abs_func()
+        self.kappa_sca = self.kappa_sca_func()
+        self.table = np.array([self.lam_micron, self.kappa_abs, self.kappa_sca]).T
+
+    def kappa_abs_func(self):
+        return self.kappa0_micron * self.lam_micron**self.beta
+
+    def kappa_sca_func(self):
+        return np.full_like(self.lam_micron, 0.0)
+
+    def save(self):
+        # print(f"{radmc_dir}/dustkappa_kappa0{self.kappa0_micron:.0e}_beta{self.beta}.inp")
+        np.savetxt(
+            f"{gpath.radmc_dir}/dustkappa_kappa0{self.kappa0_micron:.0e}_beta{self.beta}.inp",
+            self.table,
+            header=f"2\n{self.N_lam}\n",
+            comments="",
+        )
+
+
+if __name__ == "__main__":
+    for k0 in [1e4, 1e3]:
+        for b in [0, -1, -2]:
+            kappa(k0, b).save()

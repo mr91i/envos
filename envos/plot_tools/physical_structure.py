@@ -1,18 +1,12 @@
-import os
 import numpy as np
 import dataclasses
-from scipy import integrate, optimize
-
-import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mt
 import matplotlib.colors as mc
 from cycler import cycler
-
-from .plot_funcs import *
+from . import plot_funcs as pfun
 from .. import nconst as nc
 from .. import log
-from .. import streamline
 from .. import tools
 
 figext = "pdf"
@@ -65,12 +59,14 @@ def plot_variable_meridional_map(
 
     var_toridal_average = np.average(getattr(model, variable_name), axis=2)
 
-    plot_colormap(
+    pfun.plot_colormap(
         model.R[..., 0] / nc.au,
         model.z[..., 0] / nc.au,
         var_toridal_average,
-        #zregion=(modepl.R[...,0] < xlim * nc.au) & (model.z[...,0] < xlim * nc.au),
-        zregion= (model.R[...,0] < xlim * nc.au) & (model.z[...,0] < xlim * nc.au) & (model.rr[...,0] > rinlim * nc.au),
+        # zregion=(modepl.R[...,0] < xlim * nc.au) & (model.z[...,0] < xlim * nc.au),
+        zregion=(model.R[..., 0] < xlim * nc.au)
+        & (model.z[..., 0] < xlim * nc.au)
+        & (model.rr[..., 0] > rinlim * nc.au),
         clabel=clabel,
         clog=clog,
         dlv=dlv,
@@ -82,25 +78,22 @@ def plot_variable_meridional_map(
     if trajectories:
         _trj_option = {"r0_au": xlim, "theta0_deg": 30}
         _trj_option.update(trajectories_option)
-        add_trajectories(model, **_trj_option)
+        pfun.add_trajectories(model, **_trj_option)
 
     if streams:
-        add_streams(
-            model, xlim, r0=np.sqrt(2)*xlim,
+        pfun.add_streams(
+            model,
+            xlim,
+            r0=np.sqrt(2) * xlim,
             use_mu0=hasattr(model, "mu0"),
-            cavity_region=(model.rhogas[...,0]==0)
+            cavity_region=(model.rhogas[..., 0] == 0),
         )
 
-    set_plot_format(
-        xlim=(0, xlim),
-        ylim=(0, xlim),
-        xlb=r"$R$ [au]",
-        ylb=r"$z$ [au]"
-    )
+    pfun.set_plot_format(xlim=(0, xlim), ylim=(0, xlim), xlb=r"$R$ [au]", ylb=r"$z$ [au]")
 
     if save:
         name = variable_name if save_name is None else save_name
-        savefig(name + "." + figext)
+        pfun.savefig(name + "." + figext)
     return
 
 
@@ -204,13 +197,14 @@ def plot_rhogas_map(
     **kwargs
 ):
     _kwargs = {
-        "clabel": rf"Gas Density [g cm$^{{-3}}$]",
+        "clabel": r"Gas Density [g cm$^{{-3}}$]",
         "clog": True,
         "cname": "viridis",
         "dlv": 0.2,
     }
     _kwargs.update(kwargs)
-    plot_variable_meridional_map(model,"rhogas",**_kwargs)
+    plot_variable_meridional_map(model, "rhogas", **_kwargs)
+
 
 def plot_Tgas_map(
     model,
@@ -330,7 +324,7 @@ def plot_density_velocity_midplane_profile(
         legend=False
     )
 
-    ax2 = plt.twinx()
+    plt.twinx()
     plt.plot(np.nan, ls="-", c="dimgray", label=r"$\rho$")
     plot_velocity_midplane_profile(
         model,
@@ -346,7 +340,8 @@ def plot_density_velocity_midplane_profile(
     )
     plt.legend(handlelength=2, fontsize=16)
     plt.minorticks_on()
-    savefig("v_dens_prof.pdf")
+    pfun.savefig("v_dens_prof.pdf")
+
 
     return
 
@@ -432,24 +427,29 @@ def plot_losvelocity_midplane_map(model, rlim=400, dvkms=0.2, mode="average", st
 
     rhomid = tools.take_midplane_average(model, model.rhogas)
     Tmid = tools.take_midplane_average(model, model.Tgas)
-    emis = rhomid*Tmid if not axsym else np.tile(rhomid * Tmid, 91)
-    emis_av = np.array([ np.average(emis, axis=1) ] * x.shape[2]).T
+    emis = rhomid * Tmid if not axsym else np.tile(rhomid * Tmid, 91)
+    emis_av = np.array([np.average(emis, axis=1)] * x.shape[2]).T
 
     z = (100 * emis_av / np.max(emis_av)).ravel()
-    cond = np.where(z > 0.1 , True, False)
-    lvs = np.array([2**(-6), 2**(-5),  2**(-4), 2**(-3), 2**(-2), 2**(-1), 0.99999])* 100
-    lss = ["solid"]*(len(lvs) -1) + ["dashed"]
+    cond = np.where(z > 0.1, True, False)
+    lvs = (
+        np.array(
+            [2 ** (-6), 2 ** (-5), 2 ** (-4), 2 ** (-3), 2 ** (-2), 2 ** (-1), 0.99999]
+        )
+        * 100
+    )
+    lss = ["solid"] * (len(lvs) - 1) + ["dashed"]
     cont = plt.tricontour(
         xau_mid.ravel()[cond],
         yau_mid.ravel()[cond],
         z[cond],
         levels=lvs,
         cmap=plt.get_cmap("Greys"),
-        extend="both", # "neither",
-        linewidths=[0.7]*(len(lvs) -1) + [1.1],
+        extend="both",  # "neither",
+        linewidths=[0.7] * (len(lvs) - 1) + [1.1],
         alpha=0.9,
         linestyles=lss,
-        norm=mc.LogNorm(vmin=np.min(lvs))
+        norm=mc.LogNorm(vmin=np.min(lvs)),
     )
 
     try:
@@ -471,11 +471,9 @@ def plot_losvelocity_midplane_map(model, rlim=400, dvkms=0.2, mode="average", st
     #cbar.set_label(r"Line-of-sight Velocity $V$ [km s$^{-1}$]")
     cbar.set_label(r"Velocity along $y$-axis [km s$^{-1}$]")
     cbar.ax.minorticks_off()
-    cont.clabel(fmt=f"%1.0f%%", fontsize=7, inline_spacing=20)
+    cont.clabel(fmt="%1.0f%%", fontsize=7, inline_spacing=20)
     plt.draw()
-    savefig("v_los.pdf")
-
-
+    pfun.savefig("v_los.pdf")
 
 
 def plot_opacity():
@@ -494,4 +492,4 @@ def plot_opacity():
 
     plt.xlabel(r"Wavelength [$\mu$m]")
     plt.ylabel(r"Absorption Opacity [cm$^{2}$ g$^{-1}$]")
-    savefig("opac.pdf")
+    pfun.savefig("opac.pdf")

@@ -1,6 +1,5 @@
-from . import header
 from .config import Config
-from .model_generator import ModelGenerator, read_model # Grid, KinematicModel
+from .model_generator import ModelGenerator, read_model
 from .obs import ObsSimulator, read_obsdata
 from . import nconst as nc
 from . import tools
@@ -23,4 +22,4 @@ __all__ = [
     "column_density",
 ]
 
-__version__ = "0.1.0"
+__version__ = "1.0.0"

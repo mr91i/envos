@@ -1,11 +1,11 @@
-#import os
+# import os
 import numpy as np
 from pathlib import Path
 from dataclasses import dataclass, field
 from scipy import interpolate, integrate
 from .log import logger
 from . import nconst as nc
-from .gpath import run_dir
+# from .gpath import run_dir
 
 
 def calc_streamline(
@@ -32,23 +32,25 @@ def calc_streamline(
             pos0_list = [(r0_au, theta0_deg)]
         elif np.isscalar(r0_au) and (not np.isscalar(theta0_deg)):
             pos0_list = [(r0_au, _theta0) for _theta0 in theta0_deg]
-        elif (not np.isscalar(r0_au) )and np.isscalar(theta0_deg):
+        elif (not np.isscalar(r0_au)) and np.isscalar(theta0_deg):
             pos0_list = [(_r0, theta0_deg) for _r0 in r0_au]
-        elif (not np.isscalar(r0_au) or np.isscalar(theta0_deg)) and (len(r0_au) == len(theta0_deg)):
+        elif (not np.isscalar(r0_au) or np.isscalar(theta0_deg)) and (
+            len(r0_au) == len(theta0_deg)
+        ):
             pos0_list = [(_r0, _theta0) for _r0, _theta0 in zip(r0_au, theta0_deg)]
         else:
-            raise ValueError(f"Wrong type of r0 and theta0, {r0} {theta0}")
-    elif (pos0 is not None) and (np.shape(pos0) == (2,) ):
+            raise ValueError(f"Wrong type of r0 and theta0, {r0_au} {theta0_deg}")
+    elif (pos0 is not None) and (np.shape(pos0) == (2,)):
         pos0_list = [pos0]
-    elif (pos0 is not None) and (np.shape(pos0)[1] == 2 ):
+    elif (pos0 is not None) and (np.shape(pos0)[1] == 2):
         pos0_list = pos0
     else:
         raise ValueError(f"Wrong shape of pos0, {np.shape(pos0)}")
 
     pos0_list = np.array(pos0_list) * np.array([nc.au, nc.deg2rad])
-    
+
     if t_eval is None:
-        t_eval = np.arange(t0_yr, 1e6, dt_yr)*nc.yr
+        t_eval = np.arange(t0_yr, 1e6, dt_yr) * nc.yr
 
     _variables = variables
     _variables += [(n, getattr(model, n), u) for n, u in zip(names, units)]
@@ -67,7 +69,6 @@ def calc_streamline(
         slc.save_data(filename=filename, dpath=dpath, label=label)
 
     return slc.streamlines
-
 
 
 @dataclass
@@ -100,8 +101,12 @@ class Streamline:
                 _var_list.append(value[..., 0])
 
         header = " ".join([hd.rjust(19) for hd in header_list])
-        stream_data = np.stack((self.t, self.R, self.z, self.vR, self.vz, *_var_list), axis=-1)
-        fpath = f"{dpath}/{filename}_{poslabel}" + (f"_{label}" if label else "") + ".txt"
+        stream_data = np.stack(
+            (self.t, self.R, self.z, self.vR, self.vz, *_var_list), axis=-1
+        )
+        fpath = (
+            f"{dpath}/{filename}_{poslabel}" + (f"_{label}" if label else "") + ".txt"
+        )
         np.savetxt(
             fpath,
             stream_data,
@@ -129,7 +134,7 @@ class StreamlineCalculator2:
         rtol=1e-8,
         mirror=False,
         method="RK45",
-        variables=[]
+        variables=[],
     ):
         self.r_ax = model.rc_ax
         self.t_ax = model.tc_ax
@@ -181,7 +186,9 @@ class StreamlineCalculator2:
         else:
             t_range = (self.t_eval[0], self.t_eval[-1])
 
-        logger.info(f"Calculate a streamline from (r0[au], theta0[deg]) = ({pos0[0]/nc.au}, {pos0[1]*nc.rad2deg}) ")
+        logger.info(
+            f"Calculate a streamline from (r0[au], theta0[deg]) = ({pos0[0]/nc.au}, {pos0[1]*nc.rad2deg}) "
+        )
         res = integrate.solve_ivp(
             self._func,
             t_range,
@@ -200,16 +207,16 @@ class StreamlineCalculator2:
         vt = self.vt_field(pos)[0]
         if np.isnan(pos[0]):
             raise Exception
-        #You may need this...
-        if self.mirror_symmetry and 0.5*np.pi < pos[1]:
-            _pos = np.array([pos[0], -0.5*np.pi + pos[1]])
-            vr = - self.vt_field(_pos)[0]
-            vt = - self.vt_field(_pos)[0]
+        # You may need this...
+        if self.mirror_symmetry and 0.5 * np.pi < pos[1]:
+            _pos = np.array([pos[0], -0.5 * np.pi + pos[1]])
+            vr = -self.vt_field(_pos)[0]
+            vt = -self.vt_field(_pos)[0]
         return np.array([vr, vt / pos[0]])
 
     @staticmethod
     def _hit_midplane(t, pos):
-        return 0.5*np.pi - pos[1]
+        return 0.5 * np.pi - pos[1]
 
     def add_streamline(self, res):
         R = res.y[0] * np.sin(res.y[1])

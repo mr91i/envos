@@ -4,15 +4,12 @@ import sys
 import shutil
 import numpy as np
 import pandas
-from dataclasses import dataclass, asdict
+from dataclasses import asdict
 from scipy import interpolate, integrate
 
 from .log import logger
 from . import gpath
 from . import nconst as nc
-
-# logger = set_logger(__name__)
-
 
 def read_pickle(filepath):
     logger.debug("Reading pickle data")
@@ -21,10 +18,10 @@ def read_pickle(filepath):
     return cls
 
 
-#def savefile(basename="file", mode="pickle", dpc=None, filepath=None):
+# def savefile(basename="file", mode="pickle", dpc=None, filepath=None):
 def savefile(target, basename="file", mode="pickle", filepath=None):
     if filepath is None:
-        #output_ext = {"joblib": "jb", "pickle": "pkl", "fits": "fits"}[mode]
+        # output_ext = {"joblib": "jb", "pickle": "pkl", "fits": "fits"}[mode]
         output_ext = {"joblib": "jb", "pickle": "pkl"}[mode]
         filename = basename + "." + output_ext
         filepath = gpath.run_dir / filename
@@ -35,6 +32,7 @@ def savefile(target, basename="file", mode="pickle", filepath=None):
 
     if mode == "joblib":
         import joblib
+
         joblib.dump(target, filepath, compress=3)
         logger.info(f"Saved joblib file: {filepath}")
 
@@ -42,24 +40,24 @@ def savefile(target, basename="file", mode="pickle", filepath=None):
         pandas.to_pickle(target, filepath)
         logger.info(f"Saved pickle file: {filepath}")
 
-
-#    elif mode == "fits":
-#        self.data.writeFits(fname=filepath, dpc=dpc)
-#        logger.info(f"Saved fits file: {filepath}")
+    #    elif mode == "fits":
+    #        self.data.writeFits(fname=filepath, dpc=dpc)
+    #        logger.info(f"Saved fits file: {filepath}")
 
     else:
         logger.error("Unknown mode")
         exit()
 
-def save_array(arrays, fname, mode="ascii", header='', fmt='%.15e'):
-    data = np.array([a.ravel() for a in arrays]).T
-    with open(fname, 'wb') as f:
-        np.savetxt(f, data,header=header, fmt=fmt)
 
+def save_array(arrays, fname, mode="ascii", header="", fmt="%.15e"):
+    data = np.array([a.ravel() for a in arrays]).T
+    with open(fname, "wb") as f:
+        np.savetxt(f, data, header=header, fmt=fmt)
 
 
 def clean_radmcdir():
     import shutil
+
     logger.info(f"Cleaning {gpath.radmc_dir}")
     """
     files = glob.glob(f"{self.radmc_dir}/*")
@@ -71,11 +69,13 @@ def clean_radmcdir():
     """
     shutil.rmtree(gpath.radmc_dir)
     # os.mkdir(self.radmc_dir)
+
+
 #    logger.info("Done")
 
-    # del log
-    # del pkl
-    # del fits etc...
+# del log
+# del pkl
+# del fits etc...
 
 
 #######
@@ -92,7 +92,7 @@ def freq_to_vkms(freq0, dfreq):
 
 
 def vkms_to_freq(vkms, freq0):
-    return (1 - vkms/nc.c*1e5 ) * freq0
+    return (1 - vkms / nc.c * 1e5) * freq0
 
 
 def make_array_center(xi):
@@ -100,15 +100,9 @@ def make_array_center(xi):
 
 
 def make_array_interface(xc):
-    return np.concatenate(
-        [
-            [xc[0] - 0.5 * (xc[1] - xc[0])],
-            0.5 * (xc[0:-1] + xc[1:]),
-            [xc[-1] + 0.5 * (xc[-1] - xc[-2])],
-        ],
-        axis=0,
-    )
-
+    xi_s = xc[0] - 0.5 * (xc[1] - xc[0])
+    xi_e = xc[-1] + 0.5 * (xc[-1] - xc[-2])
+    return np.concatenate([[xi_s], 0.5 * (xc[0:-1] + xc[1:]), [xi_e]], axis=0)
 
 def x_cross_zero(x1, x2, y1, y2):
     return x1 + y1 * (x2 - x1) / (y1 - y2)
@@ -125,25 +119,27 @@ def find_roots(x, y1, y2):
         ]
     )
 
+
 def position_line(pangle_deg, L, dx=None, dy=None, offset=0):
     pa = pangle_deg * nc.deg2rad
     if (dx is None) or (dy is None):
         dl = L * 0.01
     else:
-        dl = ((np.sin(pa)/dx)**2 + (np.cos(pa)/dy)**2)**(-0.5)
-    posax = np.arange(-L/2, L/2+dl, dl)
-    pos_x = - posax * np.sin(pa) - offset * np.cos(pa)
+        dl = ((np.sin(pa) / dx) ** 2 + (np.cos(pa) / dy) ** 2) ** (-0.5)
+    posax = np.arange(-L / 2, L / 2 + dl, dl)
+    pos_x = -posax * np.sin(pa) - offset * np.cos(pa)
     pos_y = posax * np.cos(pa) - offset * np.sin(pa)
     return np.stack([pos_x, pos_y], axis=-1)
+
 
 def get_position_line(pangle_deg, L, dx=None, dy=None, offset=0):
     pa = pangle_deg * nc.deg2rad
     if (dx is None) or (dy is None):
         dl = L * 0.01
     else:
-        dl = ((np.sin(pa)/dx)**2 + (np.cos(pa)/dy)**2)**(-0.5)
-    posax = np.arange(-L/2, L/2+dl, dl)
-    pos_x = - posax * np.sin(pa) - offset * np.cos(pa)
+        dl = ((np.sin(pa) / dx) ** 2 + (np.cos(pa) / dy) ** 2) ** (-0.5)
+    posax = np.arange(-L / 2, L / 2 + dl, dl)
+    pos_x = -posax * np.sin(pa) - offset * np.cos(pa)
     pos_y = posax * np.cos(pa) - offset * np.sin(pa)
     return {"points": np.stack([pos_x, pos_y], axis=-1), "posax": posax}
 
@@ -151,15 +147,16 @@ def get_position_line(pangle_deg, L, dx=None, dy=None, offset=0):
 def take_midplane_average(model, value, dtheta=0.03, ntheta=1000, vabs=False):
     # rho_mid(r) = 1/(2rΔθ) int_-Δθ^Δθ ρ r dθ
     #            = 1/(2Δθ) int_-Δθ^Δθ ρ dθ
-    dth = np.pi/2-model.tc_ax
+    dth = np.pi / 2 - model.tc_ax
     if dth[-1] >= 0:
-        return value[:,-1,:]
+        return value[:, -1, :]
 
-    val = np.abs( value ) if vabs else value
+    val = np.abs(value) if vabs else value
     func = interpolate.interp1d(dth, val, axis=1)
     dth_new = np.linspace(-dtheta, dtheta, ntheta)
-    midvalue = integrate.simpson(func(dth_new), dth_new, axis=1)/(2*dtheta)
+    midvalue = integrate.simpson(func(dth_new), dth_new, axis=1) / (2 * dtheta)
     return midvalue
+
 
 def take_horizontal_average(value):
     return np.average(value, axis=-1)
@@ -169,11 +166,10 @@ def show_used_memory():
     import psutil
 
     mem = psutil.virtual_memory()
-    logger.info("Used memory = %.3f GiB", mem.used / (1024 ** 3))
+    logger.info("Used memory = %.3f GiB", mem.used / (1024**3))
 
 
 def compute_object_size(o, handlers={}):
-    import sys
     from itertools import chain
     from collections import deque
 
@@ -219,15 +215,15 @@ def dataclass_str(self, _w=""):
             txt += space + var + str(v).replace("\n", "\n" + space + space_var)
 
         if isinstance(v, np.ndarray):
-            info = f'array(shape={np.shape(v)}, min={np.min(v):{_w}g}, max={np.max(v):{_w}g})'
+            info = f"array(shape={np.shape(v)}, min={np.min(v):{_w}g}, max={np.max(v):{_w}g})"
             txt += space + var + info
 
         elif isinstance(v, str):
             txt += space + var + f'"{str(v)}"'
         elif isinstance(v, float):
-            txt += space + var + f'{v:{_w}g}'
+            txt += space + var + f"{v:{_w}g}"
         elif isinstance(v, int):
-            txt += space + var + f'{v:d}'
+            txt += space + var + f"{v:d}"
         else:
             txt += space + var + str(v)
         txt += ","
@@ -248,9 +244,7 @@ def shell(
     log_prefix="",
     simple=False,
 ):
-
     error_flag = 0
-    msg = ""
 
     if dryrun:
         logger.info(f"(dryrun) {cmd}")
@@ -291,10 +285,9 @@ def shell(
             if (error_keyword is not None) and (error_keyword in _line):
                 error_flag = 1
 
-
         # if output == '' and (process.poll() is not None):
         if (_line == "") and (proc.poll() is not None):
-        #if (not _line) and (proc.poll() is not None):
+            # if (not _line) and (proc.poll() is not None):
             if log:
                 logger.info(" break print")
             break
@@ -340,6 +333,7 @@ def filecopy(src, dst, error_already_exist=False):
         elif not os.path.exists(dpath_dst):
             msg = f"Destination directory not found: {dpath_dst}"
         logger.error(msg)
+        logger.error(err)
         raise
 
     except Exception as e:

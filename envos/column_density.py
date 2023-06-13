@@ -1,30 +1,30 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-import matplotlib.pyplot as plt
 import numpy as np
+import matplotlib.pyplot as plt
+from scipy import interpolate, integrate
 import envos
 from . import log
-from .nconst import au
-from scipy import interpolate, integrate
-
-#from myplot import ini
 
 def calc_column_density(model, direction, double_interp=True):
     if direction == "r":
         return integrate.cumulative_trapezoid(model.rhogas, model.rr, axis=0, initial=0)
     elif direction == "theta":
-        return integrate.cumulative_trapezoid(model.rhogas, model.tt, axis=1, initial=0) * model.rr
+        return (
+            integrate.cumulative_trapezoid(model.rhogas, model.tt, axis=1, initial=0)
+            * model.rr
+        )
     elif direction == "z":
         if double_interp:
-            #x = np.linspace(0, np.max(model.rc_ax), 10000)
-            x = np.linspace(0, np.max(model.rc_ax)**(1/1.5), 3000)**(1.5)
-            # rho ~ r^-1.5 
+            # x = np.linspace(0, np.max(model.rc_ax), 10000)
+            x = np.linspace(0, np.max(model.rc_ax) ** (1 / 1.5), 3000) ** (1.5)
+            # rho ~ r^-1.5
             # rho/r^1.5 ~ const
 
             z = x
             xx, zz = np.meshgrid(x, z, indexing="ij")
-            
-            newgrid = np.stack([np.sqrt(xx**2+zz**2), np.arctan2(xx, zz)], axis=-1)
+
+            newgrid = np.stack(
+                [np.sqrt(xx**2 + zz**2), np.arctan2(xx, zz)], axis=-1
+            )
             rho_xz = interpolate.interpn(
                 (model.rc_ax, model.tc_ax),
                 model.rhogas[..., 0],
@@ -33,12 +33,14 @@ def calc_column_density(model, direction, double_interp=True):
                 fill_value=None,
             )
 
-            colz = -integrate.cumulative_trapezoid(rho_xz[:,::-1], zz[:,::-1], axis=1, initial=0)[:,::-1]
+            colz = -integrate.cumulative_trapezoid(
+                rho_xz[:, ::-1], zz[:, ::-1], axis=1, initial=0
+            )[:, ::-1]
 
             col = interpolate.interpn(
                 (x, z),
                 colz,
-                np.stack([model.R, model.z], axis=-1),                 
+                np.stack([model.R, model.z], axis=-1),
                 bounds_error=False,
                 fill_value=None,
             )
@@ -46,71 +48,82 @@ def calc_column_density(model, direction, double_interp=True):
             return col
 
         else:
-            "  Samller grid noise in the interpolation  "
-            log.logger.info("Computing column density in z-direction, which could take time...")    
+            "Samller grid noise in the interpolation"
+            log.logger.info(
+                "Computing column density in z-direction, which could take time..."
+            )
             rho_interp = interpolate.RegularGridInterpolator(
                 (model.rc_ax, model.tc_ax),
                 model.rhogas[..., 0],
                 bounds_error=False,
                 fill_value=None,
-            )    
+            )
             zlim = np.max(model.z) * 1.1
-        return v_column_density_z(model.R, model.z, model, rho_interp, zlim).astype(float)
+        return v_column_density_z(model.R, model.z, model, rho_interp, zlim).astype(
+            float
+        )
     else:
         raise ValueError(f"Wrong input direction: {direction}")
 
 
 def test_column_density(model):
-    print(model)
-    print(model.rhogas.shape)
     test_colr = 0
     test_colt = 0
     test_colz = 1
 
-    # 1. density integration along r-direction 
+    # 1. density integration along r-direction
     if test_colr:
         colr = integrate.cumulative_trapezoid(model.rhogas, model.rr, axis=0, initial=0)
-        plt.pcolormesh(model.R[...,0], model.z[...,0], colr[...,0], shading="nearest")
+        plt.pcolormesh(
+            model.R[..., 0], model.z[..., 0], colr[..., 0], shading="nearest"
+        )
         plt.show()
 
-    # 2. density integration along theta-direction 
+    # 2. density integration along theta-direction
     if test_colt:
-        colt = integrate.cumulative_trapezoid(model.rhogas, model.tt, axis=1, initial=0) * model.rr
-        plt.pcolormesh(model.R[...,0], model.z[...,0], colt[...,0], shading="nearest")
+        colt = (
+            integrate.cumulative_trapezoid(model.rhogas, model.tt, axis=1, initial=0)
+            * model.rr
+        )
+        plt.pcolormesh(
+            model.R[..., 0], model.z[..., 0], colt[..., 0], shading="nearest"
+        )
         plt.show()
 
-    # 3. density integration along z-direction 
+    # 3. density integration along z-direction
     if test_colz:
         rho_interp = interpolate.RegularGridInterpolator(
             (model.rc_ax, model.tc_ax),
             model.rhogas[..., 0],
             bounds_error=False,
             fill_value=None,
-        )    
-    
-        zlim = np.max(model.z)*1.1
-        colz = v_column_density_z(model.R, model.z, model, rho_interp, zlim).astype(float)
+        )
+
+        zlim = np.max(model.z) * 1.1
+        colz = v_column_density_z(model.R, model.z, model, rho_interp, zlim).astype(
+            float
+        )
         print(colz.shape)
-        plt.pcolormesh(model.R[...,0], model.z[...,0], colz[...,0], shading="nearest")
+        plt.pcolormesh(
+            model.R[..., 0], model.z[..., 0], colz[..., 0], shading="nearest"
+        )
         plt.show()
 
 
 def column_density_z(R, z, model, interp_func, zlim):
     _R = R
-    _z_ax = np.arange(z, zlim, 0.1*z)
+    _z_ax = np.arange(z, zlim, 0.1 * z)
     r = np.sqrt(_R**2 + _z_ax**2)
     t = np.arctan2(_R, _z_ax)
     points = np.stack([r, t], axis=-1)
-    #print(points)
     rho = interp_func(points)
-    #print(rho)
     colz = integrate.simpson(rho, _z_ax)
-    #print(colz)
     return colz
+
 
 v_column_density_z = np.frompyfunc(column_density_z, 5, 1)
 
-if __name__=="__main__":
+if __name__ == "__main__":
     config = envos.Config(
         run_dir="./run",
         n_thread=10,

@@ -1,23 +1,13 @@
 import os
 import numpy as np
-from scipy import interpolate, integrate, optimize
-import matplotlib.patches
-from mpl_toolkits.axes_grid1.anchored_artists import AnchoredAuxTransformBox
-import matplotlib
+from scipy import interpolate
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mt
 import matplotlib.colors as mc
-
-try:
-    from skimage.feature import peak_local_max
-except:
-    pass
-
-from .plot_funcs import *
-from .. import nconst as nc
-from .. import log
-from .. import streamline
+#from .plot_funcs import *
+from . import plot_funcs as pfun
 from .. import tools
+from .. import gpath
 
 """
 -- Plan for new structure
@@ -36,108 +26,10 @@ ImagePlotter(PlotterBase, ObsPlotterBase)
 """
 
 
-#def plot_mom0_map(
-#    data,
-#    out="mom0map.pdf",
-#    xlim=(-700, 700),
-#    ylim=(-700, 700),
-#    clim=(None, None),
-#    nlv=10,
-#    norm=None,
-#    pangle_deg=None,
-#    poffset_au=None,
-#    discrete=False,
-#    save=True,
-#    Iunit=None,
-#):
-#    def position_line(length, pangle_deg, poffset_au=0):
-#        line = np.linspace(-length / 2, length / 2, 10)
-#        pangle_rad = (pangle_deg + 90) * np.pi / 180
-#        pos_x = line * np.cos(pangle_rad) - poffset_au * np.sin(pangle_rad)
-#        pos_y = line * np.sin(pangle_rad) + poffset_au * np.sin(pangle_rad)
-#        return pos_x, pos_y
-#
-#    if data.dtype == "Cube":
-#        image = data.get_mom0_map()
-#    elif data.dtype == "Image":
-#        image = data.copy()
-#    else:
-#        raise Exception("Data type error")
-#
-#    if norm is not None:
-#        image.norm_I(norm)
-#
-#    lvs = np.linspace(
-#        clim[0] if clim[0] is not None else np.min(image.get_I()),
-#        clim[1] if clim[1] is not None else np.max(image.get_I()),
-#        nlv + 1
-#    )
-#    if discrete:
-#        _cmap = make_listed_cmap("magma", nlv-1, extend="neither")
-#        _norm = mc.BoundaryNorm(lvs, nlv-1, clip=False)
-#    else:
-#        _cmap = plt.get_cmap("magma")
-#        _norm = mc.Normalize(vmin=lvs[0], vmax=lvs[-1])
-#
-#    xx, yy = np.meshgrid(data.xau, data.yau, indexing="ij")
-#
-#    img = plt.pcolormesh(
-#        xx,
-#        yy,
-#        image.get_I(),
-#        cmap=_cmap, #make_listed_cmap("magma", len(lvs) - 1, extend="neither"),
-#        norm=_norm, #mc.BoundaryNorm(lvs, len(lvs) - 1, clip=False),
-#        shading="nearest",
-#        rasterized=True,
-#    )
-#
-#    "*** Setting color bar ***"
-#    cbar = plt.colorbar(img, pad=0.02)
-#    Iunit = Iunit if Iunit is not None else image.Iu()
-#    cbar.set_label(r"Integrated Intensity $I$" + rf" [{Iunit}]")
-#
-#    nticks = nlv + 1
-#    cbar.set_ticks( np.linspace(lvs[0], lvs[-1], nticks) )
-#    cbar.ax.minorticks_off()
-#    plt.gca().tick_params("both", direction="inout")
-#
-#    if pangle_deg is not None:
-#        for _pangle_deg in pangle_deg:
-#            x, y = position_line(1400, _pangle_deg)
-#            plt.gca().annotate(
-#                "",
-#                xy=[x[-1], y[-1]],
-#                xytext=[x[0], y[0]],
-#                va="center",
-#                arrowprops=dict(arrowstyle="->", color="#aaaaaa", lw=1),
-#                zorder=3
-#            )
-#        if poffset_au is not None:
-#            pline = position_line(data.xau, pangle_deg, poffset_au=poffset_au)
-#            plt.plot(pline[0], pline[1], c="w", lw=1, ls=":")
-#
-#    if hasattr(data, "obreso") and \
-#        (data.obreso is not None) and \
-#        data.obreso.beam_maj_au:
-#        draw_beamsize(
-#            plt.gca(),
-#            "mom0",
-#            data.obreso.beam_maj_au,
-#            data.obreso.beam_min_au,
-#            data.obreso.beam_pa_deg,
-#        )
-#
-#    plt.xlim(xlim[0], xlim[1])
-#    plt.ylim(ylim[0], ylim[1])
-#    plt.xlabel(r"RA Offset [au]")
-#    plt.ylabel(r"Dec Offset [au]")
-#
-#    draw_center_line()
-#    savefig(out)
-
-#------------------------------------------------------------------------------#
 def _plot_image(
-    x, y, z,
+    x,
+    y,
+    z,
     xlim=(None, None),
     ylim=(None, None),
     clim=(None, None),
@@ -145,8 +37,8 @@ def _plot_image(
     nlv=11,
     sigma=None,
     cname="magma",
-    xlabel=None, #"RA Offset [au]",
-    ylabel=None, #"Dec Offset [au]",
+    xlabel=None,
+    ylabel=None,
     clabel=None,
     contour=False,
     contopt={},
@@ -156,7 +48,7 @@ def _plot_image(
     cmin = clim[0] if clim[0] is not None else np.min(z)
     cmax = clim[1] if clim[1] is not None else np.max(z)
     if sigma is not None:
-        lvs = np.arange(cmin, cmax+sigma, sigma)
+        lvs = np.arange(cmin, cmax + sigma, sigma)
     else:
         lvs = np.linspace(cmin, cmax, nlv + 1)
 
@@ -164,8 +56,8 @@ def _plot_image(
 
     "*** Setting color levels ***"
     if discrete:
-        _cmap = make_listed_cmap(cname, nlv-1, extend="neither")
-        _norm = mc.BoundaryNorm(lvs, nlv-1, clip=False)
+        _cmap = pfun.make_listed_cmap(cname, nlv - 1, extend="neither")
+        _norm = mc.BoundaryNorm(lvs, nlv - 1, clip=False)
     else:
         _cmap = plt.get_cmap(cname)
         _norm = mc.Normalize(vmin=lvs[0], vmax=lvs[-1])
@@ -173,27 +65,29 @@ def _plot_image(
     "*** Plotting color map using pcolormesh ***"
     xx, yy = np.meshgrid(x, y, indexing="ij")
     img = plt.pcolormesh(
-        xx, yy, z, cmap=_cmap, norm=_norm,
-        shading="nearest", rasterized=True,
+        xx,
+        yy,
+        z,
+        cmap=_cmap,
+        norm=_norm,
+        shading="nearest",
+        rasterized=True,
     )
 
     if contour:
-        _contopt = {
-            "levels": lvs,
-            "colors":"w",
-            "linewidths":0.8,
-            "zorder":2
-        }
+        _contopt = {"levels": lvs, "colors": "w", "linewidths": 0.8, "zorder": 2}
         _contopt.update(contopt)
         plt.contour(xx, yy, z, **_contopt)
 
     if refimage is not None:
         plt.contour(
-            refimage.xau, refimage.yau, refimage.get_I().T,
+            refimage.xau,
+            refimage.yau,
+            refimage.get_I().T,
             levels=_contopt["levels"],
             colors="skyblue",
             linewidths=0.5,
-        #    zorder=1,
+            #    zorder=1,
         )
 
     "*** Setting color bar ***"
@@ -212,6 +106,7 @@ def _plot_image(
 
 def plot_mom0_map(*args, **kwargs):
     plot_image(*args, **kwargs)
+
 
 def plot_image(
     _image,
@@ -234,9 +129,9 @@ def plot_image(
     arrow_angle_deg=None,
     arrow_length_au=None,
     arrow_offset_au=0,
-    #arrow_args=None,
-    #pangles_deg=None,
-    #poffset_au=None,
+    # arrow_args=None,
+    # pangles_deg=None,
+    # poffset_au=None,
     refimage=None,
     save=True,
     Iunit=None,
@@ -261,8 +156,10 @@ def plot_image(
         Iunit = Iunit if Iunit is not None else im.Iu()
         clabel = r"Integrated Intensity $I$" + rf" [{Iunit}]"
 
-    pl = _plot_image(
-        im.xau, im.yau, im.get_I(),
+    _plot_image(
+        im.xau,
+        im.yau,
+        im.get_I(),
         xlim=xlim,
         ylim=ylim,
         clim=clim,
@@ -270,8 +167,8 @@ def plot_image(
         nlv=nlv,
         sigma=sigma,
         cname=cname,
-        xlabel=xlabel, #"RA Offset [au]",
-        ylabel=ylabel, #"Dec Offset [au]",
+        xlabel=xlabel,  # "RA Offset [au]",
+        ylabel=ylabel,  # "Dec Offset [au]",
         clabel=clabel,
         contour=contour,
         contopt=contopt,
@@ -280,20 +177,23 @@ def plot_image(
 
     if arrow_angle_deg is not None:
         if arrow_length_au is None:
-           arrow_length_au = abs(xlim[1] - xlim[0])
-        draw_arrows(arrow_angle_deg, arrow_length_au, arrow_offset_au)#pangles_deg, length, poffset_au)
+            arrow_length_au = abs(xlim[1] - xlim[0])
+        draw_arrows(
+            arrow_angle_deg, arrow_length_au, arrow_offset_au
+        )  # pangles_deg, length, poffset_au)
 
-    if (obreso is not None) and data.obreso.beam_maj_au:
-        draw_beamsize(
-            plt.gca(), "mom0",
+    if (obreso is not None) and im.obreso.beam_maj_au:
+        pfun.draw_beamsize(
+            plt.gca(),
+            "mom0",
             obreso.beam_maj_au,
             obreso.beam_min_au,
             obreso.beam_pa_deg,
         )
 
-    draw_center_line()
+    pfun.draw_center_line()
     if save:
-        savefig(out)
+        pfun.savefig(out)
 
 
 def draw_arrows(pangles_deg, L, offset=0):
@@ -306,107 +206,17 @@ def draw_arrows(pangles_deg, L, offset=0):
             xy=xy[-1],
             xytext=xy[0],
             va="center",
-            arrowprops=dict(arrowstyle="->", color="#aaaaaa", lw=1, shrinkA=0, shrinkB=0),
-            #arrowprops=dict(color="#aaaaaa", width=0.3, headwidth=3, headlength=3, shrink=0),
-            zorder=3
+            arrowprops=dict(
+                arrowstyle="->", color="#aaaaaa", lw=1, shrinkA=0, shrinkB=0
+            ),
+            # arrowprops=dict(color="#aaaaaa", width=0.3, headwidth=3, headlength=3, shrink=0),
+            zorder=3,
         )
 
         if offset != 0:
             x, y = tools.position_line(_pangle_deg, L).T
             plt.plot(x, y, color="#aaaaaa", lw=1, ls=":")
-#------------------------------------------------------------------------------#
 
-#def plot_image(image,
-#    n_lv=11,
-#    out="image.pdf",
-#    normalize=False,
-#    xlim=(None, None), #(-700, 700),
-#    ylim=(None, None), #(-700, 700),
-#    Iunit="Tb",
-#    freq0=None,
-#    refimage=None,
-#    sigma=None,
-#    n_clv=100,
-#    zmax=None,
-#):
-#    Ippref = None
-#    if Iunit is None:
-#        Ipp = image.Ipp
-#        clabel = r"$I [Jy/pixel]$"
-#    elif (Iunit == "Tb") and (freq0 is not None):
-#        Ipp = image.convert_Jyppix_to_brightness_temperature(image.data, freq0=freq0)
-#        if refimage is not None:
-#            Ippref = refimage.convert_Jyppix_to_brightness_temperature(refimage.data, freq0=freq0)
-#        clabel = r"$T_b [{\rm K}]$"
-#    elif Iunit == "norm":
-#        Ipp /= np.max(Ipp)
-#        clabel = r"$I ~/ ~I_{\rm max}$"
-#    else:
-#        raise Exception("Failed to input data")
-#
-#    if zmax is None:
-#        zmax = max([x for x in [np.max(Ipp), np.max(Ippref)] if x is not None])
-#
-#    if sigma is not None:
-#        clvs = np.linspace(0, zmax, n_clv)
-#        contlvs = np.arange(0, zmax, sigma)
-#    else:
-#        clvs = np.linspace(np.min(Ipp), zmax, n_clv)
-#        contlvs = np.linspace(np.min(Ipp), zmax, n_lv)
-#
-#    if refimage is not None:
-#        refcontlvs = contlvs
-#
-#    xx, yy = np.meshgrid(image.xau, image.yau, indexing="ij")
-#    img = plt.pcolormesh(
-#        xx, yy, Ipp,
-#        cmap=make_listed_cmap("magma", len(clvs) - 1, extend="neither"),
-#        norm=mc.BoundaryNorm(clvs, len(clvs) - 1, clip=False),
-#        shading="nearest",
-#        rasterized=True,
-#        zorder=0,
-#    )
-#    plt.contour(
-#        xx, yy, Ipp,
-#        levels=contlvs,
-#        colors="w",
-#        linewidths=0.8,
-#        zorder=2,
-#    )
-#
-#    plt.xlim(xlim[0], xlim[1])
-#    plt.ylim(ylim[0], ylim[1])
-#    plt.xlabel(r"$\Delta$RA [au]")
-#    plt.ylabel(r"$\Delta$Dec [au]")
-#    cbar = plt.colorbar(img, pad=0.02)
-#    cbar.set_label(clabel)
-#
-#    ax = plt.gca()
-#    draw_center_line()
-#    ax.tick_params("both", direction="inout")
-#
-#    if (image.obreso is not None) and image.obreso.beam_maj_au:
-#        draw_beamsize(
-#            ax,
-#            "mom0",
-#            image.obreso.beam_maj_au,
-#            image.obreso.beam_min_au,
-#            image.obreso.beam_pa_deg,
-#        )
-#
-#    if refimage is not None:
-#        plt.contour(
-#            xx, yy, Ippref,
-#            levels=refcontlvs,
-#            colors="skyblue",
-#            linewidths=0.5,
-#            zorder=1,
-#        )
-#
-#    savefig(out)
-#
-
-#------------------------------------------------------------------------------#
 
 def plot_lineprofile(cube, xau_range=None, yau_range=None, unit=None, freq0=None):
     if cube.Ippv.shape[0] == 1 and cube.Ippv.shape[1] == 1:
@@ -415,10 +225,10 @@ def plot_lineprofile(cube, xau_range=None, yau_range=None, unit=None, freq0=None
         imin = imax = jmin = jmax = None
         if xau_range is not None:
             imin = np.where(cube.xau > xau_range[0])[0][0]
-            imax = np.where( cube.xau < xau_range[-1])[0][-1]
+            imax = np.where(cube.xau < xau_range[-1])[0][-1]
         if yau_range is not None:
             jmin = np.where(cube.yau > yau_range[0])[0][0]
-            jmax = np.where( cube.yau < yau_range[-1])[0][-1]
+            jmax = np.where(cube.yau < yau_range[-1])[0][-1]
 
         if unit is None:
             Ippv = cube.Ippv
@@ -442,7 +252,8 @@ def plot_lineprofile(cube, xau_range=None, yau_range=None, unit=None, freq0=None
     plt.clf()
 
 
-#------------------------------------------------------------------------------#
+# ------------------------------------------------------------------------------#
+
 
 def plot_pvdiagram(
     _pv,
@@ -464,7 +275,7 @@ def plot_pvdiagram(
     ylim=(-2.5, 2.5),
     clim=(None, None),
     show_beam=True,
-    discrete=False, # True,
+    discrete=False,  # True,
     contour=True,
     refpv=None,
     loglog=False,
@@ -485,13 +296,12 @@ def plot_pvdiagram(
     lvs = np.linspace(
         clim[0] if clim[0] is not None else np.min(Ipv),
         clim[1] if clim[1] is not None else np.max(Ipv),
-        nlv_c + 1
+        nlv_c + 1,
     )
-    nlvs = len(lvs)
     xx, yy = np.meshgrid(xau, vkms, indexing="ij")
 
     if discrete:
-        _cmap = make_listed_cmap("cividis", nlv_c, extend="neither")
+        _cmap = pfun.make_listed_cmap("cividis", nlv_c, extend="neither")
         _norm = mc.BoundaryNorm(lvs, nlv_c, clip=False)
     else:
         _cmap = plt.get_cmap("cividis")
@@ -507,7 +317,7 @@ def plot_pvdiagram(
         norm=_norm,
         shading="nearest",
         rasterized=True,
-        alpha=.9
+        alpha=0.9,
     )
     plt.xlim(*xlim)
     plt.ylim(*ylim)
@@ -531,7 +341,7 @@ def plot_pvdiagram(
         if 0:
             xx, vv = np.meshgrid(xau, vkms, indexing="ij")
             vpeaks = np.array(
-                [get_maximum_position(vkms, Iv) for Iv in np.where(vv > 0, Ipv, 0)]
+                [pfun.get_maximum_position(vkms, Iv) for Iv in np.where(vv > 0, Ipv, 0)]
             )
             plt.scatter(xau[vpeaks > 0], vpeaks[vpeaks > 0], c="red", marker="o", s=4)
         show_beam = False
@@ -540,12 +350,12 @@ def plot_pvdiagram(
 
     Iunit = Iunit if Iunit is not None else pv.Iu()
     cbar.set_label(r"Intensity $I_{V}$" + rf" [{Iunit}]")
-    ticks = np.linspace(lvs[0], lvs[-1], n_lv +1)
+    ticks = np.linspace(lvs[0], lvs[-1], n_lv + 1)
     cbar.set_ticks(ticks)
     cbar.ax.minorticks_off()
-    cbar.ax.yaxis.set_major_formatter(mt.FormatStrFormatter('%.2f'))
+    cbar.ax.yaxis.set_major_formatter(mt.FormatStrFormatter("%.2f"))
     ax = plt.gca()
-    draw_center_line()
+    pfun.draw_center_line()
     ax.tick_params(direction="inout")
 
     if contour:
@@ -587,7 +397,7 @@ def plot_pvdiagram(
             _xx, _yy, _Ipv.clip(1e-10),
             contlvs*(lvs[-1] - lvs[0]) + lvs[0],
             colors=c,
-            linewidths=.8,
+            linewidths=0.8,
             linestyles="-",
             alpha=.9,
             #norm=mc.Normalize(vmin=0, vmax=np.max(_Ipv)),
@@ -600,7 +410,7 @@ def plot_pvdiagram(
             plt.scatter(peak.x1, peak.x2, s=12, alpha=0.9, linewidth=1, c=c, fc=c, ec=None, zorder=5)
 
     if mass_estimate:
-        add_mass_estimate_plot(
+        pfun.add_mass_estimate_plot(
             xau,
             vkms,
             Ipv,
@@ -613,11 +423,14 @@ def plot_pvdiagram(
             quadrant=quadrant,
         )
 
-    if hasattr(pv, "obreso") and \
-        (pv.obreso is not None) and \
-        pv.obreso.beam_maj_au and \
-        not loglog :
-        draw_beamsize(
+    if (
+        hasattr(pv, "obreso")
+        and (pv.obreso is not None)
+        and pv.obreso.beam_maj_au
+        and not loglog
+        and show_beam
+    ):
+        pfun.draw_beamsize(
             plt.gca(),
             "pv",
             pv.obreso.beam_maj_au,
@@ -635,17 +448,16 @@ def plot_pvdiagram(
         # ax2.set_xlim([xas[0], xas[-1]])
         ax2.set_xlim(np.array(ax.get_xlim()) / pv.dpc)
 
-    savefig(out)
+    pfun.savefig(out)
+
 
 def smooth_image(xx, yy, image, axes="mg"):
-    _x, _y = (xx[:,0], yy[0,:]) if axes == "mg" else (xx, yy)
-    _newx = np.linspace(np.min(_x), np.max(_x), len(_x)*4)
-    _newy = np.linspace(np.min(_y), np.max(_y), len(_y)*4)
-    _xx, _yy =  np.meshgrid(_newx, _newy, indexing="ij")
+    _x, _y = (xx[:, 0], yy[0, :]) if axes == "mg" else (xx, yy)
+    _newx = np.linspace(np.min(_x), np.max(_x), len(_x) * 4)
+    _newy = np.linspace(np.min(_y), np.max(_y), len(_y) * 4)
+    _xx, _yy = np.meshgrid(_newx, _newy, indexing="ij")
     newgrid = np.stack([_xx, _yy], axis=-1)
     _image = interpolate.interpn((_x, _y), image, newgrid, method="splinef2d")
     return _xx, _yy, _image
 
-#(644, 640) (161, 160) (644, 640, 2) (644, 640)
-#(2264, 640) (566, 160) (2264, 640, 2) (2264, 640)
 
