@@ -20,15 +20,17 @@ mpl_setting.set_rc(lw=1.2, bold=False, fontsize=12)
 
 def main(conf):
     #do_fiducial_run(conf)
-    do_rshock_test(conf)
+    #do_rshock_test(conf)
     #t2=unit2, plot_obspv(conf)
     #do_debug_run(conf)
     #do_parameter_study(conf)
-    #exit()
+    do_mori2023(conf)
+    exit()
     #do_pmap_survey_for_mass_estimate(conf)
     #do_pmap_survey_for_cube_correlation(conf)
-    compare_bestmodel_obspvs(conf)
-    # do_ring_test()
+    #compare_bestmodel_obspvs(conf)
+    #do_ring_test(conf)
+    do_2region_test(conf)
     #plot_obspv(conf)
     # do_disk_envelope_runs()
     # do_ps_survays()
@@ -82,10 +84,10 @@ def do_debug_run(conf):
         plot_model_structure=0
     )
 
-def do_parameter_study(config):
+def do_parameter_study(conf):
 
-    def _obs(config, label, refcube=None, **kwargs):
-        _conf = config.replaced(
+    def _obs(conf, label, refcube=None, **kwargs):
+        _conf = conf.replaced(
             run_dir=f"./run/run_" + label,
             n_thread=16,
             #dr_to_r=0.05,
@@ -104,44 +106,94 @@ def do_parameter_study(config):
             **kwargs,
         )
 
-    #config = config.replaced(n_thread=16)
-    #_obs(config, "fid")
+    #conf = conf.replaced(n_thread=16)
+    #_obs(conf, "fid")
 
-    #_obs(config.replaced(incl=30), f"i{30}")
+    #_obs(conf.replaced(incl=30), f"i{30}")
     #exit()
 
     refcube = envos.read_obsdata(envos.gpath.home_dir / "run" / "lobs_fid.pkl")
+
     refcube.norm_I("max")
-    _obs(config.replaced(inenv="Simple", cavangle_deg=80), "SB", refcube)
+    _obs(conf.replaced(inenv="Simple", cavangle_deg=80), "SB", refcube)
     #exit()
 
     """
     for T0 in [10, 30, 100]:
         Tfunc = lambda m: T0 * (m.rr/10/envos.nc.au)
-        _obs(config, f"T{T0}-p0", refcube, Tfunc=Tfunc)
+        _obs(conf, f"T{T0}-p0", refcube, Tfunc=Tfunc)
 
     for p in [-0.5, -1]:
         Tfunc = lambda m: 30 * (m.rr/10/envos.nc.au)**p
-        _obs(config, f"T30-p{p}", refcube, Tfunc=Tfunc)
+        _obs(conf, f"T30-p{p}", refcube, Tfunc=Tfunc)
     """
 
     for M in [0.1, 0.3]: # 0.15
-        _obs(config.replaced(Ms_Msun=M), f"M{M}", refcube)
+        _obs(conf.replaced(Ms_Msun=M), f"M{M}", refcube)
 
     for cr in [100, 300]:
-        _obs(config.replaced(CR_au=cr), f"cr{cr}", refcube)
+        _obs(conf.replaced(CR_au=cr), f"cr{cr}", refcube)
 
     for incl in [30, 60]:
-        _obs(config.replaced(incl=incl), f"i{incl}", refcube)
+        _obs(conf.replaced(incl=incl), f"i{incl}", refcube)
 
     for ca in [0, 80]:
-        _obs(config.replaced(cavangle_deg=ca), f"cav{ca}", refcube)
+        _obs(conf.replaced(cavangle_deg=ca), f"cav{ca}", refcube)
 
 #    for bs in [50, 200]:
-#        _obs(config.replaced(beam_maj_au=bs, beam_min_au=bs), f"bs{bs}")
+#        _obs(conf.replaced(beam_maj_au=bs, beam_min_au=bs), f"bs{bs}")
 
 #    for vr in [0.075, 0.3]:
-#        _obs(config.replaced(vreso_kms=vr), f"vr{vr}")
+#        _obs(conf.replaced(vreso_kms=vr), f"vr{vr}")
+
+
+def do_mori2023(conf):
+
+    def _obs(conf, label, refcube=None, **kwargs):
+        _conf = conf.replaced(
+            run_dir=f"./run_2/run_" + label,
+            n_thread=16,
+            #dr_to_r=0.05,
+            #nphot=1e6,
+        )
+        synobs(
+            _conf,
+            filename=f"lobs_{label}.pkl",
+#            skip_if_exist=0, #True,
+            #read_mg=1,
+#            calc_model=0, calc_obs=0,
+#            plot_model_structure=1,
+            refdata=refcube,
+            **kwargs,
+        )
+
+    #refcue = _obs(conf, "fid")
+    refcube = envos.read_obsdata(envos.gpath.home_dir / "run_2" / "run_fid/lobs_fid.pkl")
+
+    _obs(conf.replaced(Ms_Msun=0.45, CR_au=74), "Aso17", refcube)
+    _obs(conf.replaced(inenv="Simple", cavangle_deg=80), "SB", refcube)
+
+    for M in [0.1, 0.3]:
+        _obs(conf.replaced(Ms_Msun=M), f"M{M}", refcube)
+
+    for cr in [100, 300]:
+        _obs(conf.replaced(CR_au=cr), f"cr{cr}", refcube)
+
+    for incl in [30, 60]:
+        _obs(conf.replaced(incl=incl), f"i{incl}", refcube)
+
+    for ca in [0, 80]:
+        _obs(conf.replaced(cavangle_deg=ca), f"cav{ca}", refcube)
+
+    """
+    for T0 in [10, 30, 100]:
+        Tfunc = lambda m: T0 * (m.rr/10/envos.nc.au)
+        _obs(conf, f"T{T0}-p0", refcube, Tfunc=Tfunc)
+
+    for p in [-0.5, -1]:
+        Tfunc = lambda m: 30 * (m.rr/10/envos.nc.au)**p
+        _obs(conf, f"T30-p{p}", refcube, Tfunc=Tfunc)
+    """
 
 
 def do_pmap_survey_for_mass_estimate(conf): # for mass estimate , not for cube correlation
@@ -281,7 +333,7 @@ def compare_bestmodel_obspvs(conf):
 
 
 def do_disk_envelope_runs():
-    config = config.replaced(
+    conf = conf.replaced(
         n_thread=16,
         dr_to_r=0.01,
         molname="c18o",
@@ -290,13 +342,13 @@ def do_disk_envelope_runs():
         f_dg=0.01,
         nphot=1e7,
     )
-    synobs(config.replaced(fig_dir=f"run/fig_fid"), filename=f"lobs_fid.pkl")
+    synobs(conf.replaced(fig_dir=f"run/fig_fid"), filename=f"lobs_fid.pkl")
     synobs(
-        config.replaced(fig_dir=f"run/fig_disk", disk="exptail"),
+        conf.replaced(fig_dir=f"run/fig_disk", disk="exptail"),
         filename=f"lobs_disk.pkl",
     )
     synobs(
-        config.replaced(fig_dir=f"run/fig_diskonly", disk="exptail", inenv=None),
+        conf.replaced(fig_dir=f"run/fig_diskonly", disk="exptail", inenv=None),
         filename=f"lobs_diskonly.pkl",
     )
 
@@ -306,17 +358,52 @@ def do_disk_envelope_runs():
 # Ring tests
 #
 def do_ring_test(conf):
-    synobs(config.replaced(run_dir=f"run/run_ringall"), filename=f"lobs_ringall.pkl")
     crau = conf.CR_au
-    for rring in np.arange(0.5 * crau, 3 * crau, 60):
+    hwring = 50 #crau/4
+    rrings = np.arange(crau - hwring, 3 * crau, hwring*2)
+    #rring = np.linspace(0.5 * crau, 3 * crau, 9)
+    print(rrings, hwring)
+
+    refcube = synobs(conf.replaced(run_dir=f"run/run_ringall"), filename=f"lobs_ringall.pkl",
+    #    calc_model=False, calc_obs=False
+    )
+    for rring in rrings:
         def rhofunc_after_thermal(model):
             return np.where(
-                np.abs(model.rr / envos.nc.au - rring) < 30, model.rhogas, 0
+                np.abs(model.R / envos.nc.au - rring) < hwring, model.rhogas, 0
             )
         synobs(
-            config.replaced(run_dir=f"run/run_rring{rring}"),
+            conf.replaced(run_dir=f"run/run_rring{rring}"),
             rhofunc_after_thermal=rhofunc_after_thermal,
             filename=f"lobs_rring{rring}.pkl",
+            refdata=refcube,
+        #    calc_model=False, calc_obs=False
+        )
+    #synobs(conf.replaced(run_dir=f"run/run_ringall"), filename=f"lobs_ringall.pkl")
+
+#
+# Two region test
+#
+def do_2region_test(conf):
+    crau = conf.CR_au
+    Rb_au = crau + 50
+    refcube = synobs(conf.replaced(run_dir=f"run/run_ringall"), filename=f"lobs_ringall.pkl",
+        calc_model=False, calc_obs=False
+    )
+
+    def rhofunc_after_thermal1(model):
+        return np.where(model.R/envos.nc.au <= Rb_au, model.rhogas, 0)
+
+    def rhofunc_after_thermal2(model):
+        return np.where(model.R/envos.nc.au > Rb_au, model.rhogas, 0)
+
+    for tag, func in (("in", rhofunc_after_thermal1), ("out", rhofunc_after_thermal2)):
+        synobs(
+            conf.replaced(run_dir=f"run/run_Rb{Rb_au}{tag}"),
+            rhofunc_after_thermal=func,
+            filename=f"lobs_Rb{Rb_au}{tag}.pkl",
+            refdata=refcube,
+        #    calc_model=False, calc_obs=False
         )
 
 #
@@ -339,7 +426,7 @@ def do_ps_survays():
     def wrapfunc_model(M, CR, i, model="UCM"):
         label = f"{model}_M{M}_cr{CR}_i{i}"
         Vmax = np.sqrt(2 * nc.G * M * nc.Msun / (CR * nc.au) ) / 1e5
-        conf = config.replaced(
+        conf = conf.replaced(
             Ms_Msun=M,
             CR_au=CR,
             incl=i,
@@ -362,7 +449,7 @@ def do_ps_survays():
 
 def do_faceon_test():
     incl = 10
-    conf = config.replaced(
+    conf = conf.replaced(
         fig_dir=f"run/fig_i{incl}",
         incl=incl,
         n_thread=15,
@@ -380,9 +467,9 @@ def do_faceon_test():
 # Best fit parameter using interp is M=0.14397671494434056 cr=157.89468833002474: cor=0.3168025073954296
 
 # Best fit parameter using interp is M=0.19222588413610658 cr=124.62313207624051: cor=0.37106233039132985
-config_default = envos.Config(
+conf_default = envos.Config(
     run_dir="./run",
-    n_thread=1,
+    n_thread=12,
     rau_in=10,
     rau_out=1000,
     theta_out=np.pi,
@@ -501,15 +588,17 @@ def synobs(
 
     if plot_model_structure:
         model = mg.get_model()
-        # model.calc_midplane_average()
-        envos.plot_tools.plot_density_map(model, streams=True)
-        envos.plot_tools.plot_temperature_map(model, streams=True)
-        envos.plot_tools.plot_midplane_velocity_map(model)
+        #envos.plot_tools.plot_density_map(model, streams=True)
+        #envos.plot_tools.plot_temperature_map(model, streams=True)
+        envos.plot_tools.plot_rhogas_map(model, streams=True)
+        envos.plot_tools.plot_Tgas_map(model , streams=True)
+        envos.plot_tools.plot_velocity_midplane_profile(model)
+
+        envos.plot_tools.plot_losvelocity_midplane_map(model, rlim=500, dvkms=0.2, streams=True)
         # envos.plot_tools.plot_midplane_profiles(model, density=True, velocity=True, Temperature=True)
-        # envos.plot_tools.plot_midplane_velocity_profile(model)
         # envos.plot_tools.plot_midplane_temperature_profile(model)
-        envos.plot_tools.plot_midplane_density_velocity_profile(model)
-        # exit()
+        envos.plot_tools.plot_density_velocity_midplane_profile(model)
+        #exit()
 
     if calc_obs:
         osim = envos.ObsSimulator(conf)
@@ -522,41 +611,48 @@ def synobs(
        # print(envos.gpath.home_dir / "run" / filename )
         cube = envos.read_obsdata(savefile)
 
+    pvopt = {
+        "figsize": None,
+        "xlim": (-xlim_pvd, xlim_pvd),
+        "ylim": (-vkms_pvd, vkms_pvd),
+        "f_crit": 0.3,
+        "incl": conf.incl,
+        "smooth_contour":True,
+    #    "Iunit": r"$I_{V,{\rm max}}$",
+    }
     if plot_pv:
-        opt = {
-            "figsize": None,
-            "xlim": (-xlim_pvd, xlim_pvd),
-            "ylim": (-vkms_pvd, vkms_pvd),
-            "f_crit": 0.3,
-            "incl": conf.incl,
-            "norm":"max",
-            "smooth_contour":True,
-            "Iunit": "I_{V,{\\rm max}}",
-        }
         pv = cube.get_pv_map(pangle_deg=conf.posang - 90 + pa_pv)
-        envos.plot_tools.plot_pvdiagram(pv, mass_estimate=False, out="pvd.pdf", **opt)
+        envos.plot_tools.plot_pvdiagram(pv, mass_estimate=False, out="pvd.pdf", norm="max", Iunit= r"$I_{V,{\rm max}}$",**pvopt)
 
     if plot_pv_for_mass_estimate:
         envos.plot_tools.plot_pvdiagram(
-            pv, mass_estimate=True, out="pvd_mass.pdf", **opt
+            pv, mass_estimate=True, out="pvd_mass.pdf", **pvopt
         )
 
     if plot_pv_loglog:
         envos.plot_tools.plot_pvdiagram(
-            pv, mass_estimate=False, loglog=True, out="pvd_loglog.pdf", **opt
+            pv, mass_estimate=False, loglog=True, out="pvd_loglog.pdf", **pvopt
         )
         #envos.plot_tools.plot_pvdiagram(
         #    pv.reversed_x(), mass_estimate=False, loglog=True, out="pvd_loglog_rev.pdf", **opt
         #)
 
     if refdata is not None:
+        #Inorm = cube.get_Imax()
+        pv = cube.get_pv_map(pangle_deg=conf.posang - 90 + pa_pv)
         refpv = refdata.get_pv_map(pangle_deg = conf.posang - 90 + pa_pv)
+        #Inorm = refdata.get_Imax()
+        pv.norm_I()
+        refpv.norm_I()
         envos.plot_tools.plot_pvdiagram(
             pv,
             refpv=refpv,
             out="pvd_comp.pdf",
             mass_estimate=False,
-            **opt,
+            norm=None,
+            Iunit=r"$I^{\prime}_{V,{\rm max}}$",
+            clim=(0, 1),
+            **pvopt,
         )
 
     if plot_mom0_map:
@@ -570,6 +666,7 @@ def synobs(
         )
 
     envos.tools.clean_radmcdir()
+    return cube
 
 
 #################################################################################
@@ -587,18 +684,6 @@ def get_refcube():
         v0_kms=5.85,
     )
     refcube.set_center_pos(radec_deg=poscen)
-    print(refcube)
-
-
-
-
-
-#    print(refcube)
-    #exit()
-    #print(refcube)
-    #refcube.move_position(poscen[0], ax="x", unit="deg")
-    #print(refcube)
-    #refcube.move_position(poscen[1], ax="y", unit="deg")
 
     refcube.trim(xlim=[-700, 700], ylim=[-700, 700], vlim=[-3, 3])
     return refcube
@@ -649,4 +734,4 @@ def plotpvd_angles(conf, filename="lineobs.pkl"):
 
 
 ######
-main(config_default)
+main(conf_default)

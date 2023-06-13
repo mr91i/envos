@@ -209,7 +209,85 @@ def add_streams(
         plt.streamplot(xau, yau, vR, vz, color=cavr, norm=norm, cmap=plt.get_cmap("gist_gray_r"), start_points=start_points, **opt)
     else:
         plt.streamplot(xau, yau, vR, vz, start_points=start_points, **opt)
+"""
+def add_streams_midplane(
+    model, rlim, r0=None, use_mu0=False, equal_theta0=False, equal_mu0=True,
+    cavity_region=None, style_incavity={}
+):
+    r0 = r0 or rlim
 
+    xau = np.linspace(0, r0, 1000)
+    yau = np.linspace(0, r0, 1000)
+    xx, yy = np.meshgrid(xau, yau)
+    linedens = (10, 100)
+
+    newgrid = np.stack([np.sqrt(xx ** 2 + yy ** 2), np.arctan2(xx, yy)], axis=-1)
+    axes = (model.rc_ax / nc.au, model.tc_ax)
+
+    if mode == "average":
+        vrmid = model.get_midplane_profile("vr")
+        vtmid = model.get_midplane_profile("vt", vabs=True)
+        vpmid = model.get_midplane_profile("vp")
+
+    elif mode =="slice":
+        index_mid = np.argmin(np.abs(model.tc_ax - np.pi / 2))
+        vrmid = model.vr[:,index_mid,:]
+        vtmid = model.vt[:,index_mid,:]
+        vpmid = model.vp[:,index_mid,:]
+
+    vx = vrmid * xx
+    vx = interpolate.interpn(
+        axes,
+        vrmid,
+        newgrid,
+        bounds_error=False,
+        fill_value=None,
+    )
+    vy = interpolate.interpn(
+        axes,
+        model.vz[:, :, 0],
+        newgrid,
+        bounds_error=False,
+        fill_value=None,
+    )
+
+
+    if use_mu0:
+        r0arg = np.argmin(np.abs(r0 * nc.au - model.rc_ax))
+        mu0_arr = model.mu0[r0arg, :, 0]
+        if equal_theta0:
+            theta_func = interpolate.interp1d(
+                np.arccos(mu0_arr), model.tc_ax, fill_value="extrapolate", kind="cubic"
+            )
+            theta0 = theta_func(np.radians(np.linspace(0, 90, 19)[1:-1]))
+
+        elif equal_mu0:
+            mu0_to_theta_func = interpolate.interp1d(
+                mu0_arr, model.tc_ax, fill_value="extrapolate", kind="linear"
+            )
+            theta0 = mu0_to_theta_func(np.linspace(0, 1, 11)[1:-1])
+
+    else:
+        theta0 = np.radians(np.linspace(0, 90, 19))
+
+    start_points = r0 * np.array([np.sin(theta0), np.cos(theta0)]).T
+    opt = {"density": linedens, "linewidth": 0.5, "color": "w", "arrowsize": 0.7} # "broken_streamlines":True}
+
+    if cavity_region is not None:
+        cavr = interpolate.interpn(
+            (model.rc_ax / nc.au, model.tc_ax),
+            np.squeeze(cavity_region),
+            newgrid,
+            bounds_error=False,
+            fill_value=None,
+        )
+        cavr = cavr > 0.8
+        opt = {"density": linedens, "linewidth": 0.5, "arrowsize": 0.7} # "broken_streamlines":True}
+        norm = mc.BoundaryNorm(boundaries=[0, 0.5, 1], ncolors=128)
+        plt.streamplot(xau, yau, vR, vz, color=cavr, norm=norm, cmap=plt.get_cmap("gist_gray_r"), start_points=start_points, **opt)
+    else:
+        plt.streamplot(xau, yau, vR, vz, start_points=start_points, **opt)
+"""
 
 #def add_trajectories(model, r0_au=None, theta0_deg=[30], save=False, teval_yr=None, streamlines=None, method="RK23", **options):
 def add_trajectories(model, streamlines=None, **options):
@@ -484,7 +562,7 @@ def add_mass_estimate_plot(
         return txt
 
 
-def get_coord_ipeak(xau, vkms, Ipv, mode="quadrant"): # --> (xau, vkms) or None
+def get_coord_ipeak(xau, vkms, Ipv, mode="quadrant", quadrant="vmax"): # --> (xau, vkms) or None
     peaks = peak_local_max(Ipv, threshold_rel=0.7)
     if len(peaks) == 0:
         # imaxpeak, jmaxpeak = np.unravel_index(np.argmax(Ipv), Ipv.shape)
@@ -495,22 +573,29 @@ def get_coord_ipeak(xau, vkms, Ipv, mode="quadrant"): # --> (xau, vkms) or None
     if mode=="quadrant":
         xx, vv = np.meshgrid(xau, vkms, indexing="ij")
         print("get_coord_vmax for get quadrant")
-        x_vmax, v_vmax = get_coord_vmax2(xau, vkms, Ipv, 0.7*np.max(Ipv) )
-        print("Vmax (x,V) = ",x_vmax, v_vmax)
-        quadrant = get_quadrant(x_vmax, v_vmax)
-        print("quadrant is ", quadrant)
-        if quadrant == 1:
+        if isinstance(quadrant, int):
+            quadr = quadrant
+        elif quadrant == "vmax":
+            x_vmax, v_vmax = get_coord_vmax2(xau, vkms, Ipv, 0.7*np.max(Ipv) )
+            print("(x,V) at Vmax = ",x_vmax, v_vmax)
+            quadr = get_quadrant(x_vmax, v_vmax)
+        elif quadrant == "-vmax":
+            x_vmax, v_vmax = get_coord_vmax2(xau, vkms, Ipv, 0.7*np.max(Ipv) )
+            print("(x,V) at -Vmax = ", -x_vmax, -v_vmax)
+            quadr = get_quadrant(-x_vmax, -v_vmax)
+
+        print("quadrant is ", quadr)
+        if quadr == 1:
             cond = (xx > 0) & (vv > 0)
-        elif quadrant == 2:
+        elif quadr == 2:
             cond = (xx < 0) & (vv > 0)
-        elif quadrant == 3:
+        elif quadr == 3:
             cond = (xx < 0) & (vv < 0)
-        elif quadrant == 4:
+        elif quadr == 4:
             cond = (xx > 0) & (vv < 0)
         _Ipv = np.where(cond, Ipv, 0)
     elif mode =="max":
         _Ipv = Ipv
-
 
     ipeak, jpeak = np.unravel_index(np.argmax(_Ipv), _Ipv.shape)
     xau_peak = xau[ipeak]
@@ -529,6 +614,88 @@ def get_coord_ipeak(xau, vkms, Ipv, mode="quadrant"): # --> (xau, vkms) or None
         ],
     )
     return res.x[0], res.x[1]
+
+class Peak:
+    def __init__(self, peakvalue, *coords):
+        self.value = peakvalue
+        for i, coord in enumerate(coords):
+            setattr(self, f"x{i+1}", coord)
+        self.num_coord = len(coords)
+
+    def __str__(self):
+        coords = [getattr(self, f"x{i+1}") for i in range(self.num_coord)]
+        coord_str = ", ".join([ f"x{i+1}={coord}" for i,coord in enumerate(coords)])
+        return f"Peak(value={self.value}, {coord_str})"
+
+    def __repr__(self):
+        return self.__str__()
+
+#def get_coord_ipeaks(xau, vkms, Ipv, mode="quadrant", quadrant="vmax", num_peaks=1, **kwargs):
+#def get_coord_ipeaks(xau, vkms, Ipv, num_peak_level=1, quadr=None, **kwargs):
+#def get_subgrid_peak_coords(xau, vkms, Ipv, num_peak_level=1, quadr=None, **kwargs):
+def get_subgrid_peaks(xau, vkms, Ipv, num_peak_level=1, rtol=1e-4, quadr=None, **kwargs):
+    interpfun = interpolate.RectBivariateSpline(xau, vkms, Ipv)
+    dx = xau[1] - xau[0]
+    dv = vkms[1] - vkms[0]
+    peak_local_max_opt = {"threshold_rel":0.7, "num_peaks": 4, "min_distance": 4}
+    peak_local_max_opt.update(kwargs)
+    coords_peak = peak_local_max(Ipv, indices=True, **peak_local_max_opt)
+    if len(coords_peak) == 0:
+        return None
+
+    if quadr is not None:
+        if isinstance(quadr, int):
+            _quadr = quadr
+        elif quadr == "vmax":
+            x_vmax, v_vmax = get_coord_vmax2(xau, vkms, Ipv, 0.7*np.max(Ipv))
+            _quadr = get_quadrant(x_vmax, v_vmax)
+        elif quadr == "-vmax":
+            x_vmax, v_vmax = get_coord_vmax2(xau, vkms, Ipv, 0.7*np.max(Ipv) )
+            _quadr = get_quadrant(-x_vmax, -v_vmax)
+        print(f"quadrant is {_quadr} (input:{quadr})")
+        xx, vv = np.meshgrid(xau, vkms, indexing="ij")
+        if quadr == 1:
+            _Ipv = np.where((xx >= 0) & (vv >= 0), Ipv, 0)
+        elif quadr == 2:
+            _Ipv = np.where((xx < 0) & (vv >= 0), Ipv, 0)
+        elif quadr == 3:
+            _Ipv = np.where((xx < 0) & (vv < 0), Ipv, 0)
+        elif quadr == 4:
+            _Ipv = np.where((xx >= 0) & (vv < 0), Ipv, 0)
+    else:
+        _Ipv = Ipv
+
+    def find_subgrid_peak(coord_ini):
+        xau_peak = xau[coord_ini[0]]
+        vkms_peak = vkms[coord_ini[1]]
+        res = optimize.minimize(
+            lambda x: 1. / interpfun(x[0], x[1])[0, 0],
+            coord_ini,
+            bounds=[(xau_peak - dx, xau_peak + dx),
+                    (vkms_peak - dv, vkms_peak + dv)],
+        )
+        return res.x
+
+    peak_subgrid_coords = np.array([find_subgrid_peak(coord) for coord in coords_peak])
+    peaks = [Peak(interpfun(*coord), *coord) for coord in peak_subgrid_coords]
+    peaks = sorted(peaks, key=lambda x: x.value)[::-1]
+    result = []
+    peak_list = [peaks[0]]
+
+    for _peak in peaks[1:]:
+        if (len(peak_list) == 0) or np.abs(_peak.value - peak_list[0].value) < rtol * peak_list[0].value:  # rtol
+            peak_list.append(_peak)
+        else:
+            result.append(peak_list)
+            peak_list = [_peak]
+            if len(result) == num_peak_level:
+                break
+    else:
+        result.append(peak_list)
+
+    return result
+
+
 def get_coord_vmax2(xau, vkms, Ipv, Icrit, quadrant=None):
 #    _Ipv = np.where( Ipv == Ipv, Ipv, 0)
 #    _Ipv = np.where( Ipv >= 0.0, Ipv, 0)
@@ -625,4 +792,4 @@ def savefig(filename):
     filepath = os.path.join(gpath.fig_dir, filename)
     plt.savefig(filepath) # if backend error occurs, please add matplotlib.use('Agg') somewhere
     print("saved ", filepath)
-    plt.clf() 
+    plt.clf()

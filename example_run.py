@@ -6,10 +6,10 @@ import envos
 def main():
     config = envos.Config(
         run_dir="./run",
-        n_thread=1,
+        n_thread=10,
         rau_in=10,
         rau_out=1000,
-        dr_to_r=0.1,
+        dr_to_r=0.05,
         aspect_ratio=1,
         CR_au=100,
         Ms_Msun=0.3,
@@ -83,12 +83,12 @@ def main():
     # you can read the data as:
     #   odat = envos.read_obsdata("run/lineobs.pkl")
 
-    PV = odat.get_PV_map(pangle_deg=0)
-    print(PV)
+    pv = odat.get_pv_map(pangle_deg=0)
+    print(pv)
 
     # To visualize the PV diagram, one can use "envos.plot_tools"
     # which provide functions to plot results.
-    envos.plot_tools.plot_pvdiagram(PV)
+    envos.plot_tools.plot_pvdiagram(pv)
 
 
 if __name__ == "__main__":
