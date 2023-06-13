@@ -11,18 +11,32 @@ from envos import gpath
 @dataclass
 class Config:
     """
-    The Config class contains parameters for the simulation run.
-    When one needs to change a parameter,
-    one can directly change it in the configure instance.
+    The Config class contains parameters for the simulation run, 
+    which controll the behavior of the simulation:
+    >>> config = Config(run_dir="./run", nr=100, ntheta=100, ...)
+    
+    One can also get an instance in which some parameters are changed, by using the `replaced` method.
+    >>> config = Config()
+    >>> config.replaced(Ms_Msun=0.5, run_dir="./run_Ms0.5")
+    Note: the `replaced` method does not change the original instance, but returns a new instance.
+
+
+    To see what parameters are available, use the `print` method:
+    >>> print(config)
+
+    
 
     Parameters
     ----------
+
     General Parameters
     ------------------
     storage_dir : str, default=None
-        Path for storing the results.
+        Path where "input files" are stored,
+        which are like *_dustkappa.inp and *_moldata.inp.
     run_dir : str, default=None
-        Path where the run files are stored.
+        Path where the run files are stored,
+        which contains fig dir, radmc dir, and log file.
     fig_dir : str, default=None
         Path where the figures are stored.
     radmc_dir : str, default=None
@@ -30,26 +44,38 @@ class Config:
     logfile : str, default=None
         Path where the log file is stored.
     level_stdout : str, default=None
-        The logging level for the standard output, can be "DEBUG", "INFO", "WARNING", "ERROR", or "CRITICAL".
+        The logging level for the standard output, 
+        can be "DEBUG", "INFO", "WARNING", "ERROR", or "CRITICAL".
     level_logfile : str, default=None
-        The logging level for the log file, can be "DEBUG", "INFO", "WARNING", "ERROR", or "CRITICAL".
+        The logging level for the log file, 
+        can be "DEBUG", "INFO", "WARNING", "ERROR", or "CRITICAL".
     n_thread : int, default=1
         Number of threads used for the simulation.
+        n > 1 use OpenMP parallelization for calculating the dust temperature and synthetic observations.
 
     Grid Parameters
     ---------------
+    The coordinates are in spherical coordinates (r, θ, φ).
+    One has two choice to specify the grid:
+    1. Specify the cell interfaces ax list-like objects, i.e., the coordinates of the cell boundaries.
+    2. Specify the grid parameters, e.g., the number of cells in each direction, and the boundaries of the grid.
+
+    1. Arguments for specifying the cell interfaces:
     ri_ax : list, default=None
         List of radial coordinates of cell interfaces.
+        e.g., ri_ax = [0, 1, 2, 3] means there are 3 cells with r at cell center = 0.5, 1.5, 2.5.
     ti_ax : list, default=None
         List of θ coordinates of cell interfaces.
     pi_ax : list, default=None
         List of φ coordinates of cell interfaces.
+
+    2. Arguments for specifying the grid parameters:
     rau_in : float, default=10
-        Inner r-boundary in au.
+        Inner r-boundary in au. 
     rau_out : float, default=1000
-        Outer r-boundary in au.
+        Outer r-boundary in au. 
     theta_in : float, default=0
-        Inner θ-boundary in radians (from z-axis).
+        Inner θ-boundary in radians (from z-axis). 
     theta_out : float, default=np.pi / 2
         Outer θ-boundary in radians (from z-axis).
     phi_in : float, default=0
@@ -65,38 +91,51 @@ class Config:
     dr_to_r : float, default=None
         Ratio of cell width to cell r coordinate.
     aspect_ratio : float, default=1.0
-        Aspect ratio of the grid.
+        Aspect ratio of dr to rdθ, asspect_ratio = dr/rdθ.
     logr : bool, default=True
-        If True, use logarithmic scaling for radius.
+        If True, use logarithmic scaling for radial direction.
     ringhost : bool, default=False
-        If True, use ghost cells for inner radius.
+        If True, use ghostt cells exrapolated from the innermost cell for the inner boundary.
 
     Model Parameters
     ----------------
+    One specifies the model parameters by giving three parameters from the following lists:
+    [T or Mdot_smpy], [Ms_Msun or t_yr or rexp_au], and [Omega or CR_au or jmid]
+
     T : float, default=None
-        Temperature, in K.
+        Temperature of the cloud core, in K.
     CR_au : float, default=None
-        Centrifugal radius, in au.
+        Centrifugal radius, in au. Rigid rotating cloud core is assumed. 
     Ms_Msun : float, default=None
-        Stellar mass, in Solar mass.
+        Stellar mass, in Solar mass. 
     t_yr : float, default=None
-        Time in years.
+        Time after the beginning of the collapse of the cloud core, in years.
     Omega : float, default=None
-        Angular velocity of the cloud core, in rad s^-1.
+        Angular velocity of the rigid rotating cloud core, in rad s^-1.
     jmid : float, default=None
         Midplane specific angular momentum of the cloud core, in cm^2 s^-1.
     rexp_au : float, default=None
         Radius of expansion surface in the collapsing cloud radius, in au.
     Mdot_smpy : float, default=None
         Mass accretion rate, in Solar mass per year.
+
     meanmolw : float, default=2.3
         Mean molecular weight, in atomic mass units.
     cavangle_deg : float, default=0
         Cavity angle, in degrees.
     inenv : str, default="UCM"
         Inner envelope model. Options are "UCM", "Simple".
+        UCM is a ballistic infall model, 
+            Ulrich, 1976, ApJ, 210, 377.
+            Cassen & Moosman, 1981, Icarus, 48, 353.
+        Simple is a "flat" ballistic infall model, 
+            Sakai, et al., 2014, Nature, 507, 78.
+            Oya, et al., 2014, ApJ, 795, 152.
+            Oya, et al, 2022, PASP, 134, 094301.
     outenv : str, default=None
-        Outer envelope model. Options are "TMC", None (=extrapolate inner envelope).
+        Outer envelope model. Options are "TSC", None (=extrapolate inner envelope).
+        TSC is a model of a rotating collapsing cloud core
+            Terebey, Shu, & Cassen, 1984, ApJ, 286, 529.
     disk : str, default=None
         Disk model. Options are "exptail" (exponential-tail disk).
         The detail configuration can be set by `disk_config`
@@ -104,6 +143,7 @@ class Config:
         If True, the rotation is counterclockwise.
     disk_config : dict, default=None
         Dictionary containing additional disk configuration.
+        Please refer to the arguments used in `disk_model` for the detail, models.py.
 
     RADMC-3D Parameters
     -------------------
@@ -112,7 +152,7 @@ class Config:
     f_dg : float, default=0.01
         Dust to gas ratio.
     opac : str, default="silicate"
-        Dust opacity model.
+        Name of the dust opacity table.
     Lstar_Lsun : float, default=1.0
         Stellar luminosity, in Solar luminosity.
     mfrac_H2 : float, default=0.74
@@ -120,28 +160,30 @@ class Config:
     Rstar_Rsun : float, default=4.0
         Stellar radius in Solar radii.
     molname : str, default="c18o"
-        Name of the molecule.
+        Name of the molecular line table.
     molabun : float, default=<unknown>
         Molecular abundance.
     iline : int, default=3
         Line transition index.
     scattering_mode_max : int, default=0
-        Scattering mode maximum. Options are 0 (isotropic), 1 (anisotropic), and 2 (coherent backscattering).
+        Scattering mode maximum. If 1, isotropic scattering is enabled.
     mc_scat_maxtauabs : float, default=10.0
-        Maximum optical depth for absorption in Monte Carlo simulations.
+        Maximum optical depth for absorption in Monte Carlo radiative transfer.
     tgas_eq_tdust : bool, default=True
         If True, the gas temperature equals the dust temperature.
     lineobs_option : str, default=""
         Line observation options used in RADMC-3D.
     modified_random_walk : int, default=0
-        Modified random walk method. Options are 0 (disabled) and 1 (enabled).
+        Modified random walk method. 
+        Options are 0 (disabled) and 1 (enabled).
     nonlte : int, default=0
-        Non-LTE level population calculation. Options are 0 (LTE) and 1 (Non-LTE). **Not tested**
+        Non-LTE level population calculation. 
+        Options are 0 (LTE) and 1 (Non-LTE). **Not tested**
 
     Observation Parameters
     ----------------------
     dpc : float, default=100
-        Distance to the object, in parsecs.
+        Distance to the object from an observer, in pc.
     size_au : float, default=1000
         Size of the image, in au.
     sizex_au : float, default=None
@@ -217,7 +259,7 @@ class Config:
     meanmolw: float = 2.3
     cavangle_deg: float = 0
     inenv: str = "UCM"  # {"UCM", "Simple"}
-    outenv: str = None
+    outenv: str = None # {"TSC"}
     disk: str = None  # {"exptail"}
     rot_ccw: bool = False
     # usr_density_func: Callable = None
