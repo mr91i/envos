@@ -8,9 +8,6 @@ I really welcome improvements and requests from users.
 
 ## 2. Features
 
-## Key Features of `envos`
-
-
 1. **Flexible Model Generation**: `envos` enables users to generate models based on built-in models or numerical simulation data. The built-in models are available for each of the three regions, where the chosen models are combined into a physical model:
    - **Inner Envelope**: The Ulrich-Cassen-Moosman (UCM) model, a solution for the collapse of a rotating isothermal cloud core, based on the ballistic model of Ulrich (1976).
    - **Outer Envelope**: The Terebey-Shu-Cassen (TSC) model, which represents a self-similar solution of an isothermal sphere collapsing under its own gravity.
