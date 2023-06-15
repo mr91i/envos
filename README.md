@@ -7,10 +7,44 @@ This code executes synthetic observation by calculating physical model of young 
 I really welcome improvements and requests from users. 
 
 ## 2. Features
+
+1. **Flexible Model Generation**: `envos` enables users to generate models based on either built-in models or numerical simulation data. Users can choose the buil-in models for each regions:
+   - **Inner Envelope**: The Ulrich-Cassen-Moosman (UCM) model, a solution for the collapse of a rotating, isothermal cloud core, based on the ballistic model of Ulrich (1976).
+   - **Outer Envelope**: The Terebey-Shu-Cassen (TSC) model, which represents a self-similar solution of a rotating isothermal sphere collapsing inside-out.
+   - **Disk**:  power-law plus exponential-tail model, capable of representing a protoplanetary disk with specified mass, outer radius, scale height, and temperature.
+    Users also have the option to input their own kinematic data for more customized model generation.
+
+2. **Consistent Temperature Structure Calculation**: `envos` calculates the temperature structure in a manner consistent with the provided density structure, ensuring self-consistency in the physical conditions of the model.
+
+3. **RADMC-3D Integration**: `envos` facilitates easy utilization of RADMC-3D for thermal structure calculation and synthetic observations, providing a seamless workflow from model generation to observational simulation.
+
+4. **Model Analysis**: `envos` offers tools for model analysis, including:
+   - **Streamlines**: `envos` can generate physical quantities along streamlines, lines that are tangent to the velocity field at every point, aiding in the visualization of material flow within the model.
+   - **Column Density**: `envos` can calculate the column density in various directions (r-, θ-, z-direction). Column density, a measure of the amount of material along a line of sight, is a crucial aspect of observational astronomy.
+
+5. **Observational Simulation**: `envos` provides user-friendly tools for performing observational simulations. These tools can simulate images, spectral line profiles, and position-velocity diagrams, while accounting for the effects of telescope beam size and observational noise.
+
+6. **Cube Data Analysis**: `envos` offers tools for analyzing cube data, including the calculation of data correlation, a measure of the similarity between two data sets. This can be particularly useful when comparing simulated observations with actual observations.
+
+7. **Easy Configuration Management**: `envos` employs a user-friendly configuration system for easy management of parameters, enabling users to conveniently set up and modify their simulations.
+
+8. **Multi-Core Processing**: `envos` is designed to leverage multi-core processing using OpenMP, allowing for efficient computation by parallelizing tasks and distributing them across multiple cores. This feature significantly accelerates the simulation and analysis processes, especially for large and complex models.
+
+9. **Plotting Tools**: `envos` provides a comprehensive set of plotting tools for visualizing models and observation data. These tools can plot gas temperature, density, and velocity profiles, as well as observational outputs such as images and spectral line profiles.
+
+10. **Python 3 Support**: All source codes in `envos` are written in Python 3 (version 3.6 or later), ensuring accessibility to a wide range of users and compatibility with modern Python environments.
+
+
+
+
+
+<!--
+
 - Density and velocity structures are calculated by a balistic model of Ulrich (1976), or one can input own kinematic data.  
 - Temperature structure is calculated consistently with the density structure given by user.
 - Calculation of temperature structure and sysnthetic observation is done by RADMC-3D (Dullemond et al. 2012; website: [https://www.ita.uni-heidelberg.de/~dullemond/software/radmc-3d/](https://www.ita.uni-heidelberg.de/~dullemond/software/radmc-3d/); github: [https://github.com/dullemond/radmc3d-2.0](https://github.com/dullemond/radmc3d-2.0)), which is commonly used in astronomical studies.
 - All source codes are written in Python3 (ver. >= 3.6). 
+-->
 
 ## 3. Requirements
 - Python packages
