@@ -263,14 +263,14 @@ The position angle of the camera, in degrees.
 ## 7. Functions/Classes
 -->
 
-## 7.Input Files
+## 7. Input Files
 
 `envos` requires the input files to execute RADMC-3D: dust opacity and molecular line.
 The input files are expected to be located in `storage` directory. We here produce some exapmples 
 of the input files for RADMC-3D, in order to skip the time-consuming process of gathering the input
 files. However, if you use these files, please do not forget to cite the original papers.
 
-###Dust Opacity:
+### 7.1 Dust Opacity:
 dustkappa_silicate.inp is taken from the default opacity table used in RADMC-3D. 
 This is for Amorphous Olivine with 50% Mg and 50% Fe
 Please do not forget to cite in your publications the original paper of these optical constant measurements:
@@ -291,7 +291,7 @@ In addition, please do not forget to cite in your publications the original pape
 *Warren, S. G., & Brandt, R. E. 2008, Journal of Geophysical Research (Atmospheres), 113, D14220.*
 Plese see *Birnstiel et al. 2018* for the detail.
 
-###Molecular line:
+### 7.2 Molecular line:
 molecule_c18o.inp and molecule_c3h2.inp are taken from *LAMDA* (Leiden Atomic and Molecular Database; 
 https://home.strw.leidenuniv.nl/~moldata/). When you use this data and the database, please follow the citation 
 rule decribed in LAMDA webpage.
