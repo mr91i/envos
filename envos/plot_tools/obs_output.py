@@ -307,7 +307,6 @@ def plot_pvdiagram(
         _cmap = plt.get_cmap("cividis")
         _norm = mc.Normalize(vmin=lvs[0], vmax=lvs[-1])
 
-    print("Shape of parsed pvd:" , xx.shape, yy.shape, Ipv.shape)
 
     img = plt.pcolormesh(
         xx,
@@ -353,7 +352,7 @@ def plot_pvdiagram(
     ticks = np.linspace(lvs[0], lvs[-1], n_lv + 1)
     cbar.set_ticks(ticks)
     cbar.ax.minorticks_off()
-    cbar.ax.yaxis.set_major_formatter(mt.FormatStrFormatter("%.2f"))
+    cbar.ax.yaxis.set_major_formatter(mt.FormatStrFormatter("%.2g"))
     ax = plt.gca()
     pfun.draw_center_line()
     ax.tick_params(direction="inout")
@@ -378,7 +377,7 @@ def plot_pvdiagram(
             zorder=4,
         )
 
-        peaks = get_subgrid_peaks(xau, vkms, Ipv, num_peak_level=1, rtol=0.01)
+        peaks = pfun.get_subgrid_peaks(xau, vkms, Ipv, num_peak_level=1, rtol=0.01)
         for peak in peaks[0]:
             #plt.scatter(coord_peak[0], coord_peak[1], s=15, alpha=0.9, linewidth=1, c=c, ec=None, zorder=4)
             plt.scatter(peak.x1, peak.x2, s=15, alpha=0.9, linewidth=1, c=c, ec=None, zorder=4)
@@ -405,7 +404,7 @@ def plot_pvdiagram(
             corner_mask=False,
             zorder=5,
         )
-        peaks = get_subgrid_peaks(refpv.xau, refpv.vkms, refpv.Ipv, num_peak_level=1, rtol=0.01)
+        peaks = pfun.get_subgrid_peaks(refpv.xau, refpv.vkms, refpv.Ipv, num_peak_level=1, rtol=0.01)
         for peak in peaks[0]:
             plt.scatter(peak.x1, peak.x2, s=12, alpha=0.9, linewidth=1, c=c, fc=c, ec=None, zorder=5)
 

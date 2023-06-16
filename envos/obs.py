@@ -532,8 +532,8 @@ class Convolver:
         else:
             raise Exception("Unknown data.image shape: ", image.shape)
 
-        logger.info("Kernel shape is %s", Kernel.shape)
-        logger.info("Image shape is %s", image.shape)
+        logger.debug("Kernel shape is %s", Kernel.shape)
+        logger.debug("Image shape is %s", image.shape)
 
         if self.mode == "normal":
             return aconv.convolve(image, Kernel)

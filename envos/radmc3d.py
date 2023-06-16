@@ -177,11 +177,12 @@ class RadmcController:
             "mc_scat_maxtauabs": self.mc_scat_maxtauabs,
             "tgas_eq_tdust": int(self.tgas_eq_tdust),
             "modified_random_walk": int(self.modified_random_walk),
-            # "camera_maxdphi": 0.0,
-            # "camera_refine_criterion": 0.7,
+            #"camera_maxdphi": 0.001,
+            #"camera_nrrefine": 100,
+            #"camera_refine_criterion": 0.1,
             # "camera_min_drr":0.001,
-            # "camera_min_dangle":0.0001,
-            # "camera_max_dangle": 0.001,
+            #"camera_min_dangle": 0.0001,
+            #"camera_max_dangle": 0.001,
             # "optimized_motion":1,
             # "camera_spher_cavity_relres":0.01,
             # "camera_diagnostics_subpix": 1,
@@ -377,7 +378,7 @@ class RadmcController:
         tools.shell(
             f"radmc3d mctherm setthreads {self.n_thread}",
             cwd=self.radmc_dir,
-            error_keyword="ERROR",
+            error_keyword=["ERROR", "STOP"],
             log_prefix="    ",
         )
 

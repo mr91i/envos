@@ -7,10 +7,43 @@ This code executes synthetic observation by calculating physical model of young 
 I really welcome improvements and requests from users. 
 
 ## 2. Features
+
+1. **Flexible Model Generation**: `envos` enables users to generate models based on built-in models or numerical simulation data. The built-in models are available for each of the three regions, where the chosen models are combined into a physical model:
+   - **Inner Envelope**: The Ulrich-Cassen-Moosman (UCM) model, a solution for the collapse of a rotating isothermal cloud core, based on the ballistic model of Ulrich (1976).
+   - **Outer Envelope**: The Terebey-Shu-Cassen (TSC) model, which represents a self-similar solution of an isothermal sphere collapsing under its own gravity.
+   - **Disk**: A power-law plus exponential-tail model, capable of representing a protoplanetary disk with specified mass, outer radius, scale height, and temperature.
+
+2. **Consistent Temperature Structure**: `envos` calculates the temperature structure in a manner consistent with the provided density structure by using RADMC-3D (Dullemond et al. 2012; website: [https://www.ita.uni-heidelberg.de/~dullemond/software/radmc-3d/](https://www.ita.uni-heidelberg.de/~dullemond/software/radmc-3d/); github: [https://github.com/dullemond/radmc3d-2.0](https://github.com/dullemond/radmc3d-2.0)).
+
+3. **Model Analysis**: `envos` offers tools for model analysis, in addition to usual physical structures, including:
+   - **Column Density**: `envos` can calculate the column density in various directions (r-, θ-, z-direction, for now). Column density, a measure of the amount of material along a line of sight, is useful to compute optical depths.
+   - **Streamlines**: `envos` can generate physical quantities along streamlines and visualize of the sreamlines in the model.
+
+4. **Observational Simulation**: `envos` provides user-friendly tools for performing observational simulations via the RADMC-3D ray-tracing mode, which produces cube data (2 axes of a observational view and 1 axis of a line-of-sight velocity) in general, accounting for the effects of telescope beam size and finte resolution in the velocity. 
+
+5. **Observation Data Analysis**: `envos` provides ways to analyse cube data obtained from simulated observations.
+   - **Data Stacking and Slicing**: `envos` can generate integral intensity data, position-velocity data, and line profile data.
+   - **Data Correlation**: `envos` can calculate data correlation between two observational data, a measure of the similarity between two data sets. This is particularly useful when comparing simulated and actual observations.
+
+6. **Easy Configuration Management**: `envos` employs a user-friendly configuration system for easy management of parameters, enabling users to conveniently set up and modify their simulations.
+
+7. **Multi-Core Processing**: `envos` is designed to leverage multi-core processing using OpenMP, allowing for efficient computation by parallelizing tasks and distributing them across multiple cores. This feature significantly accelerates the simulation and analysis processes, especially for large and complex models.
+
+8. **Plotting Tools**: `envos` provides a comprehensive set of plotting tools for visualizing models and observation data. These tools can plot gas temperature, density, and velocity profiles, as well as observational outputs such as images and spectral line profiles.
+
+9. **Python 3 Support**: All source codes in `envos` are written in Python 3 (version 3.6 or later), ensuring accessibility to a wide range of users and compatibility with modern Python environments.
+
+
+
+
+
+<!--
+
 - Density and velocity structures are calculated by a balistic model of Ulrich (1976), or one can input own kinematic data.  
 - Temperature structure is calculated consistently with the density structure given by user.
 - Calculation of temperature structure and sysnthetic observation is done by RADMC-3D (Dullemond et al. 2012; website: [https://www.ita.uni-heidelberg.de/~dullemond/software/radmc-3d/](https://www.ita.uni-heidelberg.de/~dullemond/software/radmc-3d/); github: [https://github.com/dullemond/radmc3d-2.0](https://github.com/dullemond/radmc3d-2.0)), which is commonly used in astronomical studies.
 - All source codes are written in Python3 (ver. >= 3.6). 
+-->
 
 ## 3. Requirements
 - Python packages
@@ -230,37 +263,35 @@ The position angle of the camera, in degrees.
 ## 7. Functions/Classes
 -->
 
-## 7.Input Files
+## 7. Input Files
 
 `envos` requires the input files to execute RADMC-3D: dust opacity and molecular line.
 The input files are expected to be located in `storage` directory. We here produce some exapmples 
 of the input files for RADMC-3D, in order to skip the time-consuming process of gathering the input
 files. However, if you use these files, please do not forget to cite the original papers.
 
-###Dust Opacity:
+### 7.1 Dust Opacity:
 dustkappa_silicate.inp is taken from the default opacity table used in RADMC-3D. 
 This is for Amorphous Olivine with 50% Mg and 50% Fe
 Please do not forget to cite in your publications the original paper of these optical constant measurements:
-- Jaeger, Mutschke, Begemann, Dorschner, Henning (1994) A&A 292, 641-655.
-- Dorschner, Begemann, Henning, Jaeger, Mutschke (1995) A&A 300, 503-520.
-File was made with the makedustopac.py code by Cornelis Dullemond using the bhmie.py Mie code of Bohren and 
-Huffman (python version by Cornelis Dullemond, from original bhmie.f code by Bruce Draine)
+*Jaeger, Mutschke, Begemann, Dorschner, Henning (1994) A&A 292, 641-655;*
+*Dorschner, Begemann, Henning, Jaeger, Mutschke (1995) A&A 300, 503-520.*
+File was made with the makedustopac.py code by Cornelis Dullemond using the bhmie.py Mie code of *Bohren and 
+Huffman* (python version by *Cornelis Dullemond*, from original bhmie.f code by *Bruce Draine*)
 Prameter: Grain size =  1.000000e-05 cm; Material density =  3.710 g/cm^3
 
 dustkapp_MRN20.inp is calculated by dsharp_opac (https://github.com/birnstiel/dsharp_opac), 
-which is developed by T. Birnstiel. The ice fraction is 20 wt%; the dust size distribution follows,  
-- Mathis, Rumpl, Nordsieck, The Astrophysical Journal, Vol. 217, p. 425-433 (1977). 
+which is developed by *Tilman Birnstiel*. The ice fraction is 20 wt%; the dust size distribution follows,  
+*Mathis, Rumpl, Nordsieck, ApJ, Vol. 217, p. 425-433 (1977)*. 
 When you use the table, please cite: 
-- Birnstiel, T., Dullemond, C. P., Zhu, Z., et al. 2018, ApJL, 869, L45.
+*Birnstiel, T., Dullemond, C. P., Zhu, Z., et al. 2018, ApJL, 869, L45*.
 In addition, please do not forget to cite in your publications the original paper of these optical constant measurements:
-- Henning, T., & Stognienko, R. 1996, A&A, 311, 291.
-- Draine, B. T. 2003, ApJ, 598, 1017.
-- Warren, S. G., & Brandt, R. E. 2008, Journal of Geophysical Research (Atmospheres), 113, D14220.
-Plese see Birnstiel et al. 2018 for the detail.
+*Henning, T., & Stognienko, R. 1996, A&A, 311, 291;*
+*Draine, B. T. 2003, ApJ, 598, 1017;*
+*Warren, S. G., & Brandt, R. E. 2008, Journal of Geophysical Research (Atmospheres), 113, D14220.*
+Plese see *Birnstiel et al. 2018* for the detail.
 
-###Molecular line:
-molecule_c18o.inp and molecule_c3h2.inp are taken from LAMDA (Leiden Atomic and Molecular Database; 
+### 7.2 Molecular line:
+molecule_c18o.inp and molecule_c3h2.inp are taken from *LAMDA* (Leiden Atomic and Molecular Database; 
 https://home.strw.leidenuniv.nl/~moldata/). When you use this data and the database, please follow the citation 
 rule decribed in LAMDA webpage.
-
-

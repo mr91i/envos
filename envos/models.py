@@ -236,7 +236,7 @@ class CassenMoosmanInnerEnvelope(ModelBase):
         zeta = CR / self.rr
         self.mu0 = csol(np.cos(self.tt), zeta).astype(float)
         sin0 = np.sqrt(1 - self.mu0**2)
-        sin = np.sin
+        sin = np.sin(self.tt)
         mu_to_mu0 = 1 - zeta * sin0**2
         v0 = np.sqrt(G * Ms / self.rr)
         self.vr = -v0 * np.sqrt(1 + mu_to_mu0)

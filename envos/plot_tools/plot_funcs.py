@@ -7,10 +7,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.colors as mc
 
-try:
-    from skimage.feature import peak_local_max
-except:
-    pass
+from skimage.feature import peak_local_max, corner_peaks
 
 from .. import gpath
 from .. import nconst as nc
@@ -41,6 +38,46 @@ eps = 1e-3
 """
 plotting tools
 """
+
+
+def set_plot_format(
+    xlim=None,
+    ylim=None,
+    xlb=None,
+    ylb=None,
+    legend=False,
+    xlog=False,
+    ylog=False,
+    loglog=False,
+):
+    """
+    Set the plot format.
+
+    Args:
+        xlim: Tuple (xmin, xmax) defining the x-axis limits.
+        ylim: Tuple (ymin, ymax) defining the y-axis limits.
+        xlb: String defining the x-axis label.
+        ylb: String defining the y-axis label.
+        legend: Boolean indicating whether to show the legend.
+        xlog: Boolean indicating whether to use a logarithmic scale for the x-axis.
+        ylog: Boolean indicating whether to use a logarithmic scale for the y-axis.
+        loglog: Boolean indicating whether to use a logarithmic scale for both axes.
+    """
+
+    if xlim is not None:
+        plt.xlim(*xlim)
+    if ylim is not None:
+        plt.ylim(*ylim)
+    if xlb is not None:
+        plt.xlabel(xlb)
+    if ylb is not None:
+        plt.ylabel(ylb)
+    if legend:
+        plt.legend()
+    if xlog or (loglog and not ylog):
+        plt.xscale("log")
+    if ylog or (loglog and not xlog):
+        plt.yscale("log")
 
 
 def interp_grid(X):
@@ -678,9 +715,14 @@ def get_subgrid_peaks(xau, vkms, Ipv, num_peak_level=1, rtol=1e-4, quadr=None, *
     interpfun = interpolate.RectBivariateSpline(xau, vkms, Ipv)
     dx = xau[1] - xau[0]
     dv = vkms[1] - vkms[0]
-    peak_local_max_opt = {"threshold_rel":0.7, "num_peaks": 4, "min_distance": 4}
+    peak_local_max_opt = {"threshold_rel":0.7, "num_peaks": 2, "min_distance": 8}
     peak_local_max_opt.update(kwargs)
-    coords_peak = peak_local_max(Ipv, indices=True, **peak_local_max_opt)
+    #coords_peak = corner_peaks(Ipv, indices=True, **peak_local_max_opt)
+    coords_peak = peak_local_max(Ipv, **peak_local_max_opt)
+    #coords_peak = np.zeros_like(Ipv, dtype=bool)
+    #coords_peak[local_maxi] = True
+
+
     if len(coords_peak) == 0:
         return None
 
