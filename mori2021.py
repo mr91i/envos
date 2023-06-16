@@ -24,11 +24,12 @@ def main(conf):
     #t2=unit2, plot_obspv(conf)
     #do_debug_run(conf)
     #do_parameter_study(conf)
-    do_mori2023(conf)
-    exit()
+    #do_mori2023(conf)
+    #exit()
     #do_pmap_survey_for_mass_estimate(conf)
     #do_pmap_survey_for_cube_correlation(conf)
-    #compare_bestmodel_obspvs(conf)
+    compare_bestmodel_obspvs(conf)
+    exit()
     #do_ring_test(conf)
     do_2region_test(conf)
     #plot_obspv(conf)
@@ -314,7 +315,11 @@ def plot_obspv(conf):
     )
 
 def compare_bestmodel_obspvs(conf):
-    cube = envos.read_obsdata(envos.gpath.home_dir / "run"/ "lobs_fid_best.pkl")
+    synobs(
+        conf.replaced(inenv="Simple", cavangle_deg=80, Ms_Msun=0.158, CR_au=248),
+        filename=f"lobs_Simple_best.pkl",
+    )
+    cube = envos.read_obsdata(envos.gpath.home_dir / "run"/ "lobs_Simple_best.pkl")
     cube.norm_I("max")
     for dpa in [0, 30, 60]:
         pa =  conf.posang + 90 + dpa
@@ -469,7 +474,7 @@ def do_faceon_test():
 # Best fit parameter using interp is M=0.19222588413610658 cr=124.62313207624051: cor=0.37106233039132985
 conf_default = envos.Config(
     run_dir="./run",
-    n_thread=12,
+    n_thread=16,
     rau_in=10,
     rau_out=1000,
     theta_out=np.pi,
