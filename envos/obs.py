@@ -568,6 +568,9 @@ class BaseObsData:
 
     def _reset_positive_axes(self, img, axs):
         for i, ax in enumerate(axs):
+            if not isinstance(ax, (list, np.ndarray)):
+                raise Exception(f"Unexpected ax {i} {ax}")
+
             if (len(ax) >= 2) and (ax[1] < ax[0]):
                 axs[i] = ax[::-1]
                 img = np.flip(img, i)
@@ -959,7 +962,7 @@ class BaseObsData:
 
     def move_position(
         self, center_pos, ax="x", axnum=None, unit="au"
-    ):  # ra=False, decl=False, deg=False, au=False):
+    ):
         deg2au = 3600 * self.dpc
 
         if unit == "ra":
@@ -982,48 +985,31 @@ class BaseObsData:
         elif ax == "v":
             self.vkms -= d
 
-    #     """
-    #     def move_center(self, xyau=None, radecdeg=None, v0_kms=None):
-    #         if xyau is not None:
-    #             self.move_position(xyau[0], "x", "au")
-    #             self.move_position(xyau[1], "y", "au")
-    #             self.refpos.dec0 += xyau[1] * nc.au/nc.pc/self.dpc * 180 / np.pi
-    #             self.refpos.ra0 -= xyau[0] * nc.au/nc.pc/self.dpc/np.cos(self.refpos.dec0) * 180 / np.pi
-    #
-    #         ""
-    #         elif radecdeg is not None:
-    #             self.dec0 -= np.deg2rad( decdeg[0] )
-    #             self.rad0 -= np.deg2rad( decdeg[1] )
-    #             self.dec -= np.deg2rad( decdeg[0] )
-    #             self.rad -= np.deg2rad( decdeg[1] )
-    #             self.calc_radec_to_stdcoord()
-    #         ""
-    #
-    #         if v0_kms is not None:
-    #             self.move_position(v0_kms, "v", "kms")
-    #             #self.vkms -= v0_kms
-    #             # self.freq0 -= *** : freq is not changed here, for now
-    #     """
-
     def set_refpoint(self, ra0, dec0):
         "1. Change the reference point (ra0, dec0)"
         self.refpos.ra0 = ra0
         self.refpos.dec = dec0
 
-    def move_center(self, xy_au=None, to_Imax=False, **kwargs):
+    def move_center(self, *, x_au=None, y_au=None, v_kms=None, x_deg=None, y_deg=None, new_refpos=None, to_Imax=False, **kwargs):
         "2. Change the origin of the coordinate but not change the reference point"
-        if xy_au is not None:
-            self.move_position(xy_au[0], "x", "au")
-            self.move_position(xy_au[1], "y", "au")
-        elif to_Imax:
+        if new_refpos_deg is not None:
+            set_refpoint(self, *new_refpos)
+        if x_au is not None:
+            self.move_position(x_au, "x", "au")
+        if y_au is not None:
+            self.move_position(y_au, "y", "au")
+        if v_kms is not None:
+            self.move_position(v_kms, "v", "kms")
+        if x_deg is not None:
+            self.move_position(x_deg, "x", "deg")
+        if y_deg is not None:
+            self.move_position(y_deg, "y", "deg")
+        if to_Imax:
             pos = self.get_Imax_pos(**kwargs)
             newaxes = []
             for ax, cp in zip(self.get_axes(), pos):
                 newaxes.append(ax - cp)
             self.set_axes(newaxes)
-
-            # self.move_position(xy_au[0], "x", "au")
-            # self.move_position(xy_au[1], "y", "au")
 
     #    def move_radec_pos(self, radec_deg=None):
     #    "3. Change the origin of the coordinate with changing the reference point"
@@ -1594,9 +1580,27 @@ def read_fits(
             origin, n + origin
         )  # pixcoord in python starts from 0 but that in fits from 1 ??
         # ax = wcs.all_pix2world(pixcoord, origin, ra_dec_order=True)[:,axnum-1]
+
+        #print(wcs)
+        #print("Axnum is ", axnum)
         ax = wcs.all_pix2world(pixcoord, origin, ra_dec_order=True)
-        print(ax)
+        _ax = np.array(wcs.pixel_to_world_values(pixcoord))
+        _ax2 = np.array(wcs.array_index_to_world_values(pixcoord))
+        _ax3 = wcs.wcs_pix2world(pixcoord, origin)
+        #print(ax, np.all(ax == _ax))
+        #print(_ax, np.all(ax == _ax))
+        #print(_ax2, np.all(ax == _ax2))
+        #print(_ax3, np.all(ax == _ax3))
+        ax = _ax3[:, axnum - 1]
+        axc =  wcs.wcs_pix2world([centerpix], origin)
+        #print("axc is ", axc)
+
+
+
+
         # ax = wcs.pix2foc(pixcoord, origin)[:,axnum-1]
+        #axc = wcs.wcs_pix2world([centerpix], origin)[:, axnum - 1]
+
         if sub:
             axc = wcs.wcs_pix2world([centerpix], origin)[:, axnum - 1]
             return ax - axc
@@ -1621,9 +1625,7 @@ def read_fits(
         if len(np.shape(data)) != ndim:
             nshape = [i for i in np.shape(data) if i != 1]
             if len(nshape) == ndim:
-                print(data.shape)
                 ndata = np.reshape(data, nshape)
-                print(data.shape)
             else:
                 logger.error(f"Wait, something wrong in the data! nshape = {nshape}")
                 raise Exception
@@ -1713,10 +1715,13 @@ def read_fits(
         ax2 = _get_ax(2, sub=0)  # * _get_lenscale(unit_name=unit2, unit_cm=unit2_fac)
         ax3 = _get_ax(3, sub=0) * _vfac_to_kms(unit_name=unit3, unit_cms=unit3_fac)
         ax3 -= v0_kms
+        print(ax1, ax2, ax3)
+
         data = _data_shape_convert(data, 3)
         if unit1 == "deg":
             radec_deg = (axref[0], axref[1], ax1, ax2)
             # obj = Cube(data, radec_deg=radec_deg, vkms=ax3, dpc=dpc, Iunit=Iunit, freq0=freq0)
+            print(radec_deg )
             obj = Cube(
                 data,
                 radecSIN_deg=radec_deg,
