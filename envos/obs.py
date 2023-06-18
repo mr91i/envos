@@ -963,9 +963,9 @@ class BaseObsData:
         deg2au = 3600 * self.dpc
 
         if unit == "ra":
-            d = self.convert_ra_to_deg(*center_pos) * deg2au
+            d = ra_to_deg(*center_pos) * deg2au
         elif unit == "dec":
-            d = self.convert_decl_to_deg(*center_pos) * deg2au
+            d = dec_to_deg(*center_pos) * deg2au
         elif unit == "deg":
             d = center_pos * deg2au
         elif unit == "au":
